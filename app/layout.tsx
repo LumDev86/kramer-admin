@@ -10,8 +10,14 @@ const nunito = Nunito({
 });
 
 export const metadata: Metadata = {
-  title: 'Admin — Kiosco Kramer',
-  description: 'Panel de administración',
+  title: 'Admin · Kiosco Kramer',
+  description: 'Panel de administración de Kiosco Kramer.',
+  icons: {
+    icon: '/logo.png',
+    apple: '/logo.png',
+    shortcut: '/logo.png',
+  },
+  robots: { index: false, follow: false },
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
