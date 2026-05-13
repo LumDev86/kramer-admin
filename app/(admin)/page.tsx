@@ -100,8 +100,8 @@ function HourSelect({ value, onChange }: { value: number; onChange: (v: number) 
 export default function DashboardPage() {
   const qc = useQueryClient();
 
-  const { data: prodData }   = useQuery({ queryKey: ['products', {}],    queryFn: () => products.getAll({ limit: 1 }) });
-  const { data: catData }    = useQuery({ queryKey: ['categories', {}],  queryFn: () => categories.getAll({ limit: 1 }) });
+  const { data: prodData }   = useQuery({ queryKey: ['products',    { limit: 1 }], queryFn: () => products.getAll({ limit: 1 }) });
+  const { data: catData }    = useQuery({ queryKey: ['categories',  { limit: 1 }], queryFn: () => categories.getAll({ limit: 1 }) });
   const { data: banData }    = useQuery({ queryKey: ['banners'],         queryFn: () => banners.getAll() });
   const { data: storeData, isLoading: loadingConfig } = useQuery({
     queryKey: ['store-config'],
