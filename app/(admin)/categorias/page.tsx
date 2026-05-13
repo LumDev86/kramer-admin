@@ -60,15 +60,17 @@ export default function CategoriasPage() {
               </div>
               <div className="p-3 flex items-center justify-between gap-2">
                 <p className="text-sm font-bold text-gray-800 truncate">{cat.name}</p>
-                <div className="flex gap-1 flex-shrink-0">
+                <div className="flex gap-1 shrink-0">
                   <Link
                     href={`/categorias/${cat.id}/editar`}
+                    aria-label={`Editar ${cat.name}`}
                     className="w-7 h-7 rounded-lg flex items-center justify-center text-gray-400 hover:bg-orange-50 hover:text-orange-500 transition-colors"
                   >
                     <PencilSimple size={14} weight="bold" />
                   </Link>
                   <button
                     onClick={() => setToDelete(cat)}
+                    aria-label={`Eliminar ${cat.name}`}
                     className="w-7 h-7 rounded-lg flex items-center justify-center text-gray-400 hover:bg-red-50 hover:text-red-500 transition-colors"
                   >
                     <Trash size={14} weight="bold" />
