@@ -5,7 +5,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { products, categories, banners, config, StoreScheduleDay } from '@/lib/api';
 import {
   Package, Tag, Image, CheckCircle, XCircle,
-  HourglassMedium, Clock, Check, WhatsappLogo, Bank, IdentificationCard,
+  HourglassMedium, Clock, Check, WhatsappLogo, Bank, IdentificationCard, Copy,
 } from '@phosphor-icons/react';
 
 const DAYS = ['Domingo', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado'];
@@ -115,6 +115,13 @@ export default function DashboardPage() {
   const [statusSaved, setStatusSaved]     = useState(false);
   const [scheduleSaved, setScheduleSaved] = useState(false);
   const [contactSaved, setContactSaved]   = useState(false);
+  const [copiedPreview, setCopiedPreview] = useState<'cbu' | 'alias' | null>(null);
+
+  const handleCopyPreview = (text: string, field: 'cbu' | 'alias') => {
+    navigator.clipboard.writeText(text);
+    setCopiedPreview(field);
+    setTimeout(() => setCopiedPreview(null), 2000);
+  };
 
   useEffect(() => {
     if (storeData) {
@@ -319,6 +326,91 @@ export default function DashboardPage() {
       <div className="bg-white rounded-2xl shadow-sm p-6 flex flex-col gap-5">
         <h2 className="text-base font-extrabold text-gray-700">Datos de contacto y pago</h2>
 
+        {/* Vista previa de datos activos */}
+        {storeData && (storeData.whatsappNumber || storeData.cbu || storeData.alias || storeData.titular) ? (
+          <div className="bg-gray-50 border border-gray-100 rounded-2xl p-4 flex flex-col gap-3">
+            <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Datos activos</p>
+            <div className="grid grid-cols-2 gap-3">
+
+              {storeData.whatsappNumber && (
+                <div className="flex items-center gap-2">
+                  <div className="w-8 h-8 rounded-xl bg-green-100 flex items-center justify-center flex-shrink-0">
+                    <WhatsappLogo size={15} weight="fill" className="text-green-600" />
+                  </div>
+                  <div className="min-w-0">
+                    <p className="text-[10px] text-gray-400 font-semibold">WhatsApp</p>
+                    <p className="text-sm font-bold text-gray-700 truncate">+{storeData.whatsappNumber}</p>
+                  </div>
+                </div>
+              )}
+
+              {storeData.titular && (
+                <div className="flex items-center gap-2">
+                  <div className="w-8 h-8 rounded-xl bg-blue-100 flex items-center justify-center flex-shrink-0">
+                    <IdentificationCard size={15} weight="fill" className="text-blue-500" />
+                  </div>
+                  <div className="min-w-0">
+                    <p className="text-[10px] text-gray-400 font-semibold">Titular</p>
+                    <p className="text-sm font-bold text-gray-700 truncate">{storeData.titular}</p>
+                  </div>
+                </div>
+              )}
+
+              {storeData.cbu && (
+                <div className="flex items-center gap-2">
+                  <div className="w-8 h-8 rounded-xl bg-orange-100 flex items-center justify-center flex-shrink-0">
+                    <Bank size={15} weight="fill" className="text-orange-500" />
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <p className="text-[10px] text-gray-400 font-semibold">CVU / CBU</p>
+                    <div className="flex items-center gap-1">
+                      <p className="text-xs font-mono font-bold text-gray-700 truncate">{storeData.cbu}</p>
+                      <button
+                        type="button"
+                        onClick={() => handleCopyPreview(storeData.cbu!, 'cbu')}
+                        className="flex-shrink-0 text-gray-400 hover:text-orange-500 transition-colors"
+                      >
+                        {copiedPreview === 'cbu'
+                          ? <Check size={12} weight="bold" className="text-green-500" />
+                          : <Copy size={12} weight="bold" />}
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {storeData.alias && (
+                <div className="flex items-center gap-2">
+                  <div className="w-8 h-8 rounded-xl bg-orange-100 flex items-center justify-center flex-shrink-0">
+                    <Bank size={15} weight="fill" className="text-orange-500" />
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <p className="text-[10px] text-gray-400 font-semibold">Alias</p>
+                    <div className="flex items-center gap-1">
+                      <p className="text-xs font-mono font-bold text-gray-700">{storeData.alias}</p>
+                      <button
+                        type="button"
+                        onClick={() => handleCopyPreview(storeData.alias!, 'alias')}
+                        className="flex-shrink-0 text-gray-400 hover:text-orange-500 transition-colors"
+                      >
+                        {copiedPreview === 'alias'
+                          ? <Check size={12} weight="bold" className="text-green-500" />
+                          : <Copy size={12} weight="bold" />}
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+            </div>
+          </div>
+        ) : (
+          <div className="bg-gray-50 border border-dashed border-gray-200 rounded-2xl p-4 text-center">
+            <p className="text-sm text-gray-400 font-medium">No hay datos cargados aún</p>
+          </div>
+        )}
+
+        <p className="text-xs font-bold text-gray-400 uppercase tracking-widest -mb-2">Editar</p>
         <div className="grid grid-cols-2 gap-4">
 
           <div className="flex flex-col gap-1">
