@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Product, products, categories } from '@/lib/api';
 import ImageUpload from '@/components/ui/ImageUpload';
 import UnitSelector from '@/components/ui/UnitSelector';
@@ -14,6 +14,7 @@ interface Props {
 
 export default function ProductForm({ product }: Props) {
   const router = useRouter();
+  const qc = useQueryClient();
   const isEdit = !!product;
 
   const [form, setForm] = useState({
@@ -53,8 +54,8 @@ export default function ProductForm({ product }: Props) {
       } else {
         await products.create(fd);
       }
+      qc.invalidateQueries({ queryKey: ['products'] });
       router.push('/productos');
-      router.refresh();
     } catch (err: any) {
       setError(err.message ?? 'Error al guardar');
     } finally {

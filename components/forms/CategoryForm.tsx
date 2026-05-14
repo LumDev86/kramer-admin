@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
+import { useQueryClient } from '@tanstack/react-query';
 import { Category, categories } from '@/lib/api';
 import ImageUpload from '@/components/ui/ImageUpload';
 
@@ -11,6 +12,7 @@ interface Props {
 
 export default function CategoryForm({ category }: Props) {
   const router = useRouter();
+  const qc = useQueryClient();
   const [name, setName] = useState(category?.name ?? '');
   const [image, setImage] = useState<File | null>(null);
   const [loading, setLoading] = useState(false);
@@ -32,8 +34,8 @@ export default function CategoryForm({ category }: Props) {
       } else {
         await categories.create(form);
       }
+      qc.invalidateQueries({ queryKey: ['categories'] });
       router.push('/categorias');
-      router.refresh();
     } catch (err: any) {
       setError(err.message ?? 'Error al guardar');
     } finally {

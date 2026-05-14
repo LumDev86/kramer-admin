@@ -11,6 +11,7 @@ import ConfirmModal from '@/components/ui/ConfirmModal';
 export default function CategoriasPage() {
   const qc = useQueryClient();
   const [toDelete, setToDelete] = useState<Category | null>(null);
+  const [deleteError, setDeleteError] = useState('');
 
   const { data, isLoading } = useQuery({
     queryKey: ['categories', {}],
@@ -22,6 +23,10 @@ export default function CategoriasPage() {
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['categories'] });
       setToDelete(null);
+      setDeleteError('');
+    },
+    onError: (err: any) => {
+      setDeleteError(err.message ?? 'Error al eliminar');
     },
   });
 
@@ -86,8 +91,9 @@ export default function CategoriasPage() {
         <ConfirmModal
           message={`¿Eliminar la categoría "${toDelete.name}"? Esta acción no se puede deshacer.`}
           loading={deleteMutation.isPending}
+          error={deleteError}
           onConfirm={() => deleteMutation.mutate(toDelete.id)}
-          onCancel={() => setToDelete(null)}
+          onCancel={() => { setToDelete(null); setDeleteError(''); }}
         />
       )}
     </div>

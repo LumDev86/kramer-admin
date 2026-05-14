@@ -15,6 +15,7 @@ export default function ProductosPage() {
   const [search, setSearch] = useState('');
   const [page, setPage] = useState(1);
   const [toDelete, setToDelete] = useState<Product | null>(null);
+  const [deleteError, setDeleteError] = useState('');
 
   const { data, isLoading } = useQuery({
     queryKey: ['products', { search, page }],
@@ -26,6 +27,10 @@ export default function ProductosPage() {
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['products'] });
       setToDelete(null);
+      setDeleteError('');
+    },
+    onError: (err: any) => {
+      setDeleteError(err.message ?? 'Error al eliminar');
     },
   });
 
@@ -139,8 +144,9 @@ export default function ProductosPage() {
         <ConfirmModal
           message={`¿Eliminar "${toDelete.title}"? Esta acción no se puede deshacer.`}
           loading={deleteMutation.isPending}
+          error={deleteError}
           onConfirm={() => deleteMutation.mutate(toDelete.id)}
-          onCancel={() => setToDelete(null)}
+          onCancel={() => { setToDelete(null); setDeleteError(''); }}
         />
       )}
     </div>

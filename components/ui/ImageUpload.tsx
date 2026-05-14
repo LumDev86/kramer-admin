@@ -52,7 +52,7 @@ export default function ImageUpload({ currentUrl, onChange, required, withBgRemo
   };
 
   const displayUrl = preview ?? currentUrl;
-  const canRemoveBg = withBgRemoval && !!selectedFile && !removing;
+  const canRemoveBg = withBgRemoval && !!selectedFile && !removing && !bgRemoved;
 
   return (
     <div className="flex flex-col gap-2">

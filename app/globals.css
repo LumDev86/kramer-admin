@@ -1,6 +1,6 @@
 @import "tailwindcss";
 
-button, a, [role="switch"], select, label[for] {
+button:not(:disabled), a, [role="switch"], select, label[for] {
   cursor: pointer;
 }
 
