@@ -106,6 +106,10 @@ export interface StoreConfig {
   id: string;
   status: 'open' | 'busy' | 'closed';
   busyTime: number | null;
+  whatsappNumber: string | null;
+  cbu: string | null;
+  alias: string | null;
+  titular: string | null;
   updatedAt: string;
   schedule: StoreScheduleDay[];
 }
@@ -121,6 +125,11 @@ export const config = {
     request<StoreScheduleDay[]>('/config/schedule', {
       method: 'PUT',
       body: JSON.stringify({ schedule }),
+    }),
+  updateContact: (data: { whatsappNumber: string; cbu: string; alias: string; titular: string }) =>
+    request<StoreConfig>('/config/contact', {
+      method: 'PUT',
+      body: JSON.stringify(data),
     }),
 };
 

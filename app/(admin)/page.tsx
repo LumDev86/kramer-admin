@@ -5,7 +5,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { products, categories, banners, config, StoreScheduleDay } from '@/lib/api';
 import {
   Package, Tag, Image, CheckCircle, XCircle,
-  HourglassMedium, Clock, Check,
+  HourglassMedium, Clock, Check, WhatsappLogo, Bank, IdentificationCard,
 } from '@phosphor-icons/react';
 
 const DAYS = ['Domingo', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado'];
@@ -111,14 +111,22 @@ export default function DashboardPage() {
   const [status, setStatus]     = useState<'open' | 'busy' | 'closed'>('open');
   const [busyTime, setBusyTime] = useState<number>(60);
   const [schedule, setSchedule] = useState<StoreScheduleDay[]>([]);
+  const [contact, setContact]   = useState({ whatsappNumber: '', cbu: '', alias: '', titular: '' });
   const [statusSaved, setStatusSaved]     = useState(false);
   const [scheduleSaved, setScheduleSaved] = useState(false);
+  const [contactSaved, setContactSaved]   = useState(false);
 
   useEffect(() => {
     if (storeData) {
       setStatus(storeData.status);
       setBusyTime(storeData.busyTime ?? 60);
       setSchedule(storeData.schedule);
+      setContact({
+        whatsappNumber: storeData.whatsappNumber ?? '',
+        cbu:            storeData.cbu            ?? '',
+        alias:          storeData.alias          ?? '',
+        titular:        storeData.titular        ?? '',
+      });
     }
   }, [storeData]);
 
@@ -137,6 +145,15 @@ export default function DashboardPage() {
       qc.invalidateQueries({ queryKey: ['store-config'] });
       setScheduleSaved(true);
       setTimeout(() => setScheduleSaved(false), 2500);
+    },
+  });
+
+  const contactMutation = useMutation({
+    mutationFn: () => config.updateContact(contact),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['store-config'] });
+      setContactSaved(true);
+      setTimeout(() => setContactSaved(false), 2500);
     },
   });
 
@@ -297,6 +314,86 @@ export default function DashboardPage() {
         </div>
 
       </div>
+
+      {/* Datos de contacto y pago */}
+      <div className="bg-white rounded-2xl shadow-sm p-6 flex flex-col gap-5">
+        <h2 className="text-base font-extrabold text-gray-700">Datos de contacto y pago</h2>
+
+        <div className="grid grid-cols-2 gap-4">
+
+          <div className="flex flex-col gap-1">
+            <label className="text-xs font-bold text-gray-500 flex items-center gap-1.5">
+              <WhatsappLogo size={13} weight="fill" className="text-green-500" />
+              Número de WhatsApp
+            </label>
+            <input
+              type="text"
+              value={contact.whatsappNumber}
+              onChange={(e) => setContact({ ...contact, whatsappNumber: e.target.value })}
+              placeholder="5491112345678"
+              className="border border-gray-200 rounded-xl px-3 py-2.5 text-sm outline-none focus:border-orange-400 font-medium"
+            />
+            <p className="text-[10px] text-gray-400">Sin + ni espacios. Ej: 5491124805770</p>
+          </div>
+
+          <div className="flex flex-col gap-1">
+            <label className="text-xs font-bold text-gray-500 flex items-center gap-1.5">
+              <IdentificationCard size={13} weight="fill" className="text-blue-400" />
+              Titular de la cuenta
+            </label>
+            <input
+              type="text"
+              value={contact.titular}
+              onChange={(e) => setContact({ ...contact, titular: e.target.value })}
+              placeholder="Nombre Apellido"
+              className="border border-gray-200 rounded-xl px-3 py-2.5 text-sm outline-none focus:border-orange-400 font-medium"
+            />
+          </div>
+
+          <div className="flex flex-col gap-1">
+            <label className="text-xs font-bold text-gray-500 flex items-center gap-1.5">
+              <Bank size={13} weight="fill" className="text-orange-400" />
+              CVU / CBU
+            </label>
+            <input
+              type="text"
+              value={contact.cbu}
+              onChange={(e) => setContact({ ...contact, cbu: e.target.value })}
+              placeholder="0000003100054149448072"
+              className="border border-gray-200 rounded-xl px-3 py-2.5 text-sm font-mono outline-none focus:border-orange-400"
+            />
+          </div>
+
+          <div className="flex flex-col gap-1">
+            <label className="text-xs font-bold text-gray-500 flex items-center gap-1.5">
+              <Bank size={13} weight="fill" className="text-orange-400" />
+              Alias
+            </label>
+            <input
+              type="text"
+              value={contact.alias}
+              onChange={(e) => setContact({ ...contact, alias: e.target.value })}
+              placeholder="agua25"
+              className="border border-gray-200 rounded-xl px-3 py-2.5 text-sm font-mono outline-none focus:border-orange-400"
+            />
+          </div>
+
+        </div>
+
+        <button
+          onClick={() => contactMutation.mutate()}
+          disabled={contactMutation.isPending}
+          className={`flex items-center justify-center gap-2 py-3 rounded-xl font-bold text-sm transition-all ${
+            contactSaved
+              ? 'bg-green-500 text-white'
+              : 'bg-orange-500 hover:bg-orange-600 text-white disabled:opacity-60'
+          }`}
+        >
+          {contactSaved && <Check size={16} weight="bold" />}
+          {contactSaved ? 'Guardado' : contactMutation.isPending ? 'Guardando...' : 'Guardar datos'}
+        </button>
+      </div>
+
     </div>
   );
 }
