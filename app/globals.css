@@ -1,5 +1,9 @@
 @import "tailwindcss";
 
+button, a, [role="switch"], select, label[for] {
+  cursor: pointer;
+}
+
 @keyframes fadeIn {
   from { opacity: 0; }
   to   { opacity: 1; }
