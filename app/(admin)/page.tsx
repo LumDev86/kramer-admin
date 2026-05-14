@@ -323,47 +323,47 @@ export default function DashboardPage() {
       </div>
 
       {/* Datos de contacto y pago */}
-      <div className="bg-white rounded-2xl shadow-sm p-6 flex flex-col gap-5">
-        <h2 className="text-base font-extrabold text-gray-700">Datos de contacto y pago</h2>
+      <div className="grid grid-cols-2 gap-6">
 
-        {/* Vista previa de datos activos */}
-        {storeData && (storeData.whatsappNumber || storeData.cbu || storeData.alias || storeData.titular) ? (
-          <div className="bg-gray-50 border border-gray-100 rounded-2xl p-4 flex flex-col gap-3">
-            <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Datos activos</p>
-            <div className="grid grid-cols-2 gap-3">
+        {/* Vista previa */}
+        <div className="bg-white rounded-2xl shadow-sm p-6 flex flex-col gap-4">
+          <h2 className="text-base font-extrabold text-gray-700">Datos activos</h2>
+
+          {storeData && (storeData.whatsappNumber || storeData.cbu || storeData.alias || storeData.titular) ? (
+            <div className="flex flex-col gap-3">
 
               {storeData.whatsappNumber && (
-                <div className="flex items-center gap-2">
-                  <div className="w-8 h-8 rounded-xl bg-green-100 flex items-center justify-center flex-shrink-0">
-                    <WhatsappLogo size={15} weight="fill" className="text-green-600" />
+                <div className="flex items-center gap-3 p-3 bg-gray-50 rounded-xl">
+                  <div className="w-9 h-9 rounded-xl bg-green-100 flex items-center justify-center flex-shrink-0">
+                    <WhatsappLogo size={16} weight="fill" className="text-green-600" />
                   </div>
                   <div className="min-w-0">
-                    <p className="text-[10px] text-gray-400 font-semibold">WhatsApp</p>
-                    <p className="text-sm font-bold text-gray-700 truncate">+{storeData.whatsappNumber}</p>
+                    <p className="text-[10px] text-gray-400 font-semibold uppercase tracking-wide">WhatsApp</p>
+                    <p className="text-sm font-bold text-gray-700">+{storeData.whatsappNumber}</p>
                   </div>
                 </div>
               )}
 
               {storeData.titular && (
-                <div className="flex items-center gap-2">
-                  <div className="w-8 h-8 rounded-xl bg-blue-100 flex items-center justify-center flex-shrink-0">
-                    <IdentificationCard size={15} weight="fill" className="text-blue-500" />
+                <div className="flex items-center gap-3 p-3 bg-gray-50 rounded-xl">
+                  <div className="w-9 h-9 rounded-xl bg-blue-100 flex items-center justify-center flex-shrink-0">
+                    <IdentificationCard size={16} weight="fill" className="text-blue-500" />
                   </div>
                   <div className="min-w-0">
-                    <p className="text-[10px] text-gray-400 font-semibold">Titular</p>
+                    <p className="text-[10px] text-gray-400 font-semibold uppercase tracking-wide">Titular</p>
                     <p className="text-sm font-bold text-gray-700 truncate">{storeData.titular}</p>
                   </div>
                 </div>
               )}
 
               {storeData.cbu && (
-                <div className="flex items-center gap-2">
-                  <div className="w-8 h-8 rounded-xl bg-orange-100 flex items-center justify-center flex-shrink-0">
-                    <Bank size={15} weight="fill" className="text-orange-500" />
+                <div className="flex items-center gap-3 p-3 bg-gray-50 rounded-xl">
+                  <div className="w-9 h-9 rounded-xl bg-orange-100 flex items-center justify-center flex-shrink-0">
+                    <Bank size={16} weight="fill" className="text-orange-500" />
                   </div>
                   <div className="min-w-0 flex-1">
-                    <p className="text-[10px] text-gray-400 font-semibold">CVU / CBU</p>
-                    <div className="flex items-center gap-1">
+                    <p className="text-[10px] text-gray-400 font-semibold uppercase tracking-wide">CVU / CBU</p>
+                    <div className="flex items-center justify-between gap-1">
                       <p className="text-xs font-mono font-bold text-gray-700 truncate">{storeData.cbu}</p>
                       <button
                         type="button"
@@ -371,8 +371,8 @@ export default function DashboardPage() {
                         className="flex-shrink-0 text-gray-400 hover:text-orange-500 transition-colors"
                       >
                         {copiedPreview === 'cbu'
-                          ? <Check size={12} weight="bold" className="text-green-500" />
-                          : <Copy size={12} weight="bold" />}
+                          ? <Check size={13} weight="bold" className="text-green-500" />
+                          : <Copy size={13} weight="bold" />}
                       </button>
                     </div>
                   </div>
@@ -380,22 +380,22 @@ export default function DashboardPage() {
               )}
 
               {storeData.alias && (
-                <div className="flex items-center gap-2">
-                  <div className="w-8 h-8 rounded-xl bg-orange-100 flex items-center justify-center flex-shrink-0">
-                    <Bank size={15} weight="fill" className="text-orange-500" />
+                <div className="flex items-center gap-3 p-3 bg-gray-50 rounded-xl">
+                  <div className="w-9 h-9 rounded-xl bg-orange-100 flex items-center justify-center flex-shrink-0">
+                    <Bank size={16} weight="fill" className="text-orange-500" />
                   </div>
                   <div className="min-w-0 flex-1">
-                    <p className="text-[10px] text-gray-400 font-semibold">Alias</p>
-                    <div className="flex items-center gap-1">
-                      <p className="text-xs font-mono font-bold text-gray-700">{storeData.alias}</p>
+                    <p className="text-[10px] text-gray-400 font-semibold uppercase tracking-wide">Alias</p>
+                    <div className="flex items-center justify-between gap-1">
+                      <p className="text-sm font-mono font-bold text-gray-700">{storeData.alias}</p>
                       <button
                         type="button"
                         onClick={() => handleCopyPreview(storeData.alias!, 'alias')}
                         className="flex-shrink-0 text-gray-400 hover:text-orange-500 transition-colors"
                       >
                         {copiedPreview === 'alias'
-                          ? <Check size={12} weight="bold" className="text-green-500" />
-                          : <Copy size={12} weight="bold" />}
+                          ? <Check size={13} weight="bold" className="text-green-500" />
+                          : <Copy size={13} weight="bold" />}
                       </button>
                     </div>
                   </div>
@@ -403,87 +403,90 @@ export default function DashboardPage() {
               )}
 
             </div>
-          </div>
-        ) : (
-          <div className="bg-gray-50 border border-dashed border-gray-200 rounded-2xl p-4 text-center">
-            <p className="text-sm text-gray-400 font-medium">No hay datos cargados aún</p>
-          </div>
-        )}
-
-        <p className="text-xs font-bold text-gray-400 uppercase tracking-widest -mb-2">Editar</p>
-        <div className="grid grid-cols-2 gap-4">
-
-          <div className="flex flex-col gap-1">
-            <label className="text-xs font-bold text-gray-500 flex items-center gap-1.5">
-              <WhatsappLogo size={13} weight="fill" className="text-green-500" />
-              Número de WhatsApp
-            </label>
-            <input
-              type="text"
-              value={contact.whatsappNumber}
-              onChange={(e) => setContact({ ...contact, whatsappNumber: e.target.value })}
-              placeholder="5491112345678"
-              className="border border-gray-200 rounded-xl px-3 py-2.5 text-sm outline-none focus:border-orange-400 font-medium"
-            />
-            <p className="text-[10px] text-gray-400">Sin + ni espacios. Ej: 5491124805770</p>
-          </div>
-
-          <div className="flex flex-col gap-1">
-            <label className="text-xs font-bold text-gray-500 flex items-center gap-1.5">
-              <IdentificationCard size={13} weight="fill" className="text-blue-400" />
-              Titular de la cuenta
-            </label>
-            <input
-              type="text"
-              value={contact.titular}
-              onChange={(e) => setContact({ ...contact, titular: e.target.value })}
-              placeholder="Nombre Apellido"
-              className="border border-gray-200 rounded-xl px-3 py-2.5 text-sm outline-none focus:border-orange-400 font-medium"
-            />
-          </div>
-
-          <div className="flex flex-col gap-1">
-            <label className="text-xs font-bold text-gray-500 flex items-center gap-1.5">
-              <Bank size={13} weight="fill" className="text-orange-400" />
-              CVU / CBU
-            </label>
-            <input
-              type="text"
-              value={contact.cbu}
-              onChange={(e) => setContact({ ...contact, cbu: e.target.value })}
-              placeholder="0000003100054149448072"
-              className="border border-gray-200 rounded-xl px-3 py-2.5 text-sm font-mono outline-none focus:border-orange-400"
-            />
-          </div>
-
-          <div className="flex flex-col gap-1">
-            <label className="text-xs font-bold text-gray-500 flex items-center gap-1.5">
-              <Bank size={13} weight="fill" className="text-orange-400" />
-              Alias
-            </label>
-            <input
-              type="text"
-              value={contact.alias}
-              onChange={(e) => setContact({ ...contact, alias: e.target.value })}
-              placeholder="agua25"
-              className="border border-gray-200 rounded-xl px-3 py-2.5 text-sm font-mono outline-none focus:border-orange-400"
-            />
-          </div>
-
+          ) : (
+            <div className="flex-1 flex items-center justify-center border-2 border-dashed border-gray-100 rounded-2xl p-6">
+              <p className="text-sm text-gray-400 font-medium text-center">No hay datos cargados aún</p>
+            </div>
+          )}
         </div>
 
-        <button
-          onClick={() => contactMutation.mutate()}
-          disabled={contactMutation.isPending}
-          className={`flex items-center justify-center gap-2 py-3 rounded-xl font-bold text-sm transition-all ${
-            contactSaved
-              ? 'bg-green-500 text-white'
-              : 'bg-orange-500 hover:bg-orange-600 text-white disabled:opacity-60'
-          }`}
-        >
-          {contactSaved && <Check size={16} weight="bold" />}
-          {contactSaved ? 'Guardado' : contactMutation.isPending ? 'Guardando...' : 'Guardar datos'}
-        </button>
+        {/* Formulario de edición */}
+        <div className="bg-white rounded-2xl shadow-sm p-6 flex flex-col gap-4">
+          <h2 className="text-base font-extrabold text-gray-700">Editar datos</h2>
+
+          <div className="flex flex-col gap-3 flex-1">
+            <div className="flex flex-col gap-1">
+              <label className="text-xs font-bold text-gray-500 flex items-center gap-1.5">
+                <WhatsappLogo size={13} weight="fill" className="text-green-500" />
+                Número de WhatsApp
+              </label>
+              <input
+                type="text"
+                value={contact.whatsappNumber}
+                onChange={(e) => setContact({ ...contact, whatsappNumber: e.target.value })}
+                placeholder="5491112345678"
+                className="border border-gray-200 rounded-xl px-3 py-2.5 text-sm outline-none focus:border-orange-400 font-medium"
+              />
+              <p className="text-[10px] text-gray-400">Sin + ni espacios. Ej: 5491124805770</p>
+            </div>
+
+            <div className="flex flex-col gap-1">
+              <label className="text-xs font-bold text-gray-500 flex items-center gap-1.5">
+                <IdentificationCard size={13} weight="fill" className="text-blue-400" />
+                Titular de la cuenta
+              </label>
+              <input
+                type="text"
+                value={contact.titular}
+                onChange={(e) => setContact({ ...contact, titular: e.target.value })}
+                placeholder="Nombre Apellido"
+                className="border border-gray-200 rounded-xl px-3 py-2.5 text-sm outline-none focus:border-orange-400 font-medium"
+              />
+            </div>
+
+            <div className="flex flex-col gap-1">
+              <label className="text-xs font-bold text-gray-500 flex items-center gap-1.5">
+                <Bank size={13} weight="fill" className="text-orange-400" />
+                CVU / CBU
+              </label>
+              <input
+                type="text"
+                value={contact.cbu}
+                onChange={(e) => setContact({ ...contact, cbu: e.target.value })}
+                placeholder="0000003100054149448072"
+                className="border border-gray-200 rounded-xl px-3 py-2.5 text-sm font-mono outline-none focus:border-orange-400"
+              />
+            </div>
+
+            <div className="flex flex-col gap-1">
+              <label className="text-xs font-bold text-gray-500 flex items-center gap-1.5">
+                <Bank size={13} weight="fill" className="text-orange-400" />
+                Alias
+              </label>
+              <input
+                type="text"
+                value={contact.alias}
+                onChange={(e) => setContact({ ...contact, alias: e.target.value })}
+                placeholder="agua25"
+                className="border border-gray-200 rounded-xl px-3 py-2.5 text-sm font-mono outline-none focus:border-orange-400"
+              />
+            </div>
+          </div>
+
+          <button
+            onClick={() => contactMutation.mutate()}
+            disabled={contactMutation.isPending}
+            className={`flex items-center justify-center gap-2 py-3 rounded-xl font-bold text-sm transition-all mt-auto ${
+              contactSaved
+                ? 'bg-green-500 text-white'
+                : 'bg-orange-500 hover:bg-orange-600 text-white disabled:opacity-60'
+            }`}
+          >
+            {contactSaved && <Check size={16} weight="bold" />}
+            {contactSaved ? 'Guardado' : contactMutation.isPending ? 'Guardando...' : 'Guardar datos'}
+          </button>
+        </div>
+
       </div>
 
     </div>
