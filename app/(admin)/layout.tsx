@@ -21,7 +21,8 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
       .catch(() => {
         router.replace('/login');
       });
-  }, [router]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   if (checking) {
     return (
