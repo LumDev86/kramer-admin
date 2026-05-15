@@ -30,8 +30,8 @@ export default function ProductForm({ product }: Props) {
   const [error, setError] = useState('');
 
   const { data: catsData } = useQuery({
-    queryKey: ['categories', {}],
-    queryFn: () => categories.getAll({ limit: 100 }),
+    queryKey: ['categories', { parentId: 'null', limit: 100 }],
+    queryFn: () => categories.getAll({ parentId: 'null', limit: 100 }),
   });
 
   const handleSubmit = async (e: React.FormEvent) => {

@@ -10,15 +10,18 @@ import ConfirmModal from '@/components/ui/ConfirmModal';
 
 const LIMIT = 16;
 
+type ToDelete = { id: string; name: string };
+
 export default function CategoriasPage() {
   const qc = useQueryClient();
   const [page, setPage] = useState(1);
-  const [toDelete, setToDelete] = useState<Category | null>(null);
+  const [toDelete, setToDelete] = useState<ToDelete | null>(null);
   const [deleteError, setDeleteError] = useState('');
 
+  // Solo top-level; cada una trae su array children
   const { data, isLoading } = useQuery({
-    queryKey: ['categories', { page }],
-    queryFn: () => categories.getAll({ limit: LIMIT, page }),
+    queryKey: ['categories', { page, parentId: 'null' }],
+    queryFn: () => categories.getAll({ limit: LIMIT, page, parentId: 'null' }),
   });
 
   const totalPages = data?.meta.totalPages ?? 1;
@@ -52,46 +55,83 @@ export default function CategoriasPage() {
       </div>
 
       {isLoading ? (
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-          {Array.from({ length: LIMIT }).map((_, i) => (
-            <div key={i} className="bg-white rounded-2xl h-40 animate-pulse" />
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          {Array.from({ length: 6 }).map((_, i) => (
+            <div key={i} className="bg-white rounded-2xl h-48 animate-pulse" />
           ))}
         </div>
       ) : (
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           {data?.data.map((cat) => (
             <div key={cat.id} className="bg-white rounded-2xl shadow-sm overflow-hidden animate-slideUp">
-              <div className="relative h-32 bg-gray-100">
-                {cat.imageUrl ? (
-                  <Image src={cat.imageUrl} alt={cat.name} fill className="object-cover" />
-                ) : (
-                  <div className="w-full h-full flex items-center justify-center text-3xl">🏷️</div>
-                )}
-              </div>
-              <div className="p-3 flex items-center justify-between gap-2">
-                <div className="min-w-0">
-                  <p className="text-sm font-bold text-gray-800 truncate">{cat.name}</p>
-                  {cat.parent && (
-                    <p className="text-[11px] text-orange-400 font-semibold truncate">↳ {cat.parent.name}</p>
+
+              {/* Cabecera de la categoría */}
+              <div className="flex items-center gap-3 p-3 border-b border-gray-100">
+                <div className="relative w-12 h-12 flex-shrink-0 rounded-xl overflow-hidden bg-gray-100">
+                  {cat.imageUrl ? (
+                    <Image src={cat.imageUrl} alt={cat.name} fill className="object-cover" />
+                  ) : (
+                    <div className="w-full h-full bg-orange-100 flex items-center justify-center text-xl">🏷️</div>
                   )}
                 </div>
+                <p className="text-sm font-extrabold text-gray-800 flex-1 truncate">{cat.name}</p>
                 <div className="flex gap-1 shrink-0">
                   <Link
+                    href={`/categorias/nueva?parentId=${cat.id}`}
+                    title="Nueva subcategoría"
+                    className="w-7 h-7 rounded-lg flex items-center justify-center text-gray-400 hover:bg-green-50 hover:text-green-500 transition-colors"
+                  >
+                    <Plus size={14} weight="bold" />
+                  </Link>
+                  <Link
                     href={`/categorias/${cat.id}/editar`}
-                    aria-label={`Editar ${cat.name}`}
                     className="w-7 h-7 rounded-lg flex items-center justify-center text-gray-400 hover:bg-orange-50 hover:text-orange-500 transition-colors"
                   >
                     <PencilSimple size={14} weight="bold" />
                   </Link>
                   <button
-                    onClick={() => setToDelete(cat)}
-                    aria-label={`Eliminar ${cat.name}`}
+                    onClick={() => { setToDelete({ id: cat.id, name: cat.name }); setDeleteError(''); }}
                     className="w-7 h-7 rounded-lg flex items-center justify-center text-gray-400 hover:bg-red-50 hover:text-red-500 transition-colors"
                   >
                     <Trash size={14} weight="bold" />
                   </button>
                 </div>
               </div>
+
+              {/* Lista de subcategorías */}
+              <div className="p-3 flex flex-col gap-1">
+                {cat.children.length === 0 ? (
+                  <p className="text-xs text-gray-400 font-medium py-1">Sin subcategorías</p>
+                ) : (
+                  cat.children.map((sub) => (
+                    <div key={sub.id} className="flex items-center gap-2 px-2 py-1.5 rounded-lg hover:bg-gray-50 group">
+                      <div className="relative w-7 h-7 flex-shrink-0 rounded-lg overflow-hidden bg-gray-100">
+                        {sub.imageUrl ? (
+                          <Image src={sub.imageUrl} alt={sub.name} fill className="object-cover" />
+                        ) : (
+                          <div className="w-full h-full bg-orange-50 flex items-center justify-center text-sm">·</div>
+                        )}
+                      </div>
+                      <span className="text-xs font-semibold text-gray-700 flex-1 truncate">{sub.name}</span>
+                      <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity shrink-0">
+                        <Link
+                          href={`/categorias/${sub.id}/editar`}
+                          className="w-6 h-6 rounded-md flex items-center justify-center text-gray-400 hover:bg-orange-50 hover:text-orange-500 transition-colors"
+                        >
+                          <PencilSimple size={12} weight="bold" />
+                        </Link>
+                        <button
+                          onClick={() => { setToDelete({ id: sub.id, name: sub.name }); setDeleteError(''); }}
+                          className="w-6 h-6 rounded-md flex items-center justify-center text-gray-400 hover:bg-red-50 hover:text-red-500 transition-colors"
+                        >
+                          <Trash size={12} weight="bold" />
+                        </button>
+                      </div>
+                    </div>
+                  ))
+                )}
+              </div>
+
             </div>
           ))}
         </div>
@@ -106,9 +146,7 @@ export default function CategoriasPage() {
           >
             <CaretLeft size={16} weight="bold" />
           </button>
-          <span className="text-sm font-semibold text-gray-600">
-            {page} de {totalPages}
-          </span>
+          <span className="text-sm font-semibold text-gray-600">{page} de {totalPages}</span>
           <button
             onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
             disabled={page === totalPages}
@@ -121,7 +159,7 @@ export default function CategoriasPage() {
 
       {toDelete && (
         <ConfirmModal
-          message={`¿Eliminar la categoría "${toDelete.name}"? Esta acción no se puede deshacer.`}
+          message={`¿Eliminar "${toDelete.name}"? Esta acción no se puede deshacer.`}
           loading={deleteMutation.isPending}
           error={deleteError}
           onConfirm={() => deleteMutation.mutate(toDelete.id)}
