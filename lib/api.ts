@@ -28,6 +28,9 @@ export interface Category {
   id: string;
   name: string;
   imageUrl: string | null;
+  parentId: string | null;
+  parent: { id: string; name: string } | null;
+  children: { id: string; name: string; imageUrl: string | null }[];
   createdAt: string;
 }
 
@@ -65,11 +68,12 @@ export const auth = {
 };
 
 export const categories = {
-  getAll: (params: { page?: number; limit?: number; search?: string } = {}) => {
+  getAll: (params: { page?: number; limit?: number; search?: string; parentId?: string } = {}) => {
     const qs = new URLSearchParams();
-    if (params.page)   qs.set('page',   String(params.page));
-    if (params.limit)  qs.set('limit',  String(params.limit));
-    if (params.search) qs.set('search', params.search);
+    if (params.page)                  qs.set('page',     String(params.page));
+    if (params.limit)                 qs.set('limit',    String(params.limit));
+    if (params.search)                qs.set('search',   params.search);
+    if (params.parentId !== undefined) qs.set('parentId', params.parentId);
     const q = qs.toString() ? `?${qs}` : '';
     return request<PaginatedResponse<Category>>(`/categories${q}`);
   },

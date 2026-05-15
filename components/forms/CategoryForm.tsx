@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { useQueryClient } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Category, categories } from '@/lib/api';
 import ImageUpload from '@/components/ui/ImageUpload';
 
@@ -14,11 +14,19 @@ export default function CategoryForm({ category }: Props) {
   const router = useRouter();
   const qc = useQueryClient();
   const [name, setName] = useState(category?.name ?? '');
+  const [parentId, setParentId] = useState<string>(category?.parentId ?? '');
   const [image, setImage] = useState<File | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
   const isEdit = !!category;
+
+  const { data: topLevel } = useQuery({
+    queryKey: ['categories', { parentId: 'null', limit: 100 }],
+    queryFn: () => categories.getAll({ parentId: 'null', limit: 100 }),
+  });
+
+  const parentOptions = (topLevel?.data ?? []).filter((c) => c.id !== category?.id);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -27,6 +35,7 @@ export default function CategoryForm({ category }: Props) {
     try {
       const form = new FormData();
       form.append('name', name);
+      form.append('parentId', parentId);
       if (image) form.append('image', image);
 
       if (isEdit) {
@@ -55,6 +64,23 @@ export default function CategoryForm({ category }: Props) {
           placeholder="Nombre de la categoría"
           className="border border-gray-200 rounded-xl px-3 py-2.5 text-sm outline-none focus:border-orange-400 font-medium"
         />
+      </div>
+
+      <div className="flex flex-col gap-1">
+        <label className="text-xs font-semibold text-gray-500">Categoría padre</label>
+        <select
+          value={parentId}
+          onChange={(e) => setParentId(e.target.value)}
+          className="border border-gray-200 rounded-xl px-3 py-2.5 text-sm outline-none focus:border-orange-400 font-medium bg-white text-gray-700"
+        >
+          <option value="">Sin categoría padre (top-level)</option>
+          {parentOptions.map((c) => (
+            <option key={c.id} value={c.id}>{c.name}</option>
+          ))}
+        </select>
+        <p className="text-[11px] text-gray-400 mt-0.5">
+          Seleccioná una categoría padre para convertir esta en subcategoría.
+        </p>
       </div>
 
       <div className="flex flex-col gap-1">

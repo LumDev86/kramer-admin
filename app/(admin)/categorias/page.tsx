@@ -5,18 +5,23 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import Link from 'next/link';
 import Image from 'next/image';
 import { categories, Category } from '@/lib/api';
-import { Plus, PencilSimple, Trash } from '@phosphor-icons/react';
+import { Plus, PencilSimple, Trash, CaretLeft, CaretRight } from '@phosphor-icons/react';
 import ConfirmModal from '@/components/ui/ConfirmModal';
+
+const LIMIT = 16;
 
 export default function CategoriasPage() {
   const qc = useQueryClient();
+  const [page, setPage] = useState(1);
   const [toDelete, setToDelete] = useState<Category | null>(null);
   const [deleteError, setDeleteError] = useState('');
 
   const { data, isLoading } = useQuery({
-    queryKey: ['categories', {}],
-    queryFn: () => categories.getAll({ limit: 100 }),
+    queryKey: ['categories', { page }],
+    queryFn: () => categories.getAll({ limit: LIMIT, page }),
   });
+
+  const totalPages = data?.meta.totalPages ?? 1;
 
   const deleteMutation = useMutation({
     mutationFn: (id: string) => categories.delete(id),
@@ -48,7 +53,7 @@ export default function CategoriasPage() {
 
       {isLoading ? (
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-          {Array.from({ length: 8 }).map((_, i) => (
+          {Array.from({ length: LIMIT }).map((_, i) => (
             <div key={i} className="bg-white rounded-2xl h-40 animate-pulse" />
           ))}
         </div>
@@ -64,7 +69,12 @@ export default function CategoriasPage() {
                 )}
               </div>
               <div className="p-3 flex items-center justify-between gap-2">
-                <p className="text-sm font-bold text-gray-800 truncate">{cat.name}</p>
+                <div className="min-w-0">
+                  <p className="text-sm font-bold text-gray-800 truncate">{cat.name}</p>
+                  {cat.parent && (
+                    <p className="text-[11px] text-orange-400 font-semibold truncate">↳ {cat.parent.name}</p>
+                  )}
+                </div>
                 <div className="flex gap-1 shrink-0">
                   <Link
                     href={`/categorias/${cat.id}/editar`}
@@ -84,6 +94,28 @@ export default function CategoriasPage() {
               </div>
             </div>
           ))}
+        </div>
+      )}
+
+      {totalPages > 1 && (
+        <div className="flex items-center justify-center gap-3">
+          <button
+            onClick={() => setPage((p) => Math.max(1, p - 1))}
+            disabled={page === 1}
+            className="w-9 h-9 flex items-center justify-center rounded-xl border border-gray-200 text-gray-500 hover:bg-gray-50 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+          >
+            <CaretLeft size={16} weight="bold" />
+          </button>
+          <span className="text-sm font-semibold text-gray-600">
+            {page} de {totalPages}
+          </span>
+          <button
+            onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+            disabled={page === totalPages}
+            className="w-9 h-9 flex items-center justify-center rounded-xl border border-gray-200 text-gray-500 hover:bg-gray-50 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+          >
+            <CaretRight size={16} weight="bold" />
+          </button>
         </div>
       )}
 
