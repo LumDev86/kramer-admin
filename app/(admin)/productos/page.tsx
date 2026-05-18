@@ -37,7 +37,29 @@ export default function ProductosPage() {
 
   const toggleMutation = useMutation({
     mutationFn: (id: string) => products.toggleActive(id),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ['products'] }),
+    onMutate: async (id) => {
+      await qc.cancelQueries({ queryKey: ['products'] });
+      const snapshot = qc.getQueryData<any>(['products', { search, page }]);
+      const previousValue = snapshot?.data?.find((p: Product) => p.id === id)?.isActive;
+      qc.setQueryData(['products', { search, page }], (old: any) => ({
+        ...old,
+        data: old.data.map((p: Product) =>
+          p.id === id ? { ...p, isActive: !p.isActive } : p
+        ),
+      }));
+      return { id, previousValue };
+    },
+    onError: (_err, _id, context) => {
+      if (context?.previousValue !== undefined) {
+        qc.setQueryData(['products', { search, page }], (old: any) => ({
+          ...old,
+          data: old.data.map((p: Product) =>
+            p.id === context.id ? { ...p, isActive: context.previousValue } : p
+          ),
+        }));
+      }
+    },
+    onSettled: () => qc.invalidateQueries({ queryKey: ['products'] }),
   });
 
   return (
