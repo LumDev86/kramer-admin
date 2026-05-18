@@ -76,10 +76,12 @@ export default function CategorySelector({ value, onChange, categories, loading 
   return (
     <div ref={containerRef} className="relative">
       {/* Trigger */}
-      <button
-        type="button"
+      <div
+        role="button"
+        tabIndex={0}
         onClick={() => setOpen((o) => !o)}
-        className={`w-full flex items-center gap-2 px-3 py-2.5 rounded-xl border text-sm font-semibold transition-colors text-left ${
+        onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setOpen((o) => !o); } }}
+        className={`w-full flex items-center gap-2 px-3 py-2.5 rounded-xl border text-sm font-semibold transition-colors text-left cursor-pointer select-none ${
           open
             ? 'border-orange-400 bg-orange-50'
             : selected
@@ -116,7 +118,7 @@ export default function CategorySelector({ value, onChange, categories, loading 
             />
           </>
         )}
-      </button>
+      </div>
 
       {/* Dropdown */}
       {open && (

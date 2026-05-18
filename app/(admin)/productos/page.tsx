@@ -92,7 +92,7 @@ export default function ProductosPage() {
                 <td className="px-4 py-3">
                   <div className="flex items-center gap-3">
                     <div className={`relative w-10 h-10 flex-shrink-0 bg-gray-100 rounded-lg overflow-hidden ${!product.isActive ? 'opacity-40' : ''}`}>
-                      <Image src={product.imageUrl} alt={product.title} fill className="object-contain p-1" />
+                      <Image src={product.imageUrl} alt={product.title} fill sizes="40px" className="object-contain p-1" />
                     </div>
                     <span className={`font-semibold truncate max-w-xs ${product.isActive ? 'text-gray-800' : 'text-gray-400'}`}>
                       {product.title}
