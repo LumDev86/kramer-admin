@@ -7,6 +7,7 @@ import { Product, products, categories } from '@/lib/api';
 import ImageUpload from '@/components/ui/ImageUpload';
 import UnitSelector from '@/components/ui/UnitSelector';
 import CategorySelector from '@/components/ui/CategorySelector';
+import ToggleSwitch from '@/components/ui/ToggleSwitch';
 
 interface Props {
   product?: Product;
@@ -24,6 +25,7 @@ export default function ProductForm({ product }: Props) {
     categoryId:  product?.categoryId                   ?? '',
     quantity:    product?.quantity != null ? String(product.quantity) : '',
     unit:        product?.unit                         ?? '',
+    isActive:    product?.isActive                     ?? true,
   });
   const [image, setImage] = useState<File | null>(null);
   const [loading, setLoading] = useState(false);
@@ -47,6 +49,7 @@ export default function ProductForm({ product }: Props) {
       if (form.categoryId) fd.append('categoryId', form.categoryId);
       if (form.quantity)   fd.append('quantity',   form.quantity);
       if (form.unit)       fd.append('unit',        form.unit);
+      fd.append('isActive', String(form.isActive));
       if (image) fd.append('image', image);
 
       if (isEdit) {
@@ -141,6 +144,17 @@ export default function ProductForm({ product }: Props) {
             Vista previa: {form.quantity} {form.unit}
           </p>
         )}
+      </div>
+
+      <div className="flex items-center justify-between bg-gray-50 rounded-xl px-4 py-3">
+        <div>
+          <p className="text-sm font-semibold text-gray-700">Producto activo</p>
+          <p className="text-xs text-gray-400 mt-0.5">Si está desactivado, se mostrará sin stock en la tienda</p>
+        </div>
+        <ToggleSwitch
+          checked={form.isActive}
+          onChange={() => setForm((f) => ({ ...f, isActive: !f.isActive }))}
+        />
       </div>
 
       {error && <p className="text-xs text-red-500 font-semibold bg-red-50 rounded-lg px-3 py-2">{error}</p>}

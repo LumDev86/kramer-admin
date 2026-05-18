@@ -7,6 +7,7 @@ import Image from 'next/image';
 import { products, Product } from '@/lib/api';
 import { Plus, PencilSimple, Trash, MagnifyingGlass } from '@phosphor-icons/react';
 import ConfirmModal from '@/components/ui/ConfirmModal';
+import ToggleSwitch from '@/components/ui/ToggleSwitch';
 
 const LIMIT = 20;
 
@@ -32,6 +33,11 @@ export default function ProductosPage() {
     onError: (err: any) => {
       setDeleteError(err.message ?? 'Error al eliminar');
     },
+  });
+
+  const toggleMutation = useMutation({
+    mutationFn: (id: string) => products.toggleActive(id),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['products'] }),
   });
 
   return (
@@ -68,6 +74,7 @@ export default function ProductosPage() {
               <th className="px-4 py-3 text-xs font-bold text-gray-400 uppercase tracking-wide">Producto</th>
               <th className="px-4 py-3 text-xs font-bold text-gray-400 uppercase tracking-wide">Categoría</th>
               <th className="px-4 py-3 text-xs font-bold text-gray-400 uppercase tracking-wide">Precio</th>
+              <th className="px-4 py-3 text-xs font-bold text-gray-400 uppercase tracking-wide w-20">Activo</th>
               <th className="px-4 py-3 text-xs font-bold text-gray-400 uppercase tracking-wide w-24">Acciones</th>
             </tr>
           </thead>
@@ -75,7 +82,7 @@ export default function ProductosPage() {
             {isLoading ? (
               Array.from({ length: 8 }).map((_, i) => (
                 <tr key={i}>
-                  <td colSpan={4} className="px-4 py-3">
+                  <td colSpan={5} className="px-4 py-3">
                     <div className="h-5 bg-gray-100 rounded animate-pulse" />
                   </td>
                 </tr>
@@ -84,15 +91,24 @@ export default function ProductosPage() {
               <tr key={product.id} className="hover:bg-gray-50 transition-colors">
                 <td className="px-4 py-3">
                   <div className="flex items-center gap-3">
-                    <div className="relative w-10 h-10 flex-shrink-0 bg-gray-100 rounded-lg overflow-hidden">
+                    <div className={`relative w-10 h-10 flex-shrink-0 bg-gray-100 rounded-lg overflow-hidden ${!product.isActive ? 'opacity-40' : ''}`}>
                       <Image src={product.imageUrl} alt={product.title} fill className="object-contain p-1" />
                     </div>
-                    <span className="font-semibold text-gray-800 truncate max-w-xs">{product.title}</span>
+                    <span className={`font-semibold truncate max-w-xs ${product.isActive ? 'text-gray-800' : 'text-gray-400'}`}>
+                      {product.title}
+                    </span>
                   </div>
                 </td>
                 <td className="px-4 py-3 text-gray-500">{product.category?.name ?? '—'}</td>
                 <td className="px-4 py-3 font-bold text-orange-500">
                   ${parseFloat(product.price).toLocaleString('es-AR')}
+                </td>
+                <td className="px-4 py-3">
+                  <ToggleSwitch
+                    checked={product.isActive}
+                    loading={toggleMutation.isPending && toggleMutation.variables === product.id}
+                    onChange={() => toggleMutation.mutate(product.id)}
+                  />
                 </td>
                 <td className="px-4 py-3">
                   <div className="flex gap-1">

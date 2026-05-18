@@ -43,6 +43,7 @@ export interface Product {
   imageUrl: string;
   quantity: number | null;
   unit: string | null;
+  isActive: boolean;
   categoryId: string | null;
   category: Category | null;
   createdAt: string;
@@ -96,6 +97,7 @@ export const products = {
   getById: (id: string) => request<Product>(`/products/${id}`),
   create:  (form: FormData) => request<Product>('/products', { method: 'POST', body: form }),
   update:  (id: string, form: FormData) => request<Product>(`/products/${id}`, { method: 'PUT', body: form }),
+  toggleActive: (id: string) => request<Product>(`/products/${id}/toggle-active`, { method: 'PATCH' }),
   delete:  (id: string) => request<void>(`/products/${id}`, { method: 'DELETE' }),
 };
 
