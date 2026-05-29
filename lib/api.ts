@@ -85,12 +85,13 @@ export const categories = {
 };
 
 export const products = {
-  getAll: (params: { page?: number; limit?: number; search?: string; categoryId?: string } = {}) => {
+  getAll: (params: { page?: number; limit?: number; search?: string; categoryId?: string; parentCategoryId?: string } = {}) => {
     const qs = new URLSearchParams();
-    if (params.page)       qs.set('page',       String(params.page));
-    if (params.limit)      qs.set('limit',       String(params.limit));
-    if (params.search)     qs.set('search',      params.search);
-    if (params.categoryId) qs.set('categoryId',  params.categoryId);
+    if (params.page)               qs.set('page',             String(params.page));
+    if (params.limit)              qs.set('limit',            String(params.limit));
+    if (params.search)             qs.set('search',           params.search);
+    if (params.categoryId)         qs.set('categoryId',       params.categoryId);
+    if (params.parentCategoryId)   qs.set('parentCategoryId', params.parentCategoryId);
     const q = qs.toString() ? `?${qs}` : '';
     return request<PaginatedResponse<Product>>(`/products${q}`);
   },

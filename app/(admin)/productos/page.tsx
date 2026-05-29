@@ -4,7 +4,7 @@ import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import Link from 'next/link';
 import Image from 'next/image';
-import { products, Product } from '@/lib/api';
+import { products, categories, Product, Category } from '@/lib/api';
 import { Plus, PencilSimple, Trash, MagnifyingGlass } from '@phosphor-icons/react';
 import ConfirmModal from '@/components/ui/ConfirmModal';
 import ToggleSwitch from '@/components/ui/ToggleSwitch';
@@ -14,13 +14,31 @@ const LIMIT = 20;
 export default function ProductosPage() {
   const qc = useQueryClient();
   const [search, setSearch] = useState('');
+  const [categoryId, setCategoryId] = useState('');
+  const [subcategoryId, setSubcategoryId] = useState('');
   const [page, setPage] = useState(1);
   const [toDelete, setToDelete] = useState<Product | null>(null);
   const [deleteError, setDeleteError] = useState('');
 
+  const { data: allCategories } = useQuery({
+    queryKey: ['categories-all'],
+    queryFn: () => categories.getAll({ limit: 200 }),
+  });
+
+  const parentCategories = allCategories?.data.filter((c: Category) => c.parentId === null) ?? [];
+  const subcategories = categoryId
+    ? (allCategories?.data.filter((c: Category) => c.parentId === categoryId) ?? [])
+    : [];
+
+  const productFilter = subcategoryId
+    ? { categoryId: subcategoryId }
+    : categoryId
+    ? { parentCategoryId: categoryId }
+    : {};
+
   const { data, isLoading } = useQuery({
-    queryKey: ['products', { search, page }],
-    queryFn: () => products.getAll({ search: search || undefined, page, limit: LIMIT }),
+    queryKey: ['products', { search, page, categoryId, subcategoryId }],
+    queryFn: () => products.getAll({ search: search || undefined, page, limit: LIMIT, ...productFilter }),
   });
 
   const deleteMutation = useMutation({
@@ -78,15 +96,41 @@ export default function ProductosPage() {
         </Link>
       </div>
 
-      <div className="relative">
-        <MagnifyingGlass size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
-        <input
-          type="text"
-          value={search}
-          onChange={(e) => { setSearch(e.target.value); setPage(1); }}
-          placeholder="Buscar productos..."
-          className="w-full pl-9 pr-4 py-2.5 bg-white border border-gray-200 rounded-xl text-sm outline-none focus:border-orange-400 font-medium"
-        />
+      <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+        <div className="relative flex-1">
+          <MagnifyingGlass size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+          <input
+            type="text"
+            value={search}
+            onChange={(e) => { setSearch(e.target.value); setPage(1); }}
+            placeholder="Buscar productos..."
+            className="w-full pl-9 pr-4 py-2.5 bg-white border border-gray-200 rounded-xl text-sm outline-none focus:border-orange-400 font-medium"
+          />
+        </div>
+
+        <select
+          value={categoryId}
+          onChange={(e) => { setCategoryId(e.target.value); setSubcategoryId(''); setPage(1); }}
+          className="py-2.5 px-3 bg-white border border-gray-200 rounded-xl text-sm outline-none focus:border-orange-400 font-medium text-gray-600 min-w-40"
+        >
+          <option value="">Todas las categorías</option>
+          {parentCategories.map((c: Category) => (
+            <option key={c.id} value={c.id}>{c.name}</option>
+          ))}
+        </select>
+
+        {subcategories.length > 0 && (
+          <select
+            value={subcategoryId}
+            onChange={(e) => { setSubcategoryId(e.target.value); setPage(1); }}
+            className="py-2.5 px-3 bg-white border border-gray-200 rounded-xl text-sm outline-none focus:border-orange-400 font-medium text-gray-600 min-w-40 animate-fadeIn"
+          >
+            <option value="">Todas las subcategorías</option>
+            {subcategories.map((c: Category) => (
+              <option key={c.id} value={c.id}>{c.name}</option>
+            ))}
+          </select>
+        )}
       </div>
 
       <div className="bg-white rounded-2xl shadow-sm overflow-hidden">
