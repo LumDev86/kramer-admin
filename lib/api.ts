@@ -110,7 +110,7 @@ export interface StoreScheduleDay {
 
 export interface StoreConfig {
   id: string;
-  status: 'open' | 'busy' | 'closed';
+  status: 'open' | 'busy' | 'closed' | 'auto';
   busyTime: number | null;
   whatsappNumber: string | null;
   cbu: string | null;

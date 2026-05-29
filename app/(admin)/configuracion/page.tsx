@@ -3,11 +3,20 @@
 import { useEffect, useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { config, StoreScheduleDay } from '@/lib/api';
-import { CheckCircle, Clock, XCircle, HourglassMedium } from '@phosphor-icons/react';
+import { CheckCircle, Clock, XCircle, HourglassMedium, CalendarBlank } from '@phosphor-icons/react';
 
 const DAYS = ['Domingo', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado'];
 
 const STATUS_OPTIONS = [
+  {
+    value: 'auto',
+    label: 'Automático',
+    description: 'Sigue el horario de atención',
+    icon: CalendarBlank,
+    color: 'text-blue-500',
+    bg: 'bg-blue-50 border-blue-300',
+    activeBg: 'bg-blue-500',
+  },
   {
     value: 'open',
     label: 'Abierto',
@@ -45,7 +54,7 @@ export default function ConfiguracionPage() {
     queryFn: () => config.get(),
   });
 
-  const [status, setStatus] = useState<'open' | 'busy' | 'closed'>('open');
+  const [status, setStatus] = useState<'open' | 'busy' | 'closed' | 'auto'>('auto');
   const [busyTime, setBusyTime] = useState<number>(60);
   const [schedule, setSchedule] = useState<StoreScheduleDay[]>([]);
   const [savedStatus, setSavedStatus] = useState(false);
@@ -98,7 +107,7 @@ export default function ConfiguracionPage() {
       <div className="bg-white rounded-2xl shadow-sm p-6 flex flex-col gap-5">
         <h2 className="text-base font-extrabold text-gray-700">Estado del local</h2>
 
-        <div className="grid grid-cols-3 gap-3">
+        <div className="grid grid-cols-2 gap-3">
           {STATUS_OPTIONS.map((opt) => {
             const Icon = opt.icon;
             const isSelected = status === opt.value;
