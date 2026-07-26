@@ -2,11 +2,12 @@
 
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
-import { House, Package, Tag, Image, SignOut } from '@phosphor-icons/react';
+import { House, Package, Tag, Image, Receipt, SignOut } from '@phosphor-icons/react';
 import { removeToken } from '@/lib/auth';
 
 const NAV = [
   { href: '/',           label: 'Dashboard',  icon: House   },
+  { href: '/ventas',     label: 'Ventas',     icon: Receipt },
   { href: '/productos',  label: 'Productos',  icon: Package },
   { href: '/categorias', label: 'Categorías', icon: Tag     },
   { href: '/banners',    label: 'Banners',    icon: Image   },

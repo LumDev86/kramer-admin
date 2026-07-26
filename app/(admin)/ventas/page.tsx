@@ -1,0 +1,477 @@
+'use client';
+
+import { useEffect, useRef, useState } from 'react';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { sales, products, Sale, Product, PaymentMethod } from '@/lib/api';
+import { Plus, Camera, Trash, X, Receipt } from '@phosphor-icons/react';
+import ConfirmModal from '@/components/ui/ConfirmModal';
+import BarcodeCameraScanner from '@/components/ui/BarcodeCameraScanner';
+
+const money = (value: number | string) =>
+  `$${Number(value).toLocaleString('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+
+export default function VentasPage() {
+  const qc = useQueryClient();
+  const scanInputRef = useRef<HTMLInputElement>(null);
+
+  const [activeSaleId, setActiveSaleId] = useState<string | null>(null);
+  const [query, setQuery] = useState('');
+  const [searchResults, setSearchResults] = useState<Product[] | null>(null);
+  const [scanError, setScanError] = useState('');
+  const [manualOpen, setManualOpen] = useState(false);
+  const [manualName, setManualName] = useState('');
+  const [manualPrice, setManualPrice] = useState('');
+  const [cameraOpen, setCameraOpen] = useState(false);
+  const [toCancel, setToCancel] = useState<Sale | null>(null);
+  const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>('CASH');
+  const [paidAmount, setPaidAmount] = useState('');
+  const [payError, setPayError] = useState('');
+
+  const { data: openSales } = useQuery({ queryKey: ['sales', 'open'], queryFn: sales.getOpen });
+  const { data: summary } = useQuery({ queryKey: ['sales', 'summary'], queryFn: () => sales.getSummary() });
+
+  const tickets = openSales ?? [];
+  const activeSale = tickets.find((s) => s.id === activeSaleId) ?? tickets[0] ?? null;
+
+  useEffect(() => {
+    if (!activeSaleId && tickets.length > 0) setActiveSaleId(tickets[0].id);
+  }, [activeSaleId, tickets]);
+
+  useEffect(() => {
+    scanInputRef.current?.focus();
+  }, [activeSale?.id]);
+
+  const createSaleMutation = useMutation({
+    mutationFn: sales.create,
+    onSuccess: (sale) => {
+      qc.invalidateQueries({ queryKey: ['sales', 'open'] });
+      setActiveSaleId(sale.id);
+    },
+  });
+
+  const addItemMutation = useMutation({
+    mutationFn: ({ saleId, data }: { saleId: string; data: Parameters<typeof sales.addItem>[1] }) =>
+      sales.addItem(saleId, data),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['sales', 'open'] }),
+  });
+
+  const updateItemMutation = useMutation({
+    mutationFn: ({ saleId, itemId, quantity }: { saleId: string; itemId: string; quantity: number }) =>
+      sales.updateItem(saleId, itemId, { quantity }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['sales', 'open'] }),
+  });
+
+  const removeItemMutation = useMutation({
+    mutationFn: ({ saleId, itemId }: { saleId: string; itemId: string }) => sales.removeItem(saleId, itemId),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['sales', 'open'] }),
+  });
+
+  const cancelMutation = useMutation({
+    mutationFn: (saleId: string) => sales.cancel(saleId),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['sales', 'open'] });
+      setToCancel(null);
+      setActiveSaleId(null);
+    },
+  });
+
+  const payMutation = useMutation({
+    mutationFn: ({ saleId, data }: { saleId: string; data: Parameters<typeof sales.pay>[1] }) =>
+      sales.pay(saleId, data),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['sales', 'open'] });
+      qc.invalidateQueries({ queryKey: ['sales', 'summary'] });
+      setActiveSaleId(null);
+      setPaidAmount('');
+      setPayError('');
+    },
+    onError: (err: any) => setPayError(err.message ?? 'Error al cobrar'),
+  });
+
+  const ensureActiveSale = async (): Promise<string> => {
+    if (activeSale) return activeSale.id;
+    const sale = await createSaleMutation.mutateAsync();
+    return sale.id;
+  };
+
+  const addProduct = async (product: Product) => {
+    const saleId = await ensureActiveSale();
+    addItemMutation.mutate({ saleId, data: { productId: product.id } });
+    setQuery('');
+    setSearchResults(null);
+    setScanError('');
+    scanInputRef.current?.focus();
+  };
+
+  const handleCode = async (code: string) => {
+    const trimmed = code.trim();
+    if (!trimmed) return;
+    setScanError('');
+    setSearchResults(null);
+
+    const product = await products.getByBarcode(trimmed);
+    if (product) {
+      await addProduct(product);
+      return;
+    }
+
+    const result = await products.getAll({ search: trimmed, limit: 8 });
+    if (result.data.length === 1) {
+      await addProduct(result.data[0]);
+    } else if (result.data.length > 1) {
+      setSearchResults(result.data);
+    } else {
+      setSearchResults([]);
+      setManualName(trimmed);
+      setManualOpen(true);
+    }
+  };
+
+  const handleScanKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key !== 'Enter') return;
+    e.preventDefault();
+    const code = query;
+    setQuery('');
+    handleCode(code);
+  };
+
+  const handleAddManual = async () => {
+    if (!manualName.trim() || !manualPrice) return;
+    const saleId = await ensureActiveSale();
+    addItemMutation.mutate({
+      saleId,
+      data: { name: manualName.trim(), unitPrice: parseFloat(manualPrice) },
+    });
+    setManualOpen(false);
+    setManualName('');
+    setManualPrice('');
+    setQuery('');
+    setSearchResults(null);
+    scanInputRef.current?.focus();
+  };
+
+  const handleCameraDetected = (code: string) => {
+    setCameraOpen(false);
+    handleCode(code);
+  };
+
+  const total = activeSale ? Number(activeSale.total) : 0;
+  const paidAmountNumber = parseFloat(paidAmount) || 0;
+  const change = paymentMethod === 'CASH' ? paidAmountNumber - total : 0;
+  const canPay =
+    !!activeSale &&
+    activeSale.items.length > 0 &&
+    (paymentMethod === 'TRANSFER' || paidAmountNumber >= total);
+
+  const handlePay = () => {
+    if (!activeSale) return;
+    setPayError('');
+    payMutation.mutate({
+      saleId: activeSale.id,
+      data: {
+        paymentMethod,
+        ...(paymentMethod === 'CASH' && { paidAmount: paidAmountNumber }),
+      },
+    });
+  };
+
+  return (
+    <div className="flex flex-col gap-6">
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-2xl font-extrabold text-gray-800">Ventas</h1>
+          <p className="text-sm text-gray-400 font-medium mt-0.5">Registrá ventas escaneando productos</p>
+        </div>
+      </div>
+
+      <div className="grid grid-cols-1 lg:grid-cols-[1fr_320px] gap-6 items-start">
+        <div className="flex flex-col gap-4">
+          {/* Pestañas de tickets abiertos */}
+          <div className="flex items-center gap-2 overflow-x-auto pb-1">
+            {tickets.map((sale, i) => (
+              <div key={sale.id} className="relative flex-shrink-0">
+                <button
+                  onClick={() => setActiveSaleId(sale.id)}
+                  className={`flex items-center gap-2 pl-4 pr-8 py-2.5 rounded-xl text-sm font-bold transition-colors ${
+                    activeSale?.id === sale.id
+                      ? 'bg-orange-500 text-white'
+                      : 'bg-white border border-gray-200 text-gray-600 hover:bg-gray-50'
+                  }`}
+                >
+                  <Receipt size={16} weight={activeSale?.id === sale.id ? 'fill' : 'regular'} />
+                  Ticket {i + 1}
+                </button>
+                <button
+                  onClick={() => setToCancel(sale)}
+                  className={`absolute right-2 top-1/2 -translate-y-1/2 w-4 h-4 flex items-center justify-center rounded ${
+                    activeSale?.id === sale.id ? 'text-white/70 hover:text-white' : 'text-gray-400 hover:text-red-500'
+                  }`}
+                >
+                  <X size={12} weight="bold" />
+                </button>
+              </div>
+            ))}
+            <button
+              onClick={() => createSaleMutation.mutate()}
+              disabled={createSaleMutation.isPending}
+              className="flex-shrink-0 flex items-center gap-2 px-4 py-2.5 rounded-xl border border-dashed border-gray-300 text-sm font-bold text-gray-500 hover:bg-gray-50 transition-colors disabled:opacity-60"
+            >
+              <Plus size={16} weight="bold" />
+              Nuevo ticket
+            </button>
+          </div>
+
+          {/* Escaneo */}
+          <div className="bg-white rounded-2xl shadow-sm p-4 flex flex-col gap-3">
+            <div className="flex gap-2">
+              <input
+                ref={scanInputRef}
+                type="text"
+                value={query}
+                onChange={(e) => setQuery(e.target.value)}
+                onKeyDown={handleScanKeyDown}
+                placeholder="Escaneá o tipeá un código / nombre y presioná Enter"
+                className="flex-1 border border-gray-200 rounded-xl px-4 py-3 text-sm outline-none focus:border-orange-400 font-semibold"
+              />
+              <button
+                onClick={() => setCameraOpen(true)}
+                className="flex items-center gap-2 px-4 rounded-xl border border-gray-200 text-sm font-semibold text-gray-600 hover:bg-gray-50 transition-colors"
+              >
+                <Camera size={18} />
+              </button>
+              <button
+                onClick={() => setManualOpen(true)}
+                className="flex-shrink-0 px-4 rounded-xl border border-gray-200 text-sm font-semibold text-gray-600 hover:bg-gray-50 transition-colors"
+              >
+                Manual
+              </button>
+            </div>
+
+            {scanError && (
+              <p className="text-xs text-red-500 font-semibold bg-red-50 rounded-lg px-3 py-2">{scanError}</p>
+            )}
+
+            {searchResults && searchResults.length > 0 && (
+              <div className="flex flex-col gap-1 border border-gray-100 rounded-xl overflow-hidden">
+                {searchResults.map((p) => (
+                  <button
+                    key={p.id}
+                    onClick={() => addProduct(p)}
+                    className="flex items-center justify-between px-3 py-2 text-sm hover:bg-orange-50 transition-colors text-left"
+                  >
+                    <span className="font-semibold text-gray-700">{p.title}</span>
+                    <span className="font-bold text-orange-500">{money(p.price)}</span>
+                  </button>
+                ))}
+              </div>
+            )}
+
+            {searchResults && searchResults.length === 0 && !manualOpen && (
+              <p className="text-xs text-gray-400 font-medium px-1">
+                No se encontraron productos. Podés cargarlo como producto manual.
+              </p>
+            )}
+
+            {manualOpen && (
+              <div className="flex flex-col gap-2 bg-gray-50 rounded-xl p-3">
+                <p className="text-xs font-bold text-gray-500 uppercase tracking-wide">Producto manual</p>
+                <div className="flex gap-2">
+                  <input
+                    type="text"
+                    value={manualName}
+                    onChange={(e) => setManualName(e.target.value)}
+                    placeholder="Descripción"
+                    className="flex-1 border border-gray-200 rounded-xl px-3 py-2 text-sm outline-none focus:border-orange-400 font-medium"
+                  />
+                  <input
+                    type="number"
+                    min="0"
+                    step="0.01"
+                    value={manualPrice}
+                    onChange={(e) => setManualPrice(e.target.value)}
+                    placeholder="Precio"
+                    className="w-28 border border-gray-200 rounded-xl px-3 py-2 text-sm outline-none focus:border-orange-400 font-medium"
+                  />
+                </div>
+                <div className="flex gap-2">
+                  <button
+                    onClick={() => { setManualOpen(false); setManualName(''); setManualPrice(''); }}
+                    className="flex-1 py-2 rounded-xl border border-gray-200 text-xs font-semibold text-gray-600 hover:bg-white transition-colors"
+                  >
+                    Cancelar
+                  </button>
+                  <button
+                    onClick={handleAddManual}
+                    disabled={!manualName.trim() || !manualPrice}
+                    className="flex-1 py-2 rounded-xl bg-orange-500 hover:bg-orange-600 text-white text-xs font-bold transition-colors disabled:opacity-50"
+                  >
+                    Agregar
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* Carrito */}
+          <div className="bg-white rounded-2xl shadow-sm overflow-hidden">
+            <table className="w-full text-sm">
+              <thead className="border-b border-gray-100">
+                <tr className="text-left">
+                  <th className="px-4 py-3 text-xs font-bold text-gray-400 uppercase tracking-wide">Producto</th>
+                  <th className="px-4 py-3 text-xs font-bold text-gray-400 uppercase tracking-wide w-32">Cantidad</th>
+                  <th className="px-4 py-3 text-xs font-bold text-gray-400 uppercase tracking-wide">Subtotal</th>
+                  <th className="px-4 py-3 w-10" />
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-gray-50">
+                {!activeSale || activeSale.items.length === 0 ? (
+                  <tr>
+                    <td colSpan={4} className="px-4 py-8 text-center text-sm text-gray-400 font-medium">
+                      Sin productos todavía. Escaneá o buscá uno para empezar.
+                    </td>
+                  </tr>
+                ) : (
+                  activeSale.items.map((item) => (
+                    <tr key={item.id} className="hover:bg-gray-50 transition-colors">
+                      <td className="px-4 py-3">
+                        <p className="font-semibold text-gray-700">{item.name}</p>
+                        <p className="text-xs text-gray-400">{money(item.unitPrice)} c/u</p>
+                      </td>
+                      <td className="px-4 py-3">
+                        <div className="flex items-center gap-1">
+                          <button
+                            onClick={() =>
+                              updateItemMutation.mutate({
+                                saleId: activeSale.id,
+                                itemId: item.id,
+                                quantity: Math.max(1, item.quantity - 1),
+                              })
+                            }
+                            className="w-6 h-6 rounded-lg border border-gray-200 text-gray-500 hover:bg-gray-100 flex items-center justify-center font-bold"
+                          >
+                            −
+                          </button>
+                          <span className="w-8 text-center font-semibold">{item.quantity}</span>
+                          <button
+                            onClick={() =>
+                              updateItemMutation.mutate({
+                                saleId: activeSale.id,
+                                itemId: item.id,
+                                quantity: item.quantity + 1,
+                              })
+                            }
+                            className="w-6 h-6 rounded-lg border border-gray-200 text-gray-500 hover:bg-gray-100 flex items-center justify-center font-bold"
+                          >
+                            +
+                          </button>
+                        </div>
+                      </td>
+                      <td className="px-4 py-3 font-bold text-orange-500">{money(item.subtotal)}</td>
+                      <td className="px-4 py-3">
+                        <button
+                          onClick={() => removeItemMutation.mutate({ saleId: activeSale.id, itemId: item.id })}
+                          className="w-7 h-7 rounded-lg flex items-center justify-center text-gray-400 hover:bg-red-50 hover:text-red-500 transition-colors"
+                        >
+                          <Trash size={14} weight="bold" />
+                        </button>
+                      </td>
+                    </tr>
+                  ))
+                )}
+              </tbody>
+            </table>
+          </div>
+
+          {/* Cobro */}
+          {activeSale && activeSale.items.length > 0 && (
+            <div className="bg-white rounded-2xl shadow-sm p-5 flex flex-col gap-4">
+              <div className="flex items-center justify-between">
+                <p className="text-sm font-bold text-gray-500 uppercase tracking-wide">Total</p>
+                <p className="text-2xl font-extrabold text-gray-800">{money(total)}</p>
+              </div>
+
+              <div className="flex gap-2">
+                <button
+                  onClick={() => setPaymentMethod('CASH')}
+                  className={`flex-1 py-2.5 rounded-xl text-sm font-bold transition-colors ${
+                    paymentMethod === 'CASH' ? 'bg-orange-500 text-white' : 'bg-gray-50 text-gray-500 hover:bg-gray-100'
+                  }`}
+                >
+                  Efectivo
+                </button>
+                <button
+                  onClick={() => setPaymentMethod('TRANSFER')}
+                  className={`flex-1 py-2.5 rounded-xl text-sm font-bold transition-colors ${
+                    paymentMethod === 'TRANSFER' ? 'bg-orange-500 text-white' : 'bg-gray-50 text-gray-500 hover:bg-gray-100'
+                  }`}
+                >
+                  Transferencia
+                </button>
+              </div>
+
+              {paymentMethod === 'CASH' && (
+                <div className="flex items-center gap-3">
+                  <input
+                    type="number"
+                    min="0"
+                    step="0.01"
+                    value={paidAmount}
+                    onChange={(e) => setPaidAmount(e.target.value)}
+                    placeholder="Paga con..."
+                    className="flex-1 border border-gray-200 rounded-xl px-3 py-2.5 text-sm outline-none focus:border-orange-400 font-medium"
+                  />
+                  <p className={`text-sm font-bold ${change >= 0 ? 'text-green-600' : 'text-gray-300'}`}>
+                    Vuelto: {change >= 0 ? money(change) : '—'}
+                  </p>
+                </div>
+              )}
+
+              {payError && (
+                <p className="text-xs text-red-500 font-semibold bg-red-50 rounded-lg px-3 py-2">{payError}</p>
+              )}
+
+              <button
+                onClick={handlePay}
+                disabled={!canPay || payMutation.isPending}
+                className="w-full py-3 rounded-xl bg-green-600 hover:bg-green-700 text-white text-sm font-extrabold transition-colors disabled:opacity-50"
+              >
+                {payMutation.isPending ? 'Cobrando...' : `Cobrar ${money(total)}`}
+              </button>
+            </div>
+          )}
+        </div>
+
+        {/* Total del día */}
+        <div className="bg-white rounded-2xl shadow-sm p-5 flex flex-col gap-4 lg:sticky lg:top-6">
+          <p className="text-sm font-bold text-gray-500 uppercase tracking-wide">Venta total de hoy</p>
+          <p className="text-3xl font-extrabold text-gray-800">{money(summary?.total ?? 0)}</p>
+          <p className="text-xs text-gray-400 font-medium">{summary?.count ?? 0} tickets cobrados</p>
+
+          <div className="flex flex-col gap-2 pt-2 border-t border-gray-100">
+            <div className="flex items-center justify-between text-sm">
+              <span className="text-gray-500 font-medium">Efectivo</span>
+              <span className="font-bold text-gray-700">{money(summary?.byMethod.CASH ?? 0)}</span>
+            </div>
+            <div className="flex items-center justify-between text-sm">
+              <span className="text-gray-500 font-medium">Transferencia</span>
+              <span className="font-bold text-gray-700">{money(summary?.byMethod.TRANSFER ?? 0)}</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {cameraOpen && (
+        <BarcodeCameraScanner onDetected={handleCameraDetected} onClose={() => setCameraOpen(false)} />
+      )}
+
+      {toCancel && (
+        <ConfirmModal
+          message={`¿Cancelar el ticket? ${toCancel.items.length > 0 ? 'Se perderán los productos cargados.' : ''}`}
+          loading={cancelMutation.isPending}
+          onConfirm={() => cancelMutation.mutate(toCancel.id)}
+          onCancel={() => setToCancel(null)}
+        />
+      )}
+    </div>
+  );
+}

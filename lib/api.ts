@@ -43,6 +43,7 @@ export interface Product {
   imageUrl: string;
   quantity: number | null;
   unit: string | null;
+  barcode: string | null;
   isActive: boolean;
   categoryId: string | null;
   category: Category | null;
@@ -96,6 +97,8 @@ export const products = {
     return request<PaginatedResponse<Product>>(`/products${q}`);
   },
   getById: (id: string) => request<Product>(`/products/${id}`),
+  getByBarcode: (code: string) =>
+    request<Product | null>(`/products/barcode/${encodeURIComponent(code)}`).catch(() => null),
   create:  (form: FormData) => request<Product>('/products', { method: 'POST', body: form }),
   update:  (id: string, form: FormData) => request<Product>(`/products/${id}`, { method: 'PUT', body: form }),
   toggleActive: (id: string) => request<Product>(`/products/${id}/toggle-active`, { method: 'PATCH' }),
@@ -138,6 +141,55 @@ export const config = {
       method: 'PUT',
       body: JSON.stringify(data),
     }),
+};
+
+export type SaleStatus = 'OPEN' | 'PAID' | 'CANCELLED';
+export type PaymentMethod = 'CASH' | 'TRANSFER';
+
+export interface SaleItem {
+  id: string;
+  saleId: string;
+  productId: string | null;
+  name: string;
+  unitPrice: string;
+  quantity: number;
+  subtotal: string;
+  createdAt: string;
+}
+
+export interface Sale {
+  id: string;
+  status: SaleStatus;
+  paymentMethod: PaymentMethod | null;
+  total: string;
+  paidAmount: string | null;
+  changeAmount: string | null;
+  userId: string;
+  items: SaleItem[];
+  openedAt: string;
+  paidAt: string | null;
+  cancelledAt: string | null;
+}
+
+export interface SaleSummary {
+  total: number;
+  count: number;
+  byMethod: { CASH: number; TRANSFER: number };
+}
+
+export const sales = {
+  getOpen: () => request<Sale[]>('/sales/open'),
+  getSummary: (date?: string) => request<SaleSummary>(`/sales/summary${date ? `?date=${date}` : ''}`),
+  create: () => request<Sale>('/sales', { method: 'POST' }),
+  addItem: (saleId: string, data: { productId?: string; name?: string; unitPrice?: number; quantity?: number }) =>
+    request<Sale>(`/sales/${saleId}/items`, { method: 'POST', body: JSON.stringify(data) }),
+  updateItem: (saleId: string, itemId: string, data: { quantity?: number; unitPrice?: number }) =>
+    request<Sale>(`/sales/${saleId}/items/${itemId}`, { method: 'PATCH', body: JSON.stringify(data) }),
+  removeItem: (saleId: string, itemId: string) =>
+    request<Sale>(`/sales/${saleId}/items/${itemId}`, { method: 'DELETE' }),
+  pay: (saleId: string, data: { paymentMethod: PaymentMethod; paidAmount?: number }) =>
+    request<Sale>(`/sales/${saleId}/pay`, { method: 'POST', body: JSON.stringify(data) }),
+  cancel: (saleId: string) => request<Sale>(`/sales/${saleId}/cancel`, { method: 'POST' }),
 };
 
 export const banners = {
