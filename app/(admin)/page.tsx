@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { products, categories, banners, config, StoreScheduleDay } from '@/lib/api';
+import { products, categories, banners, config, StoreScheduleDay, StoreConfig } from '@/lib/api';
 import {
   Package, Tag, Image, CheckCircle, XCircle,
   HourglassMedium, Clock, Check, WhatsappLogo, Bank, IdentificationCard, Copy,
@@ -108,7 +108,7 @@ export default function DashboardPage() {
     queryFn: () => config.get(),
   });
 
-  const [status, setStatus]     = useState<'open' | 'busy' | 'closed'>('open');
+  const [status, setStatus]     = useState<StoreConfig['status']>('open');
   const [busyTime, setBusyTime] = useState<number>(60);
   const [schedule, setSchedule] = useState<StoreScheduleDay[]>([]);
   const [contact, setContact]   = useState({ whatsappNumber: '', cbu: '', alias: '', titular: '' });
