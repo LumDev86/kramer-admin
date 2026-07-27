@@ -180,6 +180,7 @@ export interface SaleSummary {
 
 export const sales = {
   getOpen: () => request<Sale[]>('/sales/open'),
+  getBySession: (cashSessionId: string) => request<Sale[]>(`/sales/session/${cashSessionId}`),
   getSummary: (date?: string) => request<SaleSummary>(`/sales/summary${date ? `?date=${date}` : ''}`),
   create: () => request<Sale>('/sales', { method: 'POST' }),
   addItem: (saleId: string, data: { productId?: string; name?: string; unitPrice?: number; quantity?: number }) =>
@@ -216,8 +217,23 @@ export interface CurrentCashSession extends CashSession {
   salesCount: number;
 }
 
+export interface CategoryBreakdown {
+  name: string;
+  total: number;
+}
+
+export interface CashSessionBreakdown {
+  salesTotal: number;
+  salesCash: number;
+  salesTransfer: number;
+  salesCount: number;
+  profit: number;
+  byCategory: CategoryBreakdown[];
+}
+
 export const cashSessions = {
   getCurrent: () => request<CurrentCashSession | null>('/cash-sessions/current'),
+  getBreakdown: (id: string) => request<CashSessionBreakdown>(`/cash-sessions/${id}/breakdown`),
   open: (openingAmount: number) =>
     request<CashSession>('/cash-sessions', { method: 'POST', body: JSON.stringify({ openingAmount }) }),
   close: (id: string, closingAmount: number) =>

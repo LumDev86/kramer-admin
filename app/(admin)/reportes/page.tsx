@@ -1,8 +1,9 @@
 'use client';
 
-import { useState } from 'react';
+import { Fragment, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { sales, cashSessions } from '@/lib/api';
+import { CaretDown } from '@phosphor-icons/react';
 
 const money = (value: number | string) =>
   `$${Number(value).toLocaleString('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
@@ -33,6 +34,7 @@ export default function ReportesPage() {
 
   const [from, setFrom] = useState(toISODate(weekAgo));
   const [to, setTo] = useState(toISODate(today));
+  const [expandedId, setExpandedId] = useState<string | null>(null);
 
   const { data: summary } = useQuery({
     queryKey: ['sales', 'summary-range', from, to],
@@ -42,6 +44,12 @@ export default function ReportesPage() {
   const { data: history, isLoading: historyLoading } = useQuery({
     queryKey: ['cash-sessions', 'history', from, to],
     queryFn: () => cashSessions.getHistory(from, to),
+  });
+
+  const { data: breakdown, isLoading: breakdownLoading } = useQuery({
+    queryKey: ['cash-session', 'breakdown', expandedId],
+    queryFn: () => cashSessions.getBreakdown(expandedId!),
+    enabled: !!expandedId,
   });
 
   return (
@@ -95,6 +103,7 @@ export default function ReportesPage() {
         <table className="w-full text-sm">
           <thead className="border-b border-gray-100">
             <tr className="text-left">
+              <th className="px-4 py-3 w-8" />
               <th className="px-4 py-3 text-xs font-bold text-gray-400 uppercase tracking-wide">Apertura</th>
               <th className="px-4 py-3 text-xs font-bold text-gray-400 uppercase tracking-wide">Cierre</th>
               <th className="px-4 py-3 text-xs font-bold text-gray-400 uppercase tracking-wide">Inicial</th>
@@ -107,25 +116,64 @@ export default function ReportesPage() {
             {historyLoading ? (
               Array.from({ length: 3 }).map((_, i) => (
                 <tr key={i}>
-                  <td colSpan={6} className="px-4 py-3">
+                  <td colSpan={7} className="px-4 py-3">
                     <div className="h-5 bg-gray-100 rounded animate-pulse" />
                   </td>
                 </tr>
               ))
             ) : history && history.length > 0 ? (
               history.map((s) => (
-                <tr key={s.id} className="hover:bg-gray-50 transition-colors">
-                  <td className="px-4 py-3 text-gray-600">{formatDateTime(s.openedAt)}</td>
-                  <td className="px-4 py-3 text-gray-600">{s.closedAt ? formatDateTime(s.closedAt) : '—'}</td>
-                  <td className="px-4 py-3 font-semibold">{money(s.openingAmount)}</td>
-                  <td className="px-4 py-3 font-semibold">{s.expectedAmount ? money(s.expectedAmount) : '—'}</td>
-                  <td className="px-4 py-3 font-semibold">{s.closingAmount ? money(s.closingAmount) : '—'}</td>
-                  <td className={`px-4 py-3 font-bold ${diffColor(s.difference)}`}>{diffLabel(s.difference)}</td>
-                </tr>
+                <Fragment key={s.id}>
+                  <tr
+                    onClick={() => setExpandedId(expandedId === s.id ? null : s.id)}
+                    className="hover:bg-gray-50 transition-colors cursor-pointer"
+                  >
+                    <td className="px-4 py-3">
+                      <CaretDown
+                        size={14}
+                        weight="bold"
+                        className={`text-gray-400 transition-transform ${expandedId === s.id ? 'rotate-180' : ''}`}
+                      />
+                    </td>
+                    <td className="px-4 py-3 text-gray-600">{formatDateTime(s.openedAt)}</td>
+                    <td className="px-4 py-3 text-gray-600">{s.closedAt ? formatDateTime(s.closedAt) : '—'}</td>
+                    <td className="px-4 py-3 font-semibold">{money(s.openingAmount)}</td>
+                    <td className="px-4 py-3 font-semibold">{s.expectedAmount ? money(s.expectedAmount) : '—'}</td>
+                    <td className="px-4 py-3 font-semibold">{s.closingAmount ? money(s.closingAmount) : '—'}</td>
+                    <td className={`px-4 py-3 font-bold ${diffColor(s.difference)}`}>{diffLabel(s.difference)}</td>
+                  </tr>
+                  {expandedId === s.id && (
+                    <tr>
+                      <td colSpan={7} className="px-4 py-4 bg-gray-50">
+                        {breakdownLoading ? (
+                          <div className="h-5 bg-gray-100 rounded animate-pulse w-40" />
+                        ) : breakdown ? (
+                          <div className="flex flex-wrap gap-8">
+                            <div className="flex flex-col gap-1">
+                              <p className="text-xs font-bold text-gray-400 uppercase tracking-wide">Ganancia del turno</p>
+                              <p className="text-lg font-extrabold text-gray-800">{money(breakdown.profit)}</p>
+                            </div>
+                            {breakdown.byCategory.length > 0 && (
+                              <div className="flex flex-col gap-1 min-w-[200px]">
+                                <p className="text-xs font-bold text-gray-400 uppercase tracking-wide">Ventas por categoría</p>
+                                {breakdown.byCategory.map((c) => (
+                                  <div key={c.name} className="flex justify-between text-sm gap-6">
+                                    <span className="text-gray-500">{c.name}</span>
+                                    <span className="font-semibold text-gray-700">{money(c.total)}</span>
+                                  </div>
+                                ))}
+                              </div>
+                            )}
+                          </div>
+                        ) : null}
+                      </td>
+                    </tr>
+                  )}
+                </Fragment>
               ))
             ) : (
               <tr>
-                <td colSpan={6} className="px-4 py-8 text-center text-sm text-gray-400 font-medium">
+                <td colSpan={7} className="px-4 py-8 text-center text-sm text-gray-400 font-medium">
                   No hay cortes de caja en este rango.
                 </td>
               </tr>

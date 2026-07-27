@@ -3,8 +3,8 @@
 import { useEffect, useRef, useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import Link from 'next/link';
-import { sales, products, cashSessions, Sale, Product, PaymentMethod, CashSession } from '@/lib/api';
-import { Plus, Camera, Trash, X, Receipt, Wallet, ChartBar, Check } from '@phosphor-icons/react';
+import { sales, products, cashSessions, Sale, SaleItem, Product, PaymentMethod, CashSession } from '@/lib/api';
+import { Plus, Camera, Trash, X, Receipt, Wallet, ChartBar, Check, CaretDown } from '@phosphor-icons/react';
 import ConfirmModal from '@/components/ui/ConfirmModal';
 import BarcodeCameraScanner from '@/components/ui/BarcodeCameraScanner';
 
@@ -33,12 +33,26 @@ export default function VentasPage() {
   const [closingAmount, setClosingAmount] = useState('');
   const [closeError, setCloseError] = useState('');
   const [closeResult, setCloseResult] = useState<CashSession | null>(null);
+  const [sessionListOpen, setSessionListOpen] = useState(false);
+  const [toCancelPaid, setToCancelPaid] = useState<Sale | null>(null);
+  const [itemToRemove, setItemToRemove] = useState<{ sale: Sale; item: SaleItem } | null>(null);
+  const [paidActionError, setPaidActionError] = useState('');
 
   const { data: openSales } = useQuery({ queryKey: ['sales', 'open'], queryFn: sales.getOpen });
   const { data: summary } = useQuery({ queryKey: ['sales', 'summary'], queryFn: () => sales.getSummary() });
   const { data: currentSession, isLoading: sessionLoading } = useQuery({
     queryKey: ['cash-session', 'current'],
     queryFn: cashSessions.getCurrent,
+  });
+  const { data: sessionSales } = useQuery({
+    queryKey: ['sales', 'session', currentSession?.id],
+    queryFn: () => sales.getBySession(currentSession!.id),
+    enabled: !!currentSession,
+  });
+  const { data: closeBreakdown } = useQuery({
+    queryKey: ['cash-session', 'breakdown', closeResult?.id],
+    queryFn: () => cashSessions.getBreakdown(closeResult!.id),
+    enabled: !!closeResult,
   });
 
   const openSessionMutation = useMutation({
@@ -106,6 +120,32 @@ export default function VentasPage() {
     },
   });
 
+  const invalidatePaidActionQueries = () => {
+    qc.invalidateQueries({ queryKey: ['sales', 'session', currentSession?.id] });
+    qc.invalidateQueries({ queryKey: ['sales', 'summary'] });
+    qc.invalidateQueries({ queryKey: ['cash-session', 'current'] });
+  };
+
+  const cancelPaidMutation = useMutation({
+    mutationFn: (saleId: string) => sales.cancel(saleId),
+    onSuccess: () => {
+      invalidatePaidActionQueries();
+      setToCancelPaid(null);
+      setPaidActionError('');
+    },
+    onError: (err: any) => setPaidActionError(err.message ?? 'Error al cancelar el ticket'),
+  });
+
+  const removePaidItemMutation = useMutation({
+    mutationFn: ({ saleId, itemId }: { saleId: string; itemId: string }) => sales.removeItem(saleId, itemId),
+    onSuccess: () => {
+      invalidatePaidActionQueries();
+      setItemToRemove(null);
+      setPaidActionError('');
+    },
+    onError: (err: any) => setPaidActionError(err.message ?? 'Error al quitar el producto'),
+  });
+
   const payMutation = useMutation({
     mutationFn: ({ saleId, data }: { saleId: string; data: Parameters<typeof sales.pay>[1] }) =>
       sales.pay(saleId, data),
@@ -113,6 +153,7 @@ export default function VentasPage() {
       qc.invalidateQueries({ queryKey: ['sales', 'open'] });
       qc.invalidateQueries({ queryKey: ['sales', 'summary'] });
       qc.invalidateQueries({ queryKey: ['cash-session', 'current'] });
+      qc.invalidateQueries({ queryKey: ['sales', 'session', currentSession?.id] });
       setActiveSaleId(null);
       setPaidAmount('');
       setPayError('');
@@ -295,7 +336,24 @@ export default function VentasPage() {
                     {Number(closeResult.difference) < 0 ? ' (faltante)' : Number(closeResult.difference) > 0 ? ' (sobrante)' : ''}
                   </span>
                 </div>
+                {closeBreakdown && (
+                  <div className="flex justify-between border-t border-gray-100 pt-1.5">
+                    <span className="text-gray-500">Ganancia del turno</span>
+                    <span className="font-bold text-gray-700">{money(closeBreakdown.profit)}</span>
+                  </div>
+                )}
               </div>
+              {closeBreakdown && closeBreakdown.byCategory.length > 0 && (
+                <div className="flex flex-col gap-1 bg-gray-50 rounded-xl p-3">
+                  <p className="text-xs font-bold text-gray-400 uppercase tracking-wide">Ventas por categoría</p>
+                  {closeBreakdown.byCategory.map((c) => (
+                    <div key={c.name} className="flex justify-between text-xs">
+                      <span className="text-gray-500">{c.name}</span>
+                      <span className="font-semibold text-gray-600">{money(c.total)}</span>
+                    </div>
+                  ))}
+                </div>
+              )}
               <button
                 onClick={() => { setCloseModalOpen(false); setCloseResult(null); setClosingAmount(''); }}
                 className="w-full py-2.5 rounded-xl bg-orange-500 hover:bg-orange-600 text-white text-sm font-bold transition-colors"
@@ -623,6 +681,76 @@ export default function VentasPage() {
         </div>
       </div>
 
+      {/* Tickets cobrados del turno */}
+      <div className="bg-white rounded-2xl shadow-sm overflow-hidden">
+        <button
+          onClick={() => setSessionListOpen((o) => !o)}
+          className="w-full flex items-center justify-between px-4 py-3.5"
+        >
+          <span className="text-sm font-bold text-gray-700">
+            Tickets cobrados hoy ({(sessionSales ?? []).filter((s) => s.status === 'PAID').length})
+          </span>
+          <CaretDown
+            size={16}
+            weight="bold"
+            className={`text-gray-400 transition-transform ${sessionListOpen ? 'rotate-180' : ''}`}
+          />
+        </button>
+        {sessionListOpen && (
+          <div className="border-t border-gray-100 divide-y divide-gray-50">
+            {!sessionSales || sessionSales.length === 0 ? (
+              <p className="px-4 py-6 text-center text-sm text-gray-400 font-medium">
+                Todavía no cobraste ningún ticket en este turno.
+              </p>
+            ) : (
+              sessionSales.map((sale) => (
+                <div key={sale.id} className="px-4 py-3">
+                  <div className="flex items-center justify-between gap-2">
+                    <div>
+                      <p className={`text-sm font-bold ${sale.status === 'CANCELLED' ? 'line-through text-gray-400' : 'text-gray-700'}`}>
+                        {money(sale.total)} · {sale.paymentMethod === 'CASH' ? 'Efectivo' : 'Transferencia'}
+                      </p>
+                      <p className="text-xs text-gray-400">
+                        {sale.paidAt &&
+                          new Date(sale.paidAt).toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit' })}
+                      </p>
+                    </div>
+                    {sale.status === 'PAID' ? (
+                      <button
+                        onClick={() => { setPaidActionError(''); setToCancelPaid(sale); }}
+                        className="flex-shrink-0 text-xs font-bold text-red-500 hover:text-red-600 transition-colors"
+                      >
+                        Cancelar ticket
+                      </button>
+                    ) : (
+                      <span className="flex-shrink-0 text-xs font-bold text-gray-400">Cancelado</span>
+                    )}
+                  </div>
+                  {sale.status === 'PAID' && (
+                    <ul className="mt-2 flex flex-col gap-1">
+                      {sale.items.map((item) => (
+                        <li key={item.id} className="flex items-center justify-between text-xs text-gray-500">
+                          <span>{item.quantity} × {item.name}</span>
+                          <div className="flex items-center gap-2">
+                            <span className="font-semibold text-gray-600">{money(item.subtotal)}</span>
+                            <button
+                              onClick={() => { setPaidActionError(''); setItemToRemove({ sale, item }); }}
+                              className="w-5 h-5 flex items-center justify-center rounded text-gray-300 hover:text-red-500 transition-colors"
+                            >
+                              <Trash size={12} weight="bold" />
+                            </button>
+                          </div>
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+                </div>
+              ))
+            )}
+          </div>
+        )}
+      </div>
+
       {cameraOpen && (
         <BarcodeCameraScanner onDetected={handleCameraDetected} onClose={() => setCameraOpen(false)} />
       )}
@@ -633,6 +761,26 @@ export default function VentasPage() {
           loading={cancelMutation.isPending}
           onConfirm={() => cancelMutation.mutate(toCancel.id)}
           onCancel={() => setToCancel(null)}
+        />
+      )}
+
+      {toCancelPaid && (
+        <ConfirmModal
+          message="¿Cancelar este ticket ya cobrado? Se repondrá el stock de sus productos y dejará de contar en las ventas del turno."
+          error={paidActionError}
+          loading={cancelPaidMutation.isPending}
+          onConfirm={() => cancelPaidMutation.mutate(toCancelPaid.id)}
+          onCancel={() => { setToCancelPaid(null); setPaidActionError(''); }}
+        />
+      )}
+
+      {itemToRemove && (
+        <ConfirmModal
+          message={`¿Quitar "${itemToRemove.item.name}" de este ticket? Se repondrá su stock y se descontará del total cobrado.`}
+          error={paidActionError}
+          loading={removePaidItemMutation.isPending}
+          onConfirm={() => removePaidItemMutation.mutate({ saleId: itemToRemove.sale.id, itemId: itemToRemove.item.id })}
+          onCancel={() => { setItemToRemove(null); setPaidActionError(''); }}
         />
       )}
 
