@@ -222,6 +222,12 @@ export interface CategoryBreakdown {
   total: number;
 }
 
+export interface ProductBreakdown {
+  name: string;
+  quantity: number;
+  total: number;
+}
+
 export interface CashSessionBreakdown {
   salesTotal: number;
   salesCash: number;
@@ -229,6 +235,7 @@ export interface CashSessionBreakdown {
   salesCount: number;
   profit: number;
   byCategory: CategoryBreakdown[];
+  byProduct: ProductBreakdown[];
 }
 
 export const cashSessions = {
@@ -267,8 +274,20 @@ export interface FacturaItem {
   codigoDetectado: string | null;
   cantidad: number;
   precioUnitario: string;
+  medidaDetectada: number | null;
+  medidaUnidadDetectada: string | null;
   subtotal: string;
   createdAt: string;
+}
+
+export interface SuggestedProduct {
+  id: string;
+  title: string;
+  price: string;
+  cost: string | null;
+  imageUrl: string;
+  quantity: number | null;
+  unit: string | null;
 }
 
 export interface Factura {
@@ -300,6 +319,8 @@ export const distribuidores = {
 
 export const facturas = {
   getById: (id: string) => request<Factura>(`/facturas/${id}`),
+  getSuggestions: (facturaId: string) =>
+    request<Record<string, SuggestedProduct[]>>(`/facturas/${facturaId}/suggestions`),
   create: (distribuidorId: string, form: FormData) =>
     request<Factura>(`/distribuidores/${distribuidorId}/facturas`, { method: 'POST', body: form }),
   addItem: (
@@ -313,6 +334,8 @@ export const facturas = {
   ) => request<Factura>(`/facturas/${facturaId}/items/${itemId}`, { method: 'PATCH', body: JSON.stringify(data) }),
   removeItem: (facturaId: string, itemId: string) =>
     request<Factura>(`/facturas/${facturaId}/items/${itemId}`, { method: 'DELETE' }),
+  createProductFromItem: (facturaId: string, itemId: string, form: FormData) =>
+    request<Factura>(`/facturas/${facturaId}/items/${itemId}/product`, { method: 'POST', body: form }),
   confirm: (facturaId: string) => request<Factura>(`/facturas/${facturaId}/confirm`, { method: 'POST' }),
   cancel: (facturaId: string) => request<Factura>(`/facturas/${facturaId}/cancel`, { method: 'POST' }),
 };

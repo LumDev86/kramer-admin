@@ -164,6 +164,17 @@ export default function ReportesPage() {
                                 ))}
                               </div>
                             )}
+                            {breakdown.byProduct.length > 0 && (
+                              <div className="flex flex-col gap-1 min-w-[220px]">
+                                <p className="text-xs font-bold text-gray-400 uppercase tracking-wide">Productos más vendidos</p>
+                                {breakdown.byProduct.map((p) => (
+                                  <div key={p.name} className="flex justify-between text-sm gap-6">
+                                    <span className="text-gray-500">{p.quantity} × {p.name}</span>
+                                    <span className="font-semibold text-gray-700">{money(p.total)}</span>
+                                  </div>
+                                ))}
+                              </div>
+                            )}
                           </div>
                         ) : null}
                       </td>

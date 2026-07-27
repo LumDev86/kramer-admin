@@ -1,13 +1,16 @@
 'use client';
 
-import { useRef, useState } from 'react';
+import { Fragment, useRef, useState } from 'react';
 import { useParams } from 'next/navigation';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import Link from 'next/link';
 import Image from 'next/image';
-import { distribuidores, facturas, products, Factura, FacturaItem, Product } from '@/lib/api';
+import { distribuidores, facturas, products, categories, Factura, FacturaItem, Product } from '@/lib/api';
 import { CaretLeft, UploadSimple, Trash, Warning, Check, X } from '@phosphor-icons/react';
 import ConfirmModal from '@/components/ui/ConfirmModal';
+import ImageUpload from '@/components/ui/ImageUpload';
+import UnitSelector from '@/components/ui/UnitSelector';
+import CategorySelector from '@/components/ui/CategorySelector';
 
 const money = (value: number | string) =>
   `$${Number(value).toLocaleString('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
@@ -33,13 +36,27 @@ export default function DistribuidoraDetallePage() {
   const [manualNombre, setManualNombre] = useState('');
   const [manualPrecio, setManualPrecio] = useState('');
   const [manualCantidad, setManualCantidad] = useState('1');
+  const [creatingItemId, setCreatingItemId] = useState<string | null>(null);
+  const [newProductForm, setNewProductForm] = useState({
+    title: '',
+    price: '',
+    quantity: '',
+    unit: '',
+    categoryId: '',
+    barcode: '',
+  });
+  const [newProductImage, setNewProductImage] = useState<File | null>(null);
+  const [newProductError, setNewProductError] = useState('');
 
   const { data, isLoading } = useQuery({
     queryKey: ['distribuidor', id],
     queryFn: () => distribuidores.getById(id),
   });
 
-  const invalidate = () => qc.invalidateQueries({ queryKey: ['distribuidor', id] });
+  const invalidate = () => {
+    qc.invalidateQueries({ queryKey: ['distribuidor', id] });
+    qc.invalidateQueries({ queryKey: ['factura', 'suggestions'] });
+  };
 
   const uploadMutation = useMutation({
     mutationFn: (file: File) => {
@@ -96,6 +113,63 @@ export default function DistribuidoraDetallePage() {
     },
   });
 
+  const { data: suggestions } = useQuery({
+    queryKey: ['factura', 'suggestions', activeFacturaId],
+    queryFn: () => facturas.getSuggestions(activeFacturaId!),
+    enabled: !!activeFacturaId,
+  });
+
+  const { data: catsData } = useQuery({
+    queryKey: ['categories', { parentId: 'null', limit: 100 }],
+    queryFn: () => categories.getAll({ parentId: 'null', limit: 100 }),
+  });
+
+  const createProductMutation = useMutation({
+    mutationFn: ({ facturaId, itemId, form }: { facturaId: string; itemId: string; form: FormData }) =>
+      facturas.createProductFromItem(facturaId, itemId, form),
+    onSuccess: () => {
+      invalidate();
+      setCreatingItemId(null);
+      setNewProductForm({ title: '', price: '', quantity: '', unit: '', categoryId: '', barcode: '' });
+      setNewProductImage(null);
+      setNewProductError('');
+    },
+    onError: (err: any) => setNewProductError(err.message ?? 'Error al crear el producto'),
+  });
+
+  const openCreateForm = (item: FacturaItem) => {
+    setCreatingItemId(item.id);
+    setLinkingItemId(null);
+    setNewProductForm({
+      title: item.nombreDetectado,
+      price: '',
+      quantity: item.medidaDetectada != null ? String(item.medidaDetectada) : '',
+      unit: item.medidaUnidadDetectada ?? '',
+      categoryId: '',
+      barcode: item.codigoDetectado ?? '',
+    });
+    setNewProductImage(null);
+    setNewProductError('');
+  };
+
+  const submitCreateProduct = (facturaId: string) => {
+    if (!creatingItemId) return;
+    if (!newProductImage) { setNewProductError('La imagen es obligatoria'); return; }
+    if (!newProductForm.title.trim() || !newProductForm.price) {
+      setNewProductError('Falta el nombre o el precio de venta');
+      return;
+    }
+    const fd = new FormData();
+    fd.append('title', newProductForm.title.trim());
+    fd.append('price', newProductForm.price);
+    if (newProductForm.quantity) fd.append('quantity', newProductForm.quantity);
+    if (newProductForm.unit) fd.append('unit', newProductForm.unit);
+    if (newProductForm.categoryId) fd.append('categoryId', newProductForm.categoryId);
+    if (newProductForm.barcode) fd.append('barcode', newProductForm.barcode);
+    fd.append('image', newProductImage);
+    createProductMutation.mutate({ facturaId, itemId: creatingItemId, form: fd });
+  };
+
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) uploadMutation.mutate(file);
@@ -112,7 +186,7 @@ export default function DistribuidoraDetallePage() {
     setLinkResults(result.data);
   };
 
-  const linkProduct = (facturaId: string, item: FacturaItem, product: Product) => {
+  const linkProduct = (facturaId: string, item: FacturaItem, product: { id: string }) => {
     updateItemMutation.mutate({ facturaId, itemId: item.id, data: { productId: product.id } });
     setLinkingItemId(null);
     setLinkQuery('');
@@ -132,6 +206,7 @@ export default function DistribuidoraDetallePage() {
   const pendientes = data.facturas.filter((f) => f.status === 'PENDING_REVIEW');
   const historial = data.facturas.filter((f) => f.status !== 'PENDING_REVIEW');
   const activeFactura = data.facturas.find((f) => f.id === activeFacturaId) ?? null;
+  const unresolvedCount = activeFactura ? activeFactura.items.filter((i) => !i.productId).length : 0;
 
   return (
     <div className="flex flex-col gap-6">
@@ -223,7 +298,8 @@ export default function DistribuidoraDetallePage() {
                     </tr>
                   ) : (
                     activeFactura.items.map((item) => (
-                      <tr key={item.id} className="align-top">
+                      <Fragment key={item.id}>
+                      <tr className="align-top">
                         <td className="px-4 py-3">
                           <input
                             defaultValue={item.nombreDetectado}
@@ -254,37 +330,66 @@ export default function DistribuidoraDetallePage() {
                                 <X size={12} weight="bold" />
                               </button>
                             </div>
-                          ) : linkingItemId === item.id ? (
-                            <div className="mt-1 relative">
-                              <input
-                                autoFocus
-                                value={linkQuery}
-                                onChange={(e) => handleSearchProduct(item, e.target.value)}
-                                onBlur={() => setTimeout(() => setLinkingItemId(null), 150)}
-                                placeholder="Buscar producto..."
-                                className="w-full text-xs border border-gray-200 rounded-lg px-2 py-1 outline-none focus:border-orange-400"
-                              />
-                              {linkResults && linkResults.length > 0 && (
-                                <div className="absolute z-10 mt-1 w-56 bg-white border border-gray-100 rounded-lg shadow-lg overflow-hidden">
-                                  {linkResults.map((p) => (
+                          ) : (
+                            <div className="flex flex-col gap-1.5 mt-1">
+                              {suggestions?.[item.id] && suggestions[item.id].length > 0 && (
+                                <div className="flex flex-wrap gap-1">
+                                  {suggestions[item.id].map((s) => (
                                     <button
-                                      key={p.id}
-                                      onMouseDown={() => linkProduct(activeFactura.id, item, p)}
-                                      className="block w-full text-left px-3 py-2 text-xs hover:bg-orange-50"
+                                      key={s.id}
+                                      onClick={() => linkProduct(activeFactura.id, item, s)}
+                                      title={[s.quantity, s.unit].filter(Boolean).join(' ')}
+                                      className="px-2 py-1 rounded-lg border border-orange-200 bg-orange-50 text-orange-600 text-[11px] font-semibold hover:bg-orange-100 transition-colors"
                                     >
-                                      {p.title}
+                                      ¿{s.title}?
                                     </button>
                                   ))}
                                 </div>
                               )}
+                              {linkingItemId === item.id ? (
+                                <div className="relative">
+                                  <input
+                                    autoFocus
+                                    value={linkQuery}
+                                    onChange={(e) => handleSearchProduct(item, e.target.value)}
+                                    onBlur={() => setTimeout(() => setLinkingItemId(null), 150)}
+                                    placeholder="Buscar producto..."
+                                    className="w-full text-xs border border-gray-200 rounded-lg px-2 py-1 outline-none focus:border-orange-400"
+                                  />
+                                  {linkResults && linkResults.length > 0 && (
+                                    <div className="absolute z-10 mt-1 w-56 bg-white border border-gray-100 rounded-lg shadow-lg overflow-hidden">
+                                      {linkResults.map((p) => (
+                                        <button
+                                          key={p.id}
+                                          onMouseDown={() => linkProduct(activeFactura.id, item, p)}
+                                          className="block w-full text-left px-3 py-2 text-xs hover:bg-orange-50"
+                                        >
+                                          {p.title}
+                                        </button>
+                                      ))}
+                                    </div>
+                                  )}
+                                </div>
+                              ) : creatingItemId === item.id ? (
+                                <span className="text-xs text-orange-500 font-semibold">Completando alta abajo ↓</span>
+                              ) : (
+                                <div className="flex items-center gap-2">
+                                  <button
+                                    onClick={() => { setLinkingItemId(item.id); setLinkQuery(''); setLinkResults(null); }}
+                                    className="text-xs text-gray-400 hover:text-orange-500 font-medium"
+                                  >
+                                    Sin vincular · buscar
+                                  </button>
+                                  <span className="text-gray-200">·</span>
+                                  <button
+                                    onClick={() => openCreateForm(item)}
+                                    className="text-xs text-orange-500 hover:text-orange-600 font-bold"
+                                  >
+                                    + Crear producto nuevo
+                                  </button>
+                                </div>
+                              )}
                             </div>
-                          ) : (
-                            <button
-                              onClick={() => { setLinkingItemId(item.id); setLinkQuery(''); setLinkResults(null); }}
-                              className="text-xs text-gray-400 hover:text-orange-500 font-medium mt-1"
-                            >
-                              Sin vincular · buscar producto
-                            </button>
                           )}
                         </td>
                         <td className="px-4 py-3">
@@ -328,6 +433,85 @@ export default function DistribuidoraDetallePage() {
                           </button>
                         </td>
                       </tr>
+                      {creatingItemId === item.id && (
+                        <tr>
+                          <td colSpan={5} className="px-4 pb-4 bg-orange-50/30">
+                            <div className="flex flex-col sm:flex-row gap-4 bg-white border border-orange-100 rounded-xl p-4">
+                              <div className="w-full sm:w-40 flex-shrink-0">
+                                <ImageUpload onChange={setNewProductImage} required />
+                              </div>
+                              <div className="flex-1 flex flex-col gap-2">
+                                <div className="flex flex-col sm:flex-row gap-2">
+                                  <input
+                                    value={newProductForm.title}
+                                    onChange={(e) => setNewProductForm((f) => ({ ...f, title: e.target.value }))}
+                                    placeholder="Nombre del producto"
+                                    className="flex-1 border border-gray-200 rounded-xl px-3 py-2 text-sm outline-none focus:border-orange-400"
+                                  />
+                                  <input
+                                    type="number"
+                                    min="0"
+                                    step="0.01"
+                                    value={newProductForm.price}
+                                    onChange={(e) => setNewProductForm((f) => ({ ...f, price: e.target.value }))}
+                                    placeholder="Precio de venta"
+                                    className="w-full sm:w-40 border border-gray-200 rounded-xl px-3 py-2 text-sm outline-none focus:border-orange-400"
+                                  />
+                                </div>
+                                <div className="flex flex-wrap gap-2">
+                                  <input
+                                    type="number"
+                                    min="0"
+                                    step="any"
+                                    value={newProductForm.quantity}
+                                    onChange={(e) => setNewProductForm((f) => ({ ...f, quantity: e.target.value }))}
+                                    placeholder="Medida"
+                                    className="w-28 border border-gray-200 rounded-xl px-3 py-2 text-sm outline-none focus:border-orange-400"
+                                  />
+                                  <UnitSelector
+                                    value={newProductForm.unit}
+                                    onChange={(v) => setNewProductForm((f) => ({ ...f, unit: v }))}
+                                  />
+                                  <CategorySelector
+                                    value={newProductForm.categoryId}
+                                    onChange={(v) => setNewProductForm((f) => ({ ...f, categoryId: v }))}
+                                    categories={catsData?.data ?? []}
+                                    loading={!catsData}
+                                  />
+                                </div>
+                                <input
+                                  value={newProductForm.barcode}
+                                  onChange={(e) => setNewProductForm((f) => ({ ...f, barcode: e.target.value }))}
+                                  placeholder="Código de barras (opcional)"
+                                  className="border border-gray-200 rounded-xl px-3 py-2 text-sm outline-none focus:border-orange-400"
+                                />
+                                <p className="text-xs text-gray-400">
+                                  Costo: {money(item.precioUnitario)} (de la factura) · Stock inicial 0, se suma al confirmar
+                                </p>
+                                {newProductError && (
+                                  <p className="text-xs text-red-500 font-semibold bg-red-50 rounded-lg px-3 py-2">{newProductError}</p>
+                                )}
+                                <div className="flex gap-2 mt-1">
+                                  <button
+                                    onClick={() => setCreatingItemId(null)}
+                                    className="flex-1 py-2 rounded-xl border border-gray-200 text-xs font-semibold text-gray-600"
+                                  >
+                                    Cancelar
+                                  </button>
+                                  <button
+                                    onClick={() => submitCreateProduct(activeFactura.id)}
+                                    disabled={createProductMutation.isPending}
+                                    className="flex-1 py-2 rounded-xl bg-orange-500 hover:bg-orange-600 text-white text-xs font-bold transition-colors disabled:opacity-50"
+                                  >
+                                    {createProductMutation.isPending ? 'Creando...' : 'Crear y vincular'}
+                                  </button>
+                                </div>
+                              </div>
+                            </div>
+                          </td>
+                        </tr>
+                      )}
+                      </Fragment>
                     ))
                   )}
                 </tbody>
@@ -400,6 +584,11 @@ export default function DistribuidoraDetallePage() {
               <div>
                 <p className="text-xs font-bold text-gray-400 uppercase tracking-wide">Total de la factura</p>
                 <p className="text-xl font-extrabold text-gray-800">{money(activeFactura.total)}</p>
+                {unresolvedCount > 0 && (
+                  <p className="text-xs text-amber-600 font-semibold mt-1">
+                    Quedan {unresolvedCount} producto{unresolvedCount > 1 ? 's' : ''} sin resolver
+                  </p>
+                )}
               </div>
               <div className="flex gap-3">
                 <button
@@ -410,7 +599,7 @@ export default function DistribuidoraDetallePage() {
                 </button>
                 <button
                   onClick={() => confirmMutation.mutate(activeFactura.id)}
-                  disabled={activeFactura.items.length === 0 || confirmMutation.isPending}
+                  disabled={activeFactura.items.length === 0 || unresolvedCount > 0 || confirmMutation.isPending}
                   className="py-2.5 px-6 rounded-xl bg-green-600 hover:bg-green-700 text-white text-sm font-extrabold transition-colors disabled:opacity-50"
                 >
                   {confirmMutation.isPending ? 'Confirmando...' : 'Confirmar factura'}

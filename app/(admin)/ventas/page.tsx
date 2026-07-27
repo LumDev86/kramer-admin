@@ -354,6 +354,17 @@ export default function VentasPage() {
                   ))}
                 </div>
               )}
+              {closeBreakdown && closeBreakdown.byProduct.length > 0 && (
+                <div className="flex flex-col gap-1 bg-gray-50 rounded-xl p-3">
+                  <p className="text-xs font-bold text-gray-400 uppercase tracking-wide">Productos más vendidos</p>
+                  {closeBreakdown.byProduct.map((p) => (
+                    <div key={p.name} className="flex justify-between text-xs">
+                      <span className="text-gray-500">{p.quantity} × {p.name}</span>
+                      <span className="font-semibold text-gray-600">{money(p.total)}</span>
+                    </div>
+                  ))}
+                </div>
+              )}
               <button
                 onClick={() => { setCloseModalOpen(false); setCloseResult(null); setClosingAmount(''); }}
                 className="w-full py-2.5 rounded-xl bg-orange-500 hover:bg-orange-600 text-white text-sm font-bold transition-colors"
