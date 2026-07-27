@@ -44,6 +44,7 @@ export interface Product {
   quantity: number | null;
   unit: string | null;
   barcode: string | null;
+  cost: string | null;
   isActive: boolean;
   categoryId: string | null;
   category: Category | null;
@@ -190,6 +191,76 @@ export const sales = {
   pay: (saleId: string, data: { paymentMethod: PaymentMethod; paidAmount?: number }) =>
     request<Sale>(`/sales/${saleId}/pay`, { method: 'POST', body: JSON.stringify(data) }),
   cancel: (saleId: string) => request<Sale>(`/sales/${saleId}/cancel`, { method: 'POST' }),
+};
+
+export interface Distribuidor {
+  id: string;
+  nombre: string;
+  telefono: string | null;
+  notas: string | null;
+  totalGastado?: number;
+  createdAt: string;
+}
+
+export type FacturaStatus = 'PENDING_REVIEW' | 'CONFIRMED' | 'CANCELLED';
+
+export interface FacturaItem {
+  id: string;
+  facturaId: string;
+  productId: string | null;
+  product: { id: string; title: string; price: string; cost: string | null; imageUrl: string } | null;
+  nombreDetectado: string;
+  codigoDetectado: string | null;
+  cantidad: number;
+  precioUnitario: string;
+  subtotal: string;
+  createdAt: string;
+}
+
+export interface Factura {
+  id: string;
+  distribuidorId: string;
+  imageUrl: string;
+  status: FacturaStatus;
+  total: string;
+  extractionError: string | null;
+  items: FacturaItem[];
+  createdAt: string;
+  confirmedAt: string | null;
+  cancelledAt: string | null;
+}
+
+export interface DistribuidorConFacturas extends Distribuidor {
+  facturas: Factura[];
+}
+
+export const distribuidores = {
+  getAll: () => request<Distribuidor[]>('/distribuidores'),
+  getById: (id: string) => request<DistribuidorConFacturas>(`/distribuidores/${id}`),
+  create: (data: { nombre: string; telefono?: string; notas?: string }) =>
+    request<Distribuidor>('/distribuidores', { method: 'POST', body: JSON.stringify(data) }),
+  update: (id: string, data: { nombre?: string; telefono?: string | null; notas?: string | null }) =>
+    request<Distribuidor>(`/distribuidores/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
+  delete: (id: string) => request<void>(`/distribuidores/${id}`, { method: 'DELETE' }),
+};
+
+export const facturas = {
+  getById: (id: string) => request<Factura>(`/facturas/${id}`),
+  create: (distribuidorId: string, form: FormData) =>
+    request<Factura>(`/distribuidores/${distribuidorId}/facturas`, { method: 'POST', body: form }),
+  addItem: (
+    facturaId: string,
+    data: { productId?: string; nombreDetectado: string; codigoDetectado?: string; cantidad?: number; precioUnitario: number }
+  ) => request<Factura>(`/facturas/${facturaId}/items`, { method: 'POST', body: JSON.stringify(data) }),
+  updateItem: (
+    facturaId: string,
+    itemId: string,
+    data: { productId?: string | null; nombreDetectado?: string; codigoDetectado?: string | null; cantidad?: number; precioUnitario?: number }
+  ) => request<Factura>(`/facturas/${facturaId}/items/${itemId}`, { method: 'PATCH', body: JSON.stringify(data) }),
+  removeItem: (facturaId: string, itemId: string) =>
+    request<Factura>(`/facturas/${facturaId}/items/${itemId}`, { method: 'DELETE' }),
+  confirm: (facturaId: string) => request<Factura>(`/facturas/${facturaId}/confirm`, { method: 'POST' }),
+  cancel: (facturaId: string) => request<Factura>(`/facturas/${facturaId}/cancel`, { method: 'POST' }),
 };
 
 export const banners = {
