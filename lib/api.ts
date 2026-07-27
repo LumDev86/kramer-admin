@@ -191,6 +191,44 @@ export const sales = {
   pay: (saleId: string, data: { paymentMethod: PaymentMethod; paidAmount?: number }) =>
     request<Sale>(`/sales/${saleId}/pay`, { method: 'POST', body: JSON.stringify(data) }),
   cancel: (saleId: string) => request<Sale>(`/sales/${saleId}/cancel`, { method: 'POST' }),
+  getSummaryRange: (from: string, to: string) =>
+    request<SaleSummary>(`/sales/summary-range?from=${from}&to=${to}`),
+};
+
+export type CashSessionStatus = 'OPEN' | 'CLOSED';
+
+export interface CashSession {
+  id: string;
+  status: CashSessionStatus;
+  openingAmount: string;
+  closingAmount: string | null;
+  expectedAmount: string | null;
+  difference: string | null;
+  userId: string;
+  openedAt: string;
+  closedAt: string | null;
+}
+
+export interface CurrentCashSession extends CashSession {
+  salesTotal: number;
+  salesCash: number;
+  salesTransfer: number;
+  salesCount: number;
+}
+
+export const cashSessions = {
+  getCurrent: () => request<CurrentCashSession | null>('/cash-sessions/current'),
+  open: (openingAmount: number) =>
+    request<CashSession>('/cash-sessions', { method: 'POST', body: JSON.stringify({ openingAmount }) }),
+  close: (id: string, closingAmount: number) =>
+    request<CashSession>(`/cash-sessions/${id}/close`, { method: 'POST', body: JSON.stringify({ closingAmount }) }),
+  getHistory: (from?: string, to?: string) => {
+    const qs = new URLSearchParams();
+    if (from) qs.set('from', from);
+    if (to) qs.set('to', to);
+    const q = qs.toString() ? `?${qs}` : '';
+    return request<CashSession[]>(`/cash-sessions${q}`);
+  },
 };
 
 export interface Distribuidor {

@@ -2,8 +2,9 @@
 
 import { useEffect, useRef, useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { sales, products, Sale, Product, PaymentMethod } from '@/lib/api';
-import { Plus, Camera, Trash, X, Receipt } from '@phosphor-icons/react';
+import Link from 'next/link';
+import { sales, products, cashSessions, Sale, Product, PaymentMethod, CashSession } from '@/lib/api';
+import { Plus, Camera, Trash, X, Receipt, Wallet, ChartBar, Check } from '@phosphor-icons/react';
 import ConfirmModal from '@/components/ui/ConfirmModal';
 import BarcodeCameraScanner from '@/components/ui/BarcodeCameraScanner';
 
@@ -26,9 +27,39 @@ export default function VentasPage() {
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>('CASH');
   const [paidAmount, setPaidAmount] = useState('');
   const [payError, setPayError] = useState('');
+  const [openingAmount, setOpeningAmount] = useState('');
+  const [openSessionError, setOpenSessionError] = useState('');
+  const [closeModalOpen, setCloseModalOpen] = useState(false);
+  const [closingAmount, setClosingAmount] = useState('');
+  const [closeError, setCloseError] = useState('');
+  const [closeResult, setCloseResult] = useState<CashSession | null>(null);
 
   const { data: openSales } = useQuery({ queryKey: ['sales', 'open'], queryFn: sales.getOpen });
   const { data: summary } = useQuery({ queryKey: ['sales', 'summary'], queryFn: () => sales.getSummary() });
+  const { data: currentSession, isLoading: sessionLoading } = useQuery({
+    queryKey: ['cash-session', 'current'],
+    queryFn: cashSessions.getCurrent,
+  });
+
+  const openSessionMutation = useMutation({
+    mutationFn: (amount: number) => cashSessions.open(amount),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['cash-session', 'current'] });
+      setOpeningAmount('');
+      setOpenSessionError('');
+    },
+    onError: (err: any) => setOpenSessionError(err.message ?? 'Error al abrir la caja'),
+  });
+
+  const closeSessionMutation = useMutation({
+    mutationFn: ({ id, amount }: { id: string; amount: number }) => cashSessions.close(id, amount),
+    onSuccess: (session) => {
+      qc.invalidateQueries({ queryKey: ['cash-session', 'current'] });
+      setCloseResult(session);
+      setCloseError('');
+    },
+    onError: (err: any) => setCloseError(err.message ?? 'Error al cerrar la caja'),
+  });
 
   const tickets = openSales ?? [];
   const activeSale = tickets.find((s) => s.id === activeSaleId) ?? tickets[0] ?? null;
@@ -81,6 +112,7 @@ export default function VentasPage() {
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['sales', 'open'] });
       qc.invalidateQueries({ queryKey: ['sales', 'summary'] });
+      qc.invalidateQueries({ queryKey: ['cash-session', 'current'] });
       setActiveSaleId(null);
       setPaidAmount('');
       setPayError('');
@@ -175,6 +207,108 @@ export default function VentasPage() {
     });
   };
 
+  if (sessionLoading) {
+    return <div className="w-8 h-8 border-4 border-orange-500 border-t-transparent rounded-full animate-spin" />;
+  }
+
+  if (!currentSession) {
+    return (
+      <>
+        <div className="flex flex-col gap-6 max-w-md">
+          <div>
+            <h1 className="text-2xl font-extrabold text-gray-800">Ventas</h1>
+            <p className="text-sm text-gray-400 font-medium mt-0.5">Abrí la caja para empezar a vender</p>
+          </div>
+          <div className="bg-white rounded-2xl shadow-sm p-6 flex flex-col gap-4">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-xl bg-orange-50 flex items-center justify-center flex-shrink-0">
+                <Wallet size={20} weight="fill" className="text-orange-500" />
+              </div>
+              <div>
+                <p className="text-sm font-bold text-gray-700">Abrir caja</p>
+                <p className="text-xs text-gray-400">Ingresá el efectivo con el que arrancás el turno</p>
+              </div>
+            </div>
+            <input
+              type="number"
+              min="0"
+              step="0.01"
+              value={openingAmount}
+              onChange={(e) => setOpeningAmount(e.target.value)}
+              placeholder="Monto inicial en efectivo"
+              className="border border-gray-200 rounded-xl px-4 py-3 text-sm outline-none focus:border-orange-400 font-semibold"
+            />
+            {openSessionError && (
+              <p className="text-xs text-red-500 font-semibold bg-red-50 rounded-lg px-3 py-2">{openSessionError}</p>
+            )}
+            <button
+              onClick={() => openSessionMutation.mutate(parseFloat(openingAmount))}
+              disabled={!openingAmount || openSessionMutation.isPending}
+              className="w-full py-3 rounded-xl bg-orange-500 hover:bg-orange-600 text-white text-sm font-extrabold transition-colors disabled:opacity-50"
+            >
+              {openSessionMutation.isPending ? 'Abriendo...' : 'Abrir caja'}
+            </button>
+          </div>
+        </div>
+        {closeModalOpen && closeResult && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4 animate-fadeIn">
+            <div className="bg-white rounded-2xl shadow-xl p-6 w-full max-w-sm animate-slideUp flex flex-col gap-4">
+              <div className="flex flex-col items-center gap-2 text-center">
+                <div
+                  className={`w-12 h-12 rounded-full flex items-center justify-center ${
+                    Number(closeResult.difference) === 0
+                      ? 'bg-green-100'
+                      : Number(closeResult.difference) < 0
+                      ? 'bg-red-100'
+                      : 'bg-amber-100'
+                  }`}
+                >
+                  <Check
+                    size={24}
+                    weight="bold"
+                    className={
+                      Number(closeResult.difference) === 0
+                        ? 'text-green-600'
+                        : Number(closeResult.difference) < 0
+                        ? 'text-red-500'
+                        : 'text-amber-500'
+                    }
+                  />
+                </div>
+                <p className="text-sm font-bold text-gray-700">Caja cerrada</p>
+              </div>
+              <div className="flex flex-col gap-1.5 text-sm">
+                <div className="flex justify-between"><span className="text-gray-500">Esperado</span><span className="font-semibold">{money(closeResult.expectedAmount!)}</span></div>
+                <div className="flex justify-between"><span className="text-gray-500">Contado</span><span className="font-semibold">{money(closeResult.closingAmount!)}</span></div>
+                <div className="flex justify-between border-t border-gray-100 pt-1.5">
+                  <span className="text-gray-500">Diferencia</span>
+                  <span
+                    className={`font-bold ${
+                      Number(closeResult.difference) === 0
+                        ? 'text-green-600'
+                        : Number(closeResult.difference) < 0
+                        ? 'text-red-500'
+                        : 'text-amber-500'
+                    }`}
+                  >
+                    {Number(closeResult.difference) > 0 ? '+' : ''}{money(closeResult.difference!)}
+                    {Number(closeResult.difference) < 0 ? ' (faltante)' : Number(closeResult.difference) > 0 ? ' (sobrante)' : ''}
+                  </span>
+                </div>
+              </div>
+              <button
+                onClick={() => { setCloseModalOpen(false); setCloseResult(null); setClosingAmount(''); }}
+                className="w-full py-2.5 rounded-xl bg-orange-500 hover:bg-orange-600 text-white text-sm font-bold transition-colors"
+              >
+                Aceptar
+              </button>
+            </div>
+          </div>
+        )}
+      </>
+    );
+  }
+
   return (
     <div className="flex flex-col gap-6">
       <div className="flex items-center justify-between">
@@ -182,6 +316,35 @@ export default function VentasPage() {
           <h1 className="text-2xl font-extrabold text-gray-800">Ventas</h1>
           <p className="text-sm text-gray-400 font-medium mt-0.5">Registrá ventas escaneando productos</p>
         </div>
+        <Link
+          href="/reportes"
+          className="flex items-center gap-2 text-sm font-semibold text-gray-500 hover:text-orange-500 transition-colors"
+        >
+          <ChartBar size={18} weight="bold" />
+          Ver reportes
+        </Link>
+      </div>
+
+      <div className="bg-white rounded-2xl shadow-sm p-4 flex items-center justify-between">
+        <div className="flex items-center gap-3">
+          <div className="w-10 h-10 rounded-xl bg-green-50 flex items-center justify-center flex-shrink-0">
+            <Wallet size={18} weight="fill" className="text-green-600" />
+          </div>
+          <div>
+            <p className="text-sm font-bold text-gray-700">
+              Caja abierta desde {new Date(currentSession.openedAt).toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit' })}
+            </p>
+            <p className="text-xs text-gray-400">
+              Inicial: {money(currentSession.openingAmount)} · Efectivo del turno: {money(currentSession.salesCash)}
+            </p>
+          </div>
+        </div>
+        <button
+          onClick={() => setCloseModalOpen(true)}
+          className="py-2 px-4 rounded-xl border border-gray-200 text-sm font-semibold text-gray-600 hover:bg-gray-50 transition-colors"
+        >
+          Cerrar caja
+        </button>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-[1fr_320px] gap-6 items-start">
@@ -471,6 +634,48 @@ export default function VentasPage() {
           onConfirm={() => cancelMutation.mutate(toCancel.id)}
           onCancel={() => setToCancel(null)}
         />
+      )}
+
+      {closeModalOpen && !closeResult && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4 animate-fadeIn">
+          <div className="bg-white rounded-2xl shadow-xl p-6 w-full max-w-sm animate-slideUp flex flex-col gap-4">
+            <p className="text-sm font-bold text-gray-700">Cerrar caja</p>
+            <div className="flex flex-col gap-1.5 text-sm bg-gray-50 rounded-xl p-3">
+              <div className="flex justify-between"><span className="text-gray-500">Inicial</span><span className="font-semibold">{money(currentSession.openingAmount)}</span></div>
+              <div className="flex justify-between"><span className="text-gray-500">Ventas efectivo</span><span className="font-semibold">{money(currentSession.salesCash)}</span></div>
+              <div className="flex justify-between border-t border-gray-200 pt-1.5"><span className="text-gray-500">Esperado</span><span className="font-bold">{money(Number(currentSession.openingAmount) + currentSession.salesCash)}</span></div>
+            </div>
+            <input
+              type="number"
+              min="0"
+              step="0.01"
+              value={closingAmount}
+              onChange={(e) => setClosingAmount(e.target.value)}
+              placeholder="Monto contado"
+              className="border border-gray-200 rounded-xl px-3 py-2.5 text-sm outline-none focus:border-orange-400 font-semibold"
+            />
+            {closeError && (
+              <p className="text-xs text-red-500 font-semibold bg-red-50 rounded-lg px-3 py-2">{closeError}</p>
+            )}
+            <div className="flex gap-3">
+              <button
+                onClick={() => { setCloseModalOpen(false); setClosingAmount(''); setCloseError(''); }}
+                className="flex-1 py-2.5 rounded-xl border border-gray-200 text-sm font-semibold text-gray-600 hover:bg-gray-50 transition-colors"
+              >
+                Cancelar
+              </button>
+              <button
+                onClick={() =>
+                  closeSessionMutation.mutate({ id: currentSession.id, amount: parseFloat(closingAmount) })
+                }
+                disabled={!closingAmount || closeSessionMutation.isPending}
+                className="flex-1 py-2.5 rounded-xl bg-orange-500 hover:bg-orange-600 text-white text-sm font-bold transition-colors disabled:opacity-60"
+              >
+                {closeSessionMutation.isPending ? 'Cerrando...' : 'Confirmar cierre'}
+              </button>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );
