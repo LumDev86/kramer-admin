@@ -146,7 +146,7 @@ export default function DistribuidoraDetallePage() {
     setNewProductForm({
       title: item.nombreDetectado,
       price: '',
-      priceWholesale: '',
+      priceWholesale: item.precioUnitario,
       quantity: item.medidaDetectada != null ? String(item.medidaDetectada) : '',
       unit: item.medidaUnidadDetectada ?? '',
       categoryId: '',
