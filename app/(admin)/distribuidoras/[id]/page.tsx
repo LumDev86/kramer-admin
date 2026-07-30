@@ -1,6 +1,6 @@
 'use client';
 
-import { Fragment, useRef, useState } from 'react';
+import { Fragment, useEffect, useRef, useState } from 'react';
 import { useParams } from 'next/navigation';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import Link from 'next/link';
@@ -28,6 +28,7 @@ export default function DistribuidoraDetallePage() {
 
   const [activeFacturaId, setActiveFacturaId] = useState<string | null>(null);
   const [uploadError, setUploadError] = useState('');
+  const [revealCount, setRevealCount] = useState(Infinity);
   const [toCancel, setToCancel] = useState<Factura | null>(null);
   const [linkingItemId, setLinkingItemId] = useState<string | null>(null);
   const [linkQuery, setLinkQuery] = useState('');
@@ -68,6 +69,7 @@ export default function DistribuidoraDetallePage() {
       invalidate();
       setActiveFacturaId(factura.id);
       setUploadError('');
+      setRevealCount(0);
     },
     onError: (err: any) => setUploadError(err.message ?? 'Error al procesar la factura'),
   });
@@ -193,6 +195,14 @@ export default function DistribuidoraDetallePage() {
     setLinkResults(null);
   };
 
+  const activeFacturaItemCount = data?.facturas.find((f) => f.id === activeFacturaId)?.items.length ?? 0;
+
+  useEffect(() => {
+    if (revealCount >= activeFacturaItemCount) return;
+    const timer = setTimeout(() => setRevealCount((c) => c + 1), 220);
+    return () => clearTimeout(timer);
+  }, [revealCount, activeFacturaItemCount]);
+
   if (isLoading) {
     return <div className="w-8 h-8 border-4 border-orange-500 border-t-transparent rounded-full animate-spin" />;
   }
@@ -241,6 +251,14 @@ export default function DistribuidoraDetallePage() {
           </button>
         </div>
       </div>
+      {uploadMutation.isPending && (
+        <div className="flex items-center gap-3 bg-orange-50 border border-orange-200 rounded-xl px-4 py-3 animate-fadeIn">
+          <div className="w-5 h-5 border-2 border-orange-400 border-t-transparent rounded-full animate-spin flex-shrink-0" />
+          <p className="text-xs text-orange-600 font-semibold">
+            La IA está leyendo la factura, esto puede tardar unos segundos...
+          </p>
+        </div>
+      )}
       {uploadError && (
         <p className="text-xs text-red-500 font-semibold bg-red-50 rounded-lg px-3 py-2">{uploadError}</p>
       )}
@@ -252,7 +270,7 @@ export default function DistribuidoraDetallePage() {
             {pendientes.map((f) => (
               <button
                 key={f.id}
-                onClick={() => setActiveFacturaId(f.id)}
+                onClick={() => { setActiveFacturaId(f.id); setRevealCount(Infinity); }}
                 className="flex items-center gap-2 px-3 py-2 rounded-xl border border-orange-200 bg-orange-50 text-orange-600 text-xs font-bold"
               >
                 {money(f.total)} · {f.items.length} ítems
@@ -297,9 +315,9 @@ export default function DistribuidoraDetallePage() {
                       </td>
                     </tr>
                   ) : (
-                    activeFactura.items.map((item) => (
+                    activeFactura.items.slice(0, revealCount).map((item) => (
                       <Fragment key={item.id}>
-                      <tr className="align-top">
+                      <tr className="align-top animate-slideUp">
                         <td className="px-4 py-3">
                           <input
                             defaultValue={item.nombreDetectado}
@@ -513,6 +531,18 @@ export default function DistribuidoraDetallePage() {
                       )}
                       </Fragment>
                     ))
+                  )}
+                  {revealCount < activeFactura.items.length && (
+                    <tr>
+                      <td colSpan={5} className="px-4 py-3 animate-fadeIn">
+                        <div className="flex items-center gap-2">
+                          <div className="w-3.5 h-3.5 border-2 border-orange-400 border-t-transparent rounded-full animate-spin flex-shrink-0" />
+                          <span className="text-xs text-orange-500 font-semibold">
+                            Detectando productos... ({revealCount}/{activeFactura.items.length})
+                          </span>
+                        </div>
+                      </td>
+                    </tr>
                   )}
                 </tbody>
               </table>
