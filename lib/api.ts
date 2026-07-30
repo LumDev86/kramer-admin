@@ -101,6 +101,15 @@ export const products = {
   getById: (id: string) => request<Product>(`/products/${id}`),
   getByBarcode: (code: string) =>
     request<Product | null>(`/products/barcode/${encodeURIComponent(code)}`).catch(() => null),
+  generateUniqueBarcode: async (): Promise<string> => {
+    // prefijo "20" reservado por convención para uso interno (no asignado por GS1 a fabricantes)
+    for (let i = 0; i < 5; i++) {
+      const code = '20' + Array.from({ length: 10 }, () => Math.floor(Math.random() * 10)).join('');
+      const existing = await products.getByBarcode(code);
+      if (!existing) return code;
+    }
+    throw new Error('No se pudo generar un código único, probá de nuevo');
+  },
   create:  (form: FormData) => request<Product>('/products', { method: 'POST', body: form }),
   update:  (id: string, form: FormData) => request<Product>(`/products/${id}`, { method: 'PUT', body: form }),
   toggleActive: (id: string) => request<Product>(`/products/${id}/toggle-active`, { method: 'PATCH' }),

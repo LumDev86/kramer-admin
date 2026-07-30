@@ -49,6 +49,7 @@ export default function DistribuidoraDetallePage() {
   });
   const [newProductImage, setNewProductImage] = useState<File | null>(null);
   const [newProductError, setNewProductError] = useState('');
+  const [generatingBarcode, setGeneratingBarcode] = useState(false);
 
   const { data, isLoading } = useQuery({
     queryKey: ['distribuidor', id],
@@ -139,6 +140,18 @@ export default function DistribuidoraDetallePage() {
     },
     onError: (err: any) => setNewProductError(err.message ?? 'Error al crear el producto'),
   });
+
+  const handleGenerateBarcode = async () => {
+    setGeneratingBarcode(true);
+    try {
+      const code = await products.generateUniqueBarcode();
+      setNewProductForm((f) => ({ ...f, barcode: code }));
+    } catch (err: any) {
+      setNewProductError(err.message ?? 'Error al generar el código');
+    } finally {
+      setGeneratingBarcode(false);
+    }
+  };
 
   const openCreateForm = (item: FacturaItem) => {
     setCreatingItemId(item.id);
@@ -514,12 +527,23 @@ export default function DistribuidoraDetallePage() {
                                     loading={!catsData}
                                   />
                                 </div>
-                                <input
-                                  value={newProductForm.barcode}
-                                  onChange={(e) => setNewProductForm((f) => ({ ...f, barcode: e.target.value }))}
-                                  placeholder="Código de barras (opcional)"
-                                  className="border border-gray-200 rounded-xl px-3 py-2 text-sm outline-none focus:border-orange-400"
-                                />
+                                <div className="flex gap-2">
+                                  <input
+                                    value={newProductForm.barcode}
+                                    onChange={(e) => setNewProductForm((f) => ({ ...f, barcode: e.target.value }))}
+                                    onKeyDown={(e) => { if (e.key === 'Enter') e.preventDefault(); }}
+                                    placeholder="Código de barras (opcional, o escaneá con el lector)"
+                                    className="flex-1 border border-gray-200 rounded-xl px-3 py-2 text-sm outline-none focus:border-orange-400"
+                                  />
+                                  <button
+                                    type="button"
+                                    disabled={generatingBarcode}
+                                    onClick={handleGenerateBarcode}
+                                    className="px-3 rounded-xl border border-gray-200 text-xs font-semibold text-gray-600 hover:bg-gray-50 transition-colors disabled:opacity-50 whitespace-nowrap"
+                                  >
+                                    {generatingBarcode ? 'Generando...' : 'Generar código'}
+                                  </button>
+                                </div>
                                 <p className="text-xs text-gray-400">
                                   Costo: {money(item.precioUnitario)} (de la factura) · Stock inicial 0, se suma al confirmar
                                 </p>
