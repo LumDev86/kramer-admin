@@ -41,6 +41,7 @@ export default function DistribuidoraDetallePage() {
   const [newProductForm, setNewProductForm] = useState({
     title: '',
     price: '',
+    priceWholesale: '',
     quantity: '',
     unit: '',
     categoryId: '',
@@ -132,7 +133,7 @@ export default function DistribuidoraDetallePage() {
     onSuccess: () => {
       invalidate();
       setCreatingItemId(null);
-      setNewProductForm({ title: '', price: '', quantity: '', unit: '', categoryId: '', barcode: '' });
+      setNewProductForm({ title: '', price: '', priceWholesale: '', quantity: '', unit: '', categoryId: '', barcode: '' });
       setNewProductImage(null);
       setNewProductError('');
     },
@@ -145,6 +146,7 @@ export default function DistribuidoraDetallePage() {
     setNewProductForm({
       title: item.nombreDetectado,
       price: '',
+      priceWholesale: '',
       quantity: item.medidaDetectada != null ? String(item.medidaDetectada) : '',
       unit: item.medidaUnidadDetectada ?? '',
       categoryId: '',
@@ -164,6 +166,7 @@ export default function DistribuidoraDetallePage() {
     const fd = new FormData();
     fd.append('title', newProductForm.title.trim());
     fd.append('price', newProductForm.price);
+    if (newProductForm.priceWholesale) fd.append('priceWholesale', newProductForm.priceWholesale);
     if (newProductForm.quantity) fd.append('quantity', newProductForm.quantity);
     if (newProductForm.unit) fd.append('unit', newProductForm.unit);
     if (newProductForm.categoryId) fd.append('categoryId', newProductForm.categoryId);
@@ -331,6 +334,11 @@ export default function DistribuidoraDetallePage() {
                             }
                             className="w-full text-sm font-semibold text-gray-700 outline-none border-b border-transparent focus:border-orange-300"
                           />
+                          {item.unidadesPorBultoDetectada != null && (
+                            <p className="text-[11px] text-gray-400 font-medium mt-0.5">
+                              📦 Detectado por bulto de {item.unidadesPorBultoDetectada} un. · cant./precio ya normalizados por unidad
+                            </p>
+                          )}
                           {item.product ? (
                             <div className="flex items-center gap-1.5 mt-1">
                               <Check size={12} weight="bold" className="text-green-500" />
@@ -472,8 +480,17 @@ export default function DistribuidoraDetallePage() {
                                     step="0.01"
                                     value={newProductForm.price}
                                     onChange={(e) => setNewProductForm((f) => ({ ...f, price: e.target.value }))}
-                                    placeholder="Precio de venta"
-                                    className="w-full sm:w-40 border border-gray-200 rounded-xl px-3 py-2 text-sm outline-none focus:border-orange-400"
+                                    placeholder="Precio por menor"
+                                    className="w-full sm:w-36 border border-gray-200 rounded-xl px-3 py-2 text-sm outline-none focus:border-orange-400"
+                                  />
+                                  <input
+                                    type="number"
+                                    min="0"
+                                    step="0.01"
+                                    value={newProductForm.priceWholesale}
+                                    onChange={(e) => setNewProductForm((f) => ({ ...f, priceWholesale: e.target.value }))}
+                                    placeholder="Precio por mayor (opcional)"
+                                    className="w-full sm:w-44 border border-gray-200 rounded-xl px-3 py-2 text-sm outline-none focus:border-orange-400"
                                   />
                                 </div>
                                 <div className="flex flex-wrap gap-2">

@@ -22,6 +22,7 @@ export default function ProductForm({ product }: Props) {
     title:       product?.title                        ?? '',
     description: product?.description                  ?? '',
     price:       product?.price                        ?? '',
+    priceWholesale: product?.priceWholesale             ?? '',
     categoryId:  product?.categoryId                   ?? '',
     quantity:    product?.quantity != null ? String(product.quantity) : '',
     unit:        product?.unit                         ?? '',
@@ -46,6 +47,7 @@ export default function ProductForm({ product }: Props) {
       fd.append('title',       form.title);
       fd.append('description', form.description);
       fd.append('price',       form.price);
+      fd.append('priceWholesale', form.priceWholesale);
       fd.append('stock',       '0');
       if (form.categoryId) fd.append('categoryId', form.categoryId);
       if (form.quantity)   fd.append('quantity',   form.quantity);
@@ -103,7 +105,7 @@ export default function ProductForm({ product }: Props) {
 
       <div className="grid grid-cols-2 gap-4">
         <div className="flex flex-col gap-1">
-          <label className="text-xs font-semibold text-gray-500">Precio *</label>
+          <label className="text-xs font-semibold text-gray-500">Precio por menor *</label>
           <input
             required
             type="number"
@@ -117,14 +119,27 @@ export default function ProductForm({ product }: Props) {
         </div>
 
         <div className="flex flex-col gap-1">
-          <label className="text-xs font-semibold text-gray-500">Categoría</label>
-          <CategorySelector
-            value={form.categoryId}
-            onChange={(v) => set('categoryId', v)}
-            categories={catsData?.data ?? []}
-            loading={!catsData}
+          <label className="text-xs font-semibold text-gray-500">Precio por mayor</label>
+          <input
+            type="number"
+            min="0"
+            step="0.01"
+            value={form.priceWholesale}
+            onChange={(e) => set('priceWholesale', e.target.value)}
+            placeholder="Opcional"
+            className="border border-gray-200 rounded-xl px-3 py-2.5 text-sm outline-none focus:border-orange-400 font-medium"
           />
         </div>
+      </div>
+
+      <div className="flex flex-col gap-1">
+        <label className="text-xs font-semibold text-gray-500">Categoría</label>
+        <CategorySelector
+          value={form.categoryId}
+          onChange={(v) => set('categoryId', v)}
+          categories={catsData?.data ?? []}
+          loading={!catsData}
+        />
       </div>
 
       <div className="flex flex-col gap-1">

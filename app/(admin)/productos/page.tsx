@@ -166,8 +166,13 @@ export default function ProductosPage() {
                   </div>
                 </td>
                 <td className="px-4 py-3 text-gray-500">{product.category?.name ?? '—'}</td>
-                <td className="px-4 py-3 font-bold text-orange-500">
-                  ${parseFloat(product.price).toLocaleString('es-AR')}
+                <td className="px-4 py-3">
+                  <p className="font-bold text-orange-500">${parseFloat(product.price).toLocaleString('es-AR')}</p>
+                  {product.priceWholesale && (
+                    <p className="text-xs text-gray-400 font-medium">
+                      Mayor: ${parseFloat(product.priceWholesale).toLocaleString('es-AR')}
+                    </p>
+                  )}
                 </td>
                 <td className="px-4 py-3">
                   <ToggleSwitch
