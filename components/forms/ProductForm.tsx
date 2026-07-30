@@ -23,6 +23,7 @@ export default function ProductForm({ product }: Props) {
     description: product?.description                  ?? '',
     price:       product?.price                        ?? '',
     priceWholesale: product?.priceWholesale             ?? '',
+    cost:        product?.cost                         ?? '',
     categoryId:  product?.categoryId                   ?? '',
     quantity:    product?.quantity != null ? String(product.quantity) : '',
     unit:        product?.unit                         ?? '',
@@ -48,7 +49,8 @@ export default function ProductForm({ product }: Props) {
       fd.append('description', form.description);
       fd.append('price',       form.price);
       fd.append('priceWholesale', form.priceWholesale);
-      fd.append('stock',       '0');
+      fd.append('cost',        form.cost);
+      if (!isEdit) fd.append('stock', '0');
       if (form.categoryId) fd.append('categoryId', form.categoryId);
       if (form.quantity)   fd.append('quantity',   form.quantity);
       if (form.unit)       fd.append('unit',        form.unit);
@@ -71,6 +73,11 @@ export default function ProductForm({ product }: Props) {
   };
 
   const set = (field: string, value: string) => setForm((f) => ({ ...f, [field]: value }));
+
+  const costNum = parseFloat(form.cost);
+  const priceNum = parseFloat(form.price);
+  const gananciaPct =
+    costNum > 0 && !isNaN(priceNum) ? ((priceNum - costNum) / costNum) * 100 : null;
 
   return (
     <form onSubmit={handleSubmit} className="bg-white rounded-2xl shadow-sm p-6 flex flex-col gap-5 max-w-xl">
@@ -129,6 +136,34 @@ export default function ProductForm({ product }: Props) {
             placeholder="Opcional"
             className="border border-gray-200 rounded-xl px-3 py-2.5 text-sm outline-none focus:border-orange-400 font-medium"
           />
+        </div>
+      </div>
+
+      <div className="grid grid-cols-2 gap-4">
+        <div className="flex flex-col gap-1">
+          <label className="text-xs font-semibold text-gray-500">Costo</label>
+          <input
+            type="number"
+            min="0"
+            step="0.01"
+            value={form.cost}
+            onChange={(e) => set('cost', e.target.value)}
+            placeholder="Se completa solo al confirmar una factura"
+            className="border border-gray-200 rounded-xl px-3 py-2.5 text-sm outline-none focus:border-orange-400 font-medium"
+          />
+        </div>
+
+        <div className="flex flex-col gap-1">
+          <label className="text-xs font-semibold text-gray-500">Ganancia (sobre el costo)</label>
+          <div className="border border-gray-100 bg-gray-50 rounded-xl px-3 py-2.5 text-sm font-bold flex items-center h-[42px]">
+            {gananciaPct === null ? (
+              <span className="text-gray-300 font-medium">—</span>
+            ) : (
+              <span className={gananciaPct >= 0 ? 'text-green-600' : 'text-red-500'}>
+                {gananciaPct >= 0 ? '+' : ''}{gananciaPct.toFixed(1)}%
+              </span>
+            )}
+          </div>
         </div>
       </div>
 

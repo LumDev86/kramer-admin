@@ -140,6 +140,7 @@ export default function ProductosPage() {
               <th className="px-4 py-3 text-xs font-bold text-gray-400 uppercase tracking-wide">Producto</th>
               <th className="px-4 py-3 text-xs font-bold text-gray-400 uppercase tracking-wide">Categoría</th>
               <th className="px-4 py-3 text-xs font-bold text-gray-400 uppercase tracking-wide">Precio</th>
+              <th className="px-4 py-3 text-xs font-bold text-gray-400 uppercase tracking-wide w-24">Ganancia</th>
               <th className="px-4 py-3 text-xs font-bold text-gray-400 uppercase tracking-wide w-20">Activo</th>
               <th className="px-4 py-3 text-xs font-bold text-gray-400 uppercase tracking-wide w-24">Acciones</th>
             </tr>
@@ -148,7 +149,7 @@ export default function ProductosPage() {
             {isLoading ? (
               Array.from({ length: 8 }).map((_, i) => (
                 <tr key={i}>
-                  <td colSpan={5} className="px-4 py-3">
+                  <td colSpan={6} className="px-4 py-3">
                     <div className="h-5 bg-gray-100 rounded animate-pulse" />
                   </td>
                 </tr>
@@ -173,6 +174,18 @@ export default function ProductosPage() {
                       Mayor: ${parseFloat(product.priceWholesale).toLocaleString('es-AR')}
                     </p>
                   )}
+                </td>
+                <td className="px-4 py-3">
+                  {(() => {
+                    const cost = product.cost ? parseFloat(product.cost) : 0;
+                    if (!cost) return <span className="text-xs text-gray-300 font-medium">—</span>;
+                    const pct = ((parseFloat(product.price) - cost) / cost) * 100;
+                    return (
+                      <span className={`text-xs font-bold ${pct >= 0 ? 'text-green-600' : 'text-red-500'}`}>
+                        {pct >= 0 ? '+' : ''}{pct.toFixed(1)}%
+                      </span>
+                    );
+                  })()}
                 </td>
                 <td className="px-4 py-3">
                   <ToggleSwitch
