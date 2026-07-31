@@ -329,7 +329,7 @@ export default function DistribuidoraDetallePage() {
                   <tr className="text-left">
                     <th className="px-4 py-3 text-xs font-bold text-gray-400 uppercase tracking-wide">Producto</th>
                     <th className="px-4 py-3 text-xs font-bold text-gray-400 uppercase tracking-wide w-24">Cant.</th>
-                    <th className="px-4 py-3 text-xs font-bold text-gray-400 uppercase tracking-wide w-28">Precio</th>
+                    <th className="px-4 py-3 text-xs font-bold text-gray-400 uppercase tracking-wide w-28">P. Unitario</th>
                     <th className="px-4 py-3 text-xs font-bold text-gray-400 uppercase tracking-wide w-28">Subtotal</th>
                     <th className="px-4 py-3 w-10" />
                   </tr>
