@@ -308,7 +308,13 @@ export default function DistribuidoraDetallePage() {
         <div className="grid grid-cols-1 lg:grid-cols-[280px_1fr] gap-6">
           <div className="bg-white rounded-2xl shadow-sm p-3">
             <div className="relative w-full aspect-[3/4] rounded-xl overflow-hidden bg-gray-100">
-              <Image src={activeFactura.imageUrl} alt="Factura" fill sizes="280px" className="object-contain" />
+              {activeFactura.imageUrl ? (
+                <Image src={activeFactura.imageUrl} alt="Factura" fill sizes="280px" className="object-contain" />
+              ) : (
+                <div className="w-full h-full flex items-center justify-center text-xs text-gray-400 font-medium text-center px-4">
+                  Imagen eliminada
+                </div>
+              )}
             </div>
           </div>
 
@@ -738,9 +744,18 @@ export default function DistribuidoraDetallePage() {
           <div className="divide-y divide-gray-50">
             {historial.map((f) => (
               <div key={f.id} className="flex items-center gap-4 px-5 py-3">
-                <a href={f.imageUrl} target="_blank" rel="noopener noreferrer" className="relative w-12 h-12 rounded-lg overflow-hidden bg-gray-100 flex-shrink-0">
-                  <Image src={f.imageUrl} alt="Factura" fill sizes="48px" className="object-cover" />
-                </a>
+                {f.imageUrl ? (
+                  <a href={f.imageUrl} target="_blank" rel="noopener noreferrer" className="relative w-12 h-12 rounded-lg overflow-hidden bg-gray-100 flex-shrink-0">
+                    <Image src={f.imageUrl} alt="Factura" fill sizes="48px" className="object-cover" />
+                  </a>
+                ) : (
+                  <div
+                    title="La imagen se borró automáticamente (factura cancelada hace más de 2 días)"
+                    className="w-12 h-12 rounded-lg bg-gray-100 flex-shrink-0 flex items-center justify-center text-[9px] text-gray-400 font-semibold text-center leading-tight"
+                  >
+                    Sin imagen
+                  </div>
+                )}
                 <div className="flex-1">
                   <p className="text-sm font-semibold text-gray-700">{new Date(f.createdAt).toLocaleDateString('es-AR')}</p>
                   <p className="text-xs text-gray-400">{f.items.length} ítems</p>

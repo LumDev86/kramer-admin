@@ -309,7 +309,7 @@ export interface SuggestedProduct {
 export interface Factura {
   id: string;
   distribuidorId: string;
-  imageUrl: string;
+  imageUrl: string | null;
   status: FacturaStatus;
   total: string;
   extractionError: string | null;
