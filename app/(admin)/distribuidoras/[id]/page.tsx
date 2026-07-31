@@ -423,16 +423,28 @@ export default function DistribuidoraDetallePage() {
                                     className="w-full text-xs border border-gray-200 rounded-lg px-2 py-1 outline-none focus:border-orange-400"
                                   />
                                   {linkResults && linkResults.length > 0 && (
-                                    <div className="absolute z-10 mt-1 w-56 bg-white border border-gray-100 rounded-lg shadow-lg overflow-hidden">
+                                    <div className="absolute z-10 mt-1 w-72 max-h-64 overflow-y-auto bg-white border border-gray-100 rounded-xl shadow-lg divide-y divide-gray-50">
                                       {linkResults.map((p) => (
                                         <button
                                           key={p.id}
                                           onMouseDown={() => linkProduct(activeFactura.id, item, p)}
-                                          className="block w-full text-left px-3 py-2 text-xs hover:bg-orange-50"
+                                          className="w-full flex items-center gap-2 px-3 py-2 text-left hover:bg-orange-50 transition-colors"
                                         >
-                                          {p.title}
+                                          <div className="relative w-8 h-8 flex-shrink-0 bg-gray-100 rounded-md overflow-hidden">
+                                            <Image src={p.imageUrl} alt={p.title} fill sizes="32px" className="object-contain p-0.5" />
+                                          </div>
+                                          <div className="flex-1 min-w-0">
+                                            <p className="text-xs font-semibold text-gray-700 truncate">{p.title}</p>
+                                            <p className="text-[11px] text-gray-400 truncate">{p.category?.name ?? 'Sin categoría'}</p>
+                                          </div>
+                                          <span className="text-xs font-bold text-orange-500 flex-shrink-0">{money(p.price)}</span>
                                         </button>
                                       ))}
+                                    </div>
+                                  )}
+                                  {linkQuery.trim() && linkResults && linkResults.length === 0 && (
+                                    <div className="absolute z-10 mt-1 w-72 bg-white border border-gray-100 rounded-xl shadow-lg px-3 py-2">
+                                      <p className="text-xs text-gray-400 font-medium">No se encontraron productos.</p>
                                     </div>
                                   )}
                                 </div>
