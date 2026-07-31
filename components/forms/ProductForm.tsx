@@ -22,7 +22,6 @@ export default function ProductForm({ product }: Props) {
     title:       product?.title                        ?? '',
     description: product?.description                  ?? '',
     price:       product?.price                        ?? '',
-    priceWholesale: product?.priceWholesale             ?? '',
     cost:        product?.cost                         ?? '',
     categoryId:  product?.categoryId                   ?? '',
     quantity:    product?.quantity != null ? String(product.quantity) : '',
@@ -36,7 +35,7 @@ export default function ProductForm({ product }: Props) {
   const [generatingBarcode, setGeneratingBarcode] = useState(false);
   const [bultoPrecio, setBultoPrecio] = useState('');
   const [bultoUnidades, setBultoUnidades] = useState('');
-  const [gananciaMayorPct, setGananciaMayorPct] = useState('');
+  const [gananciaDeseadaPct, setGananciaDeseadaPct] = useState('');
 
   const { data: catsData } = useQuery({
     queryKey: ['categories', { parentId: 'null', limit: 100 }],
@@ -52,7 +51,6 @@ export default function ProductForm({ product }: Props) {
       fd.append('title',       form.title);
       fd.append('description', form.description);
       fd.append('price',       form.price);
-      fd.append('priceWholesale', form.priceWholesale);
       fd.append('cost',        form.cost);
       if (!isEdit) fd.append('stock', '0');
       if (form.categoryId) fd.append('categoryId', form.categoryId);
@@ -107,11 +105,11 @@ export default function ProductForm({ product }: Props) {
     setBultoUnidades('');
   };
 
-  const handleGananciaMayorChange = (value: string) => {
-    setGananciaMayorPct(value);
+  const handleGananciaDeseadaChange = (value: string) => {
+    setGananciaDeseadaPct(value);
     const pct = parseFloat(value);
     if (costNum > 0 && !isNaN(pct)) {
-      set('priceWholesale', (costNum * (1 + pct / 100)).toFixed(2));
+      set('price', (costNum * (1 + pct / 100)).toFixed(2));
     }
   };
 
@@ -148,49 +146,7 @@ export default function ProductForm({ product }: Props) {
 
       <div className="grid grid-cols-2 gap-4">
         <div className="flex flex-col gap-1">
-          <label className="text-xs font-semibold text-gray-500">Precio por menor *</label>
-          <input
-            required
-            type="number"
-            min="0"
-            step="0.01"
-            value={form.price}
-            onChange={(e) => set('price', e.target.value)}
-            placeholder="0.00"
-            className="border border-gray-200 rounded-xl px-3 py-2.5 text-sm outline-none focus:border-orange-400 font-medium"
-          />
-        </div>
-
-        <div className="flex flex-col gap-1">
-          <label className="text-xs font-semibold text-gray-500">Precio por mayor</label>
-          <input
-            type="number"
-            min="0"
-            step="0.01"
-            value={form.priceWholesale}
-            onChange={(e) => set('priceWholesale', e.target.value)}
-            placeholder="Opcional"
-            className="border border-gray-200 rounded-xl px-3 py-2.5 text-sm outline-none focus:border-orange-400 font-medium"
-          />
-          <div className="flex items-center gap-1.5 mt-0.5">
-            <span className="text-[11px] text-gray-400 whitespace-nowrap">% ganancia deseado:</span>
-            <input
-              type="number"
-              min="0"
-              step="0.1"
-              value={gananciaMayorPct}
-              onChange={(e) => handleGananciaMayorChange(e.target.value)}
-              disabled={!(costNum > 0)}
-              placeholder={costNum > 0 ? 'Ej: 30' : 'Cargá el costo primero'}
-              className="w-full border border-gray-200 rounded-lg px-2 py-1 text-xs outline-none focus:border-orange-400 font-medium disabled:opacity-50"
-            />
-          </div>
-        </div>
-      </div>
-
-      <div className="grid grid-cols-2 gap-4">
-        <div className="flex flex-col gap-1">
-          <label className="text-xs font-semibold text-gray-500">Costo</label>
+          <label className="text-xs font-semibold text-gray-500">Precio por mayor (costo distribuidora)</label>
           <input
             type="number"
             min="0"
@@ -236,17 +192,35 @@ export default function ProductForm({ product }: Props) {
         </div>
 
         <div className="flex flex-col gap-1">
-          <label className="text-xs font-semibold text-gray-500">Ganancia (sobre el costo)</label>
-          <div className="border border-gray-100 bg-gray-50 rounded-xl px-3 py-2.5 text-sm font-bold flex items-center h-[42px]">
-            {gananciaPct === null ? (
-              <span className="text-gray-300 font-medium">—</span>
-            ) : (
-              <span className={gananciaPct >= 0 ? 'text-green-600' : 'text-red-500'}>
-                {gananciaPct >= 0 ? '+' : ''}{gananciaPct.toFixed(1)}%
-              </span>
-            )}
+          <label className="text-xs font-semibold text-gray-500">Precio al público (por menor) *</label>
+          <input
+            required
+            type="number"
+            min="0"
+            step="0.01"
+            value={form.price}
+            onChange={(e) => set('price', e.target.value)}
+            placeholder="0.00"
+            className="border border-gray-200 rounded-xl px-3 py-2.5 text-sm outline-none focus:border-orange-400 font-medium"
+          />
+          <div className="flex items-center gap-1.5 mt-0.5">
+            <span className="text-[11px] text-gray-400 whitespace-nowrap">% ganancia deseado:</span>
+            <input
+              type="number"
+              min="0"
+              step="0.1"
+              value={gananciaDeseadaPct}
+              onChange={(e) => handleGananciaDeseadaChange(e.target.value)}
+              disabled={!(costNum > 0)}
+              placeholder={costNum > 0 ? 'Ej: 30' : 'Cargá el precio por mayor primero'}
+              className="w-full border border-gray-200 rounded-lg px-2 py-1 text-xs outline-none focus:border-orange-400 font-medium disabled:opacity-50"
+            />
           </div>
-          <p className="text-[11px] text-gray-400">Según precio por menor vs. costo</p>
+          {gananciaPct !== null && (
+            <p className={`text-[11px] font-semibold ${gananciaPct >= 0 ? 'text-green-600' : 'text-red-500'}`}>
+              Ganancia actual: {gananciaPct >= 0 ? '+' : ''}{gananciaPct.toFixed(1)}%
+            </p>
+          )}
         </div>
       </div>
 

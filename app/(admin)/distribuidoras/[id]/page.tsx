@@ -49,7 +49,6 @@ export default function DistribuidoraDetallePage() {
   const [newProductForm, setNewProductForm] = useState({
     title: '',
     price: '',
-    priceWholesale: '',
     quantity: '',
     unit: '',
     categoryId: '',
@@ -58,7 +57,7 @@ export default function DistribuidoraDetallePage() {
   const [newProductImage, setNewProductImage] = useState<File | null>(null);
   const [newProductError, setNewProductError] = useState('');
   const [generatingBarcode, setGeneratingBarcode] = useState(false);
-  const [gananciaMayorPct, setGananciaMayorPct] = useState('');
+  const [gananciaDeseadaPct, setGananciaDeseadaPct] = useState('');
 
   const { data, isLoading } = useQuery({
     queryKey: ['distribuidor', id],
@@ -143,10 +142,10 @@ export default function DistribuidoraDetallePage() {
     onSuccess: () => {
       invalidate();
       setCreatingItemId(null);
-      setNewProductForm({ title: '', price: '', priceWholesale: '', quantity: '', unit: '', categoryId: '', barcode: '' });
+      setNewProductForm({ title: '', price: '', quantity: '', unit: '', categoryId: '', barcode: '' });
       setNewProductImage(null);
       setNewProductError('');
-      setGananciaMayorPct('');
+      setGananciaDeseadaPct('');
     },
     onError: (err: any) => setNewProductError(err.message ?? 'Error al crear el producto'),
   });
@@ -169,7 +168,6 @@ export default function DistribuidoraDetallePage() {
     setNewProductForm({
       title: item.nombreDetectado,
       price: '',
-      priceWholesale: item.precioUnitario,
       quantity: item.medidaDetectada != null ? String(item.medidaDetectada) : '',
       unit: item.medidaUnidadDetectada ?? '',
       categoryId: '',
@@ -177,7 +175,7 @@ export default function DistribuidoraDetallePage() {
     });
     setNewProductImage(null);
     setNewProductError('');
-    setGananciaMayorPct('');
+    setGananciaDeseadaPct('');
   };
 
   const submitCreateProduct = (facturaId: string) => {
@@ -190,7 +188,6 @@ export default function DistribuidoraDetallePage() {
     const fd = new FormData();
     fd.append('title', newProductForm.title.trim());
     fd.append('price', newProductForm.price);
-    if (newProductForm.priceWholesale) fd.append('priceWholesale', newProductForm.priceWholesale);
     if (newProductForm.quantity) fd.append('quantity', newProductForm.quantity);
     if (newProductForm.unit) fd.append('unit', newProductForm.unit);
     if (newProductForm.categoryId) fd.append('categoryId', newProductForm.categoryId);
@@ -511,23 +508,14 @@ export default function DistribuidoraDetallePage() {
                                     placeholder="Nombre del producto"
                                     className="flex-1 border border-gray-200 rounded-xl px-3 py-2 text-sm outline-none focus:border-orange-400"
                                   />
-                                  <input
-                                    type="number"
-                                    min="0"
-                                    step="0.01"
-                                    value={newProductForm.price}
-                                    onChange={(e) => setNewProductForm((f) => ({ ...f, price: e.target.value }))}
-                                    placeholder="Precio por menor"
-                                    className="w-full sm:w-36 border border-gray-200 rounded-xl px-3 py-2 text-sm outline-none focus:border-orange-400"
-                                  />
                                   <div className="w-full sm:w-44 flex flex-col gap-1">
                                     <input
                                       type="number"
                                       min="0"
                                       step="0.01"
-                                      value={newProductForm.priceWholesale}
-                                      onChange={(e) => setNewProductForm((f) => ({ ...f, priceWholesale: e.target.value }))}
-                                      placeholder="Precio por mayor (opcional)"
+                                      value={newProductForm.price}
+                                      onChange={(e) => setNewProductForm((f) => ({ ...f, price: e.target.value }))}
+                                      placeholder="Precio al público"
                                       className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm outline-none focus:border-orange-400"
                                     />
                                     <div className="flex items-center gap-1.5">
@@ -536,15 +524,15 @@ export default function DistribuidoraDetallePage() {
                                         type="number"
                                         min="0"
                                         step="0.1"
-                                        value={gananciaMayorPct}
+                                        value={gananciaDeseadaPct}
                                         onChange={(e) => {
-                                          setGananciaMayorPct(e.target.value);
+                                          setGananciaDeseadaPct(e.target.value);
                                           const pct = parseFloat(e.target.value);
                                           const cost = Number(item.precioUnitario);
                                           if (cost > 0 && !isNaN(pct)) {
                                             setNewProductForm((f) => ({
                                               ...f,
-                                              priceWholesale: (cost * (1 + pct / 100)).toFixed(2),
+                                              price: (cost * (1 + pct / 100)).toFixed(2),
                                             }));
                                           }
                                         }}
@@ -593,7 +581,7 @@ export default function DistribuidoraDetallePage() {
                                   </button>
                                 </div>
                                 <p className="text-xs text-gray-400">
-                                  Costo: {money(item.precioUnitario)} (de la factura) · Stock inicial 0, se suma al confirmar
+                                  Precio por mayor: {money(item.precioUnitario)} (de la factura) · Stock inicial 0, se suma al confirmar
                                 </p>
                                 {newProductError && (
                                   <p className="text-xs text-red-500 font-semibold bg-red-50 rounded-lg px-3 py-2">{newProductError}</p>

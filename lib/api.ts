@@ -39,7 +39,6 @@ export interface Product {
   title: string;
   description: string;
   price: string;
-  priceWholesale: string | null;
   stock: number;
   imageUrl: string;
   quantity: number | null;
@@ -283,7 +282,6 @@ export interface FacturaItem {
     id: string;
     title: string;
     price: string;
-    priceWholesale: string | null;
     cost: string | null;
     imageUrl: string;
   } | null;
@@ -302,7 +300,6 @@ export interface SuggestedProduct {
   id: string;
   title: string;
   price: string;
-  priceWholesale: string | null;
   cost: string | null;
   imageUrl: string;
   quantity: number | null;

@@ -169,9 +169,9 @@ export default function ProductosPage() {
                 <td className="px-4 py-3 text-gray-500">{product.category?.name ?? '—'}</td>
                 <td className="px-4 py-3">
                   <p className="font-bold text-orange-500">${parseFloat(product.price).toLocaleString('es-AR')}</p>
-                  {product.priceWholesale && (
+                  {product.cost && (
                     <p className="text-xs text-gray-400 font-medium">
-                      Mayor: ${parseFloat(product.priceWholesale).toLocaleString('es-AR')}
+                      Mayor: ${parseFloat(product.cost).toLocaleString('es-AR')}
                     </p>
                   )}
                 </td>
