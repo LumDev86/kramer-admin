@@ -21,6 +21,14 @@ const STATUS_LABEL: Record<Factura['status'], string> = {
   CANCELLED: 'Cancelada',
 };
 
+const getPriceChange = (item: FacturaItem): { pct: number; oldCost: number; newCost: number } | null => {
+  if (!item.product?.cost) return null;
+  const oldCost = Number(item.product.cost);
+  const newCost = Number(item.precioUnitario);
+  if (!(oldCost > 0) || Math.abs(newCost - oldCost) < 0.01) return null;
+  return { pct: ((newCost - oldCost) / oldCost) * 100, oldCost, newCost };
+};
+
 export default function DistribuidoraDetallePage() {
   const { id } = useParams() as { id: string };
   const qc = useQueryClient();
@@ -356,21 +364,34 @@ export default function DistribuidoraDetallePage() {
                             </p>
                           )}
                           {item.product ? (
-                            <div className="flex items-center gap-1.5 mt-1">
-                              <Check size={12} weight="bold" className="text-green-500" />
-                              <span className="text-xs text-green-600 font-semibold">{item.product.title}</span>
-                              <button
-                                onClick={() =>
-                                  updateItemMutation.mutate({
-                                    facturaId: activeFactura.id,
-                                    itemId: item.id,
-                                    data: { productId: null },
-                                  })
-                                }
-                                className="text-gray-300 hover:text-red-500"
-                              >
-                                <X size={12} weight="bold" />
-                              </button>
+                            <div className="flex flex-col gap-1 mt-1">
+                              <div className="flex items-center gap-1.5">
+                                <Check size={12} weight="bold" className="text-green-500" />
+                                <span className="text-xs text-green-600 font-semibold">{item.product.title}</span>
+                                <button
+                                  onClick={() =>
+                                    updateItemMutation.mutate({
+                                      facturaId: activeFactura.id,
+                                      itemId: item.id,
+                                      data: { productId: null },
+                                    })
+                                  }
+                                  className="text-gray-300 hover:text-red-500"
+                                >
+                                  <X size={12} weight="bold" />
+                                </button>
+                              </div>
+                              {(() => {
+                                const change = getPriceChange(item);
+                                if (!change) return null;
+                                const subiendo = change.pct > 0;
+                                return (
+                                  <p className={`text-[11px] font-bold ${subiendo ? 'text-red-500' : 'text-green-600'}`}>
+                                    {subiendo ? '⬆' : '⬇'} {subiendo ? 'Aumentó' : 'Bajó'} {Math.abs(change.pct).toFixed(1)}%
+                                    {' '}respecto a la última factura ({money(change.oldCost)} → {money(change.newCost)})
+                                  </p>
+                                );
+                              })()}
                             </div>
                           ) : (
                             <div className="flex flex-col gap-1.5 mt-1">
