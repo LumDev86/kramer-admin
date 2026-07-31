@@ -504,7 +504,24 @@ export default function DistribuidoraDetallePage() {
                             className="w-20 text-sm font-semibold outline-none border-b border-transparent focus:border-orange-300"
                           />
                         </td>
-                        <td className="px-4 py-3 font-bold text-orange-500">{money(item.subtotal)}</td>
+                        <td className="px-4 py-3">
+                          <input
+                            type="number"
+                            step="0.01"
+                            defaultValue={item.subtotal}
+                            onBlur={(e) => {
+                              const newSubtotal = parseFloat(e.target.value);
+                              if (isNaN(newSubtotal) || newSubtotal === Number(item.subtotal)) return;
+                              if (!(item.cantidad > 0)) return;
+                              updateItemMutation.mutate({
+                                facturaId: activeFactura.id,
+                                itemId: item.id,
+                                data: { precioUnitario: newSubtotal / item.cantidad },
+                              });
+                            }}
+                            className="w-20 font-bold text-orange-500 outline-none border-b border-transparent focus:border-orange-300"
+                          />
+                        </td>
                         <td className="px-4 py-3">
                           <button
                             onClick={() => removeItemMutation.mutate({ facturaId: activeFactura.id, itemId: item.id })}
