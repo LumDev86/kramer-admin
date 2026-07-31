@@ -169,7 +169,12 @@ export default function VentasPage() {
 
   const addProduct = async (product: Product) => {
     const saleId = await ensureActiveSale();
-    addItemMutation.mutate({ saleId, data: { productId: product.id } });
+    // ya tenemos nombre y precio (vinieron de la búsqueda/escaneo), se los pasamos al
+    // backend para que no tenga que volver a buscarlos - menos ida y vuelta a la base, más rápido
+    addItemMutation.mutate({
+      saleId,
+      data: { productId: product.id, name: product.title, unitPrice: Number(product.price) },
+    });
     setQuery('');
     setSearchResults(null);
     setScanError('');
