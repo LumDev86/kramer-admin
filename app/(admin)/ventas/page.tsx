@@ -17,7 +17,6 @@ export default function VentasPage() {
 
   const [activeSaleId, setActiveSaleId] = useState<string | null>(null);
   const [query, setQuery] = useState('');
-  const [searchResults, setSearchResults] = useState<Product[] | null>(null);
   const [scanError, setScanError] = useState('');
   const [manualOpen, setManualOpen] = useState(false);
   const [manualName, setManualName] = useState('');
@@ -176,16 +175,16 @@ export default function VentasPage() {
       data: { productId: product.id, name: product.title, unitPrice: Number(product.price) },
     });
     setQuery('');
-    setSearchResults(null);
     setScanError('');
     scanInputRef.current?.focus();
   };
 
+  // el escáner solo lee el código de barras: busca ese producto por código exacto y nada más.
+  // buscar por nombre es una función aparte (botón "Manual"), no un fallback automático acá.
   const handleCode = async (code: string) => {
     const trimmed = code.trim();
     if (!trimmed) return;
     setScanError('');
-    setSearchResults(null);
 
     const product = await products.getByBarcode(trimmed);
     if (product) {
@@ -193,16 +192,7 @@ export default function VentasPage() {
       return;
     }
 
-    const result = await products.getAll({ search: trimmed, limit: 8 });
-    if (result.data.length === 1) {
-      await addProduct(result.data[0]);
-    } else if (result.data.length > 1) {
-      setSearchResults(result.data);
-    } else {
-      setSearchResults([]);
-      setManualName(trimmed);
-      setManualOpen(true);
-    }
+    setScanError(`No se encontró ningún producto con el código "${trimmed}".`);
   };
 
   const handleScanKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
@@ -224,7 +214,6 @@ export default function VentasPage() {
     setManualName('');
     setManualPrice('');
     setQuery('');
-    setSearchResults(null);
     scanInputRef.current?.focus();
   };
 
@@ -467,7 +456,7 @@ export default function VentasPage() {
                 value={query}
                 onChange={(e) => setQuery(e.target.value)}
                 onKeyDown={handleScanKeyDown}
-                placeholder="Escaneá o tipeá un código / nombre y presioná Enter"
+                placeholder="Escaneá o tipeá el código y presioná Enter"
                 className="flex-1 border border-gray-200 rounded-xl px-4 py-3 text-sm outline-none focus:border-orange-400 font-semibold"
               />
               <button
@@ -486,27 +475,6 @@ export default function VentasPage() {
 
             {scanError && (
               <p className="text-xs text-red-500 font-semibold bg-red-50 rounded-lg px-3 py-2">{scanError}</p>
-            )}
-
-            {searchResults && searchResults.length > 0 && (
-              <div className="flex flex-col gap-1 border border-gray-100 rounded-xl overflow-hidden">
-                {searchResults.map((p) => (
-                  <button
-                    key={p.id}
-                    onClick={() => addProduct(p)}
-                    className="flex items-center justify-between px-3 py-2 text-sm hover:bg-orange-50 transition-colors text-left"
-                  >
-                    <span className="font-semibold text-gray-700">{p.title}</span>
-                    <span className="font-bold text-orange-500">{money(p.price)}</span>
-                  </button>
-                ))}
-              </div>
-            )}
-
-            {searchResults && searchResults.length === 0 && !manualOpen && (
-              <p className="text-xs text-gray-400 font-medium px-1">
-                No se encontraron productos. Podés cargarlo como producto manual.
-              </p>
             )}
 
             {manualOpen && (
