@@ -113,7 +113,14 @@ export const products = {
   update:  (id: string, form: FormData) => request<Product>(`/products/${id}`, { method: 'PUT', body: form }),
   toggleActive: (id: string) => request<Product>(`/products/${id}/toggle-active`, { method: 'PATCH' }),
   delete:  (id: string) => request<void>(`/products/${id}`, { method: 'DELETE' }),
+  imageSearch: (query: string) =>
+    request<ImageSearchResult[]>(`/products/image-search?q=${encodeURIComponent(query)}`),
 };
+
+export interface ImageSearchResult {
+  imageUrl: string;
+  thumbnailUrl: string;
+}
 
 export interface StoreScheduleDay {
   dayOfWeek: number;

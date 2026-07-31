@@ -5,8 +5,8 @@ import { useParams } from 'next/navigation';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import Link from 'next/link';
 import Image from 'next/image';
-import { distribuidores, facturas, products, categories, Factura, FacturaItem, Product } from '@/lib/api';
-import { CaretLeft, UploadSimple, Trash, Warning, Check, X } from '@phosphor-icons/react';
+import { distribuidores, facturas, products, categories, Factura, FacturaItem, Product, ImageSearchResult } from '@/lib/api';
+import { CaretLeft, UploadSimple, Trash, Warning, Check, X, MagnifyingGlass } from '@phosphor-icons/react';
 import ConfirmModal from '@/components/ui/ConfirmModal';
 import ImageUpload from '@/components/ui/ImageUpload';
 import UnitSelector from '@/components/ui/UnitSelector';
@@ -58,6 +58,9 @@ export default function DistribuidoraDetallePage() {
   const [newProductError, setNewProductError] = useState('');
   const [generatingBarcode, setGeneratingBarcode] = useState(false);
   const [gananciaDeseadaPct, setGananciaDeseadaPct] = useState('');
+  const [aiImageUrl, setAiImageUrl] = useState<string | null>(null);
+  const [imageSearchResults, setImageSearchResults] = useState<ImageSearchResult[] | null>(null);
+  const [imageSearchLoading, setImageSearchLoading] = useState(false);
 
   const { data, isLoading } = useQuery({
     queryKey: ['distribuidor', id],
@@ -146,9 +149,29 @@ export default function DistribuidoraDetallePage() {
       setNewProductImage(null);
       setNewProductError('');
       setGananciaDeseadaPct('');
+      setAiImageUrl(null);
+      setImageSearchResults(null);
     },
     onError: (err: any) => setNewProductError(err.message ?? 'Error al crear el producto'),
   });
+
+  const handleImageSearch = async (query: string) => {
+    const q = query.trim();
+    if (!q) {
+      setNewProductError('Escribí el nombre del producto antes de buscar la imagen');
+      return;
+    }
+    setImageSearchLoading(true);
+    setNewProductError('');
+    try {
+      const results = await products.imageSearch(q);
+      setImageSearchResults(results);
+    } catch (err: any) {
+      setNewProductError(err.message ?? 'Error al buscar imágenes');
+    } finally {
+      setImageSearchLoading(false);
+    }
+  };
 
   const handleGenerateBarcode = async () => {
     setGeneratingBarcode(true);
@@ -176,11 +199,13 @@ export default function DistribuidoraDetallePage() {
     setNewProductImage(null);
     setNewProductError('');
     setGananciaDeseadaPct('');
+    setAiImageUrl(null);
+    setImageSearchResults(null);
   };
 
   const submitCreateProduct = (facturaId: string) => {
     if (!creatingItemId) return;
-    if (!newProductImage) { setNewProductError('La imagen es obligatoria'); return; }
+    if (!newProductImage && !aiImageUrl) { setNewProductError('La imagen es obligatoria'); return; }
     if (!newProductForm.title.trim() || !newProductForm.price) {
       setNewProductError('Falta el nombre o el precio de venta');
       return;
@@ -192,7 +217,8 @@ export default function DistribuidoraDetallePage() {
     if (newProductForm.unit) fd.append('unit', newProductForm.unit);
     if (newProductForm.categoryId) fd.append('categoryId', newProductForm.categoryId);
     if (newProductForm.barcode) fd.append('barcode', newProductForm.barcode);
-    fd.append('image', newProductImage);
+    if (newProductImage) fd.append('image', newProductImage);
+    else if (aiImageUrl) fd.append('imageSourceUrl', aiImageUrl);
     createProductMutation.mutate({ facturaId, itemId: creatingItemId, form: fd });
   };
 
@@ -535,8 +561,51 @@ export default function DistribuidoraDetallePage() {
                         <tr>
                           <td colSpan={5} className="px-4 pb-4 bg-orange-50/30">
                             <div className="flex flex-col sm:flex-row gap-4 bg-white border border-orange-100 rounded-xl p-4">
-                              <div className="w-full sm:w-40 flex-shrink-0">
-                                <ImageUpload onChange={setNewProductImage} required />
+                              <div className="w-full sm:w-40 flex-shrink-0 flex flex-col gap-2">
+                                {aiImageUrl ? (
+                                  <div className="relative w-full h-52 border-2 border-orange-200 rounded-xl overflow-hidden bg-gray-50">
+                                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                                    <img src={aiImageUrl} alt="Imagen elegida" className="w-full h-full object-contain p-2" />
+                                    <button
+                                      type="button"
+                                      onClick={() => setAiImageUrl(null)}
+                                      className="absolute top-2 right-2 w-7 h-7 bg-white rounded-full shadow flex items-center justify-center hover:bg-red-50 transition-colors"
+                                    >
+                                      <X size={14} weight="bold" className="text-gray-500" />
+                                    </button>
+                                  </div>
+                                ) : (
+                                  <>
+                                    <ImageUpload onChange={setNewProductImage} required={!aiImageUrl} />
+                                    <button
+                                      type="button"
+                                      disabled={imageSearchLoading}
+                                      onClick={() => handleImageSearch(newProductForm.title)}
+                                      className="flex items-center justify-center gap-1.5 py-2 rounded-xl border border-gray-200 text-xs font-semibold text-gray-600 hover:bg-gray-50 transition-colors disabled:opacity-50"
+                                    >
+                                      <MagnifyingGlass size={14} weight="bold" />
+                                      {imageSearchLoading ? 'Buscando...' : 'Buscar imagen con IA'}
+                                    </button>
+                                    {imageSearchResults && imageSearchResults.length > 0 && (
+                                      <div className="grid grid-cols-3 gap-1">
+                                        {imageSearchResults.map((r, i) => (
+                                          <button
+                                            key={i}
+                                            type="button"
+                                            onClick={() => { setAiImageUrl(r.imageUrl); setImageSearchResults(null); setNewProductImage(null); }}
+                                            className="relative w-full aspect-square rounded-lg overflow-hidden border border-gray-200 hover:border-orange-400 transition-colors bg-gray-50"
+                                          >
+                                            {/* eslint-disable-next-line @next/next/no-img-element */}
+                                            <img src={r.thumbnailUrl} alt="" className="w-full h-full object-cover" />
+                                          </button>
+                                        ))}
+                                      </div>
+                                    )}
+                                    {imageSearchResults && imageSearchResults.length === 0 && (
+                                      <p className="text-[11px] text-gray-400 text-center">No se encontraron imágenes.</p>
+                                    )}
+                                  </>
+                                )}
                               </div>
                               <div className="flex-1 flex flex-col gap-2">
                                 <div className="flex flex-col sm:flex-row gap-2">
