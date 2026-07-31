@@ -262,6 +262,9 @@ export default function DistribuidoraDetallePage() {
         <div>
           <p className="text-sm font-bold text-gray-700">Cargar una factura nueva</p>
           <p className="text-xs text-gray-400 mt-0.5">Sacale una foto y la IA va a leer los productos automáticamente</p>
+          <p className="text-[11px] text-gray-400 mt-1">
+            💡 Para que salga mejor: buena luz, la hoja derecha (no en ángulo) y acercate para que el texto se lea grande
+          </p>
         </div>
         <div>
           <input ref={fileInputRef} type="file" accept="image/*" className="hidden" onChange={handleFileChange} />
