@@ -540,6 +540,17 @@ export default function DistribuidoraDetallePage() {
                                         className="w-full border border-gray-200 rounded-lg px-2 py-1 text-xs outline-none focus:border-orange-400"
                                       />
                                     </div>
+                                    {(() => {
+                                      const cost = Number(item.precioUnitario);
+                                      const priceNum = parseFloat(newProductForm.price);
+                                      if (!(cost > 0) || isNaN(priceNum)) return null;
+                                      const pct = ((priceNum - cost) / cost) * 100;
+                                      return (
+                                        <p className={`text-[11px] font-semibold ${pct >= 0 ? 'text-green-600' : 'text-red-500'}`}>
+                                          Ganancia actual: {pct >= 0 ? '+' : ''}{pct.toFixed(1)}%
+                                        </p>
+                                      );
+                                    })()}
                                   </div>
                                 </div>
                                 <div className="flex flex-wrap gap-2">
