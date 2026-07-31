@@ -413,7 +413,7 @@ export default function DistribuidoraDetallePage() {
                                 </div>
                               )}
                               {linkingItemId === item.id ? (
-                                <div className="relative">
+                                <div className="flex flex-col gap-1 w-full max-w-xs">
                                   <input
                                     autoFocus
                                     value={linkQuery}
@@ -423,7 +423,7 @@ export default function DistribuidoraDetallePage() {
                                     className="w-full text-xs border border-gray-200 rounded-lg px-2 py-1 outline-none focus:border-orange-400"
                                   />
                                   {linkResults && linkResults.length > 0 && (
-                                    <div className="absolute z-10 mt-1 w-72 max-h-64 overflow-y-auto bg-white border border-gray-100 rounded-xl shadow-lg divide-y divide-gray-50">
+                                    <div className="w-full max-h-64 overflow-y-auto bg-white border border-gray-100 rounded-xl shadow-sm divide-y divide-gray-50">
                                       {linkResults.map((p) => (
                                         <button
                                           key={p.id}
@@ -443,7 +443,7 @@ export default function DistribuidoraDetallePage() {
                                     </div>
                                   )}
                                   {linkQuery.trim() && linkResults && linkResults.length === 0 && (
-                                    <div className="absolute z-10 mt-1 w-72 bg-white border border-gray-100 rounded-xl shadow-lg px-3 py-2">
+                                    <div className="w-full bg-white border border-gray-100 rounded-xl shadow-sm px-3 py-2">
                                       <p className="text-xs text-gray-400 font-medium">No se encontraron productos.</p>
                                     </div>
                                   )}
