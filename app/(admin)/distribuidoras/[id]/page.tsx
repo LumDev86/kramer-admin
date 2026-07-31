@@ -50,6 +50,7 @@ export default function DistribuidoraDetallePage() {
   const [newProductImage, setNewProductImage] = useState<File | null>(null);
   const [newProductError, setNewProductError] = useState('');
   const [generatingBarcode, setGeneratingBarcode] = useState(false);
+  const [gananciaMayorPct, setGananciaMayorPct] = useState('');
 
   const { data, isLoading } = useQuery({
     queryKey: ['distribuidor', id],
@@ -137,6 +138,7 @@ export default function DistribuidoraDetallePage() {
       setNewProductForm({ title: '', price: '', priceWholesale: '', quantity: '', unit: '', categoryId: '', barcode: '' });
       setNewProductImage(null);
       setNewProductError('');
+      setGananciaMayorPct('');
     },
     onError: (err: any) => setNewProductError(err.message ?? 'Error al crear el producto'),
   });
@@ -167,6 +169,7 @@ export default function DistribuidoraDetallePage() {
     });
     setNewProductImage(null);
     setNewProductError('');
+    setGananciaMayorPct('');
   };
 
   const submitCreateProduct = (facturaId: string) => {
@@ -496,15 +499,39 @@ export default function DistribuidoraDetallePage() {
                                     placeholder="Precio por menor"
                                     className="w-full sm:w-36 border border-gray-200 rounded-xl px-3 py-2 text-sm outline-none focus:border-orange-400"
                                   />
-                                  <input
-                                    type="number"
-                                    min="0"
-                                    step="0.01"
-                                    value={newProductForm.priceWholesale}
-                                    onChange={(e) => setNewProductForm((f) => ({ ...f, priceWholesale: e.target.value }))}
-                                    placeholder="Precio por mayor (opcional)"
-                                    className="w-full sm:w-44 border border-gray-200 rounded-xl px-3 py-2 text-sm outline-none focus:border-orange-400"
-                                  />
+                                  <div className="w-full sm:w-44 flex flex-col gap-1">
+                                    <input
+                                      type="number"
+                                      min="0"
+                                      step="0.01"
+                                      value={newProductForm.priceWholesale}
+                                      onChange={(e) => setNewProductForm((f) => ({ ...f, priceWholesale: e.target.value }))}
+                                      placeholder="Precio por mayor (opcional)"
+                                      className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm outline-none focus:border-orange-400"
+                                    />
+                                    <div className="flex items-center gap-1.5">
+                                      <span className="text-[11px] text-gray-400 whitespace-nowrap">% ganancia:</span>
+                                      <input
+                                        type="number"
+                                        min="0"
+                                        step="0.1"
+                                        value={gananciaMayorPct}
+                                        onChange={(e) => {
+                                          setGananciaMayorPct(e.target.value);
+                                          const pct = parseFloat(e.target.value);
+                                          const cost = Number(item.precioUnitario);
+                                          if (cost > 0 && !isNaN(pct)) {
+                                            setNewProductForm((f) => ({
+                                              ...f,
+                                              priceWholesale: (cost * (1 + pct / 100)).toFixed(2),
+                                            }));
+                                          }
+                                        }}
+                                        placeholder="Ej: 30"
+                                        className="w-full border border-gray-200 rounded-lg px-2 py-1 text-xs outline-none focus:border-orange-400"
+                                      />
+                                    </div>
+                                  </div>
                                 </div>
                                 <div className="flex flex-wrap gap-2">
                                   <input
