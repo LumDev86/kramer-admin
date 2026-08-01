@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
+import Image from 'next/image';
 import { products, Product } from '@/lib/api';
 import { MagnifyingGlass, X } from '@phosphor-icons/react';
 
@@ -13,9 +14,12 @@ interface Props {
   onClose: () => void;
 }
 
+const LIMIT = 20;
+
 export default function ProductSearchModal({ onSelect, onClose }: Props) {
   const inputRef = useRef<HTMLInputElement>(null);
   const [search, setSearch] = useState('');
+  const [page, setPage] = useState(1);
 
   useEffect(() => {
     inputRef.current?.focus();
@@ -30,8 +34,8 @@ export default function ProductSearchModal({ onSelect, onClose }: Props) {
   }, [onClose]);
 
   const { data, isFetching } = useQuery({
-    queryKey: ['products', 'search-modal', search],
-    queryFn: () => products.getAll({ search: search || undefined, limit: 20 }),
+    queryKey: ['products', 'search-modal', search, page],
+    queryFn: () => products.getAll({ search: search || undefined, page, limit: LIMIT }),
   });
 
   const results = data?.data ?? [];
@@ -51,7 +55,7 @@ export default function ProductSearchModal({ onSelect, onClose }: Props) {
             ref={inputRef}
             type="text"
             value={search}
-            onChange={(e) => setSearch(e.target.value)}
+            onChange={(e) => { setSearch(e.target.value); setPage(1); }}
             placeholder="Buscar producto por nombre..."
             className="flex-1 outline-none text-sm font-medium"
           />
@@ -74,9 +78,14 @@ export default function ProductSearchModal({ onSelect, onClose }: Props) {
               <button
                 key={product.id}
                 onClick={() => onSelect(product)}
-                className="w-full flex items-center justify-between gap-3 px-4 py-3 text-left hover:bg-gray-50 transition-colors"
+                className="w-full flex items-center gap-3 px-4 py-3 text-left hover:bg-gray-50 transition-colors"
               >
-                <div className="min-w-0">
+                <div className="relative w-10 h-10 flex-shrink-0 bg-gray-100 rounded-lg overflow-hidden">
+                  {product.imageUrl && (
+                    <Image src={product.imageUrl} alt={product.title} fill sizes="40px" className="object-contain p-1" />
+                  )}
+                </div>
+                <div className="min-w-0 flex-1">
                   <p className="font-semibold text-gray-700 truncate">{product.title}</p>
                   <p className="text-xs text-gray-400">
                     Stock: {product.stock}
@@ -88,6 +97,29 @@ export default function ProductSearchModal({ onSelect, onClose }: Props) {
             ))
           )}
         </div>
+        {data && data.meta.totalPages > 1 && (
+          <div className="flex items-center justify-between px-4 py-3 border-t border-gray-100 flex-shrink-0">
+            <p className="text-xs text-gray-400 font-medium">
+              Página {data.meta.page} de {data.meta.totalPages} · {data.meta.total} productos
+            </p>
+            <div className="flex gap-2">
+              <button
+                onClick={() => setPage((p) => p - 1)}
+                disabled={page === 1}
+                className="px-3 py-1.5 rounded-lg border border-gray-200 text-xs font-semibold text-gray-600 disabled:opacity-40 hover:bg-gray-50 transition-colors"
+              >
+                Anterior
+              </button>
+              <button
+                onClick={() => setPage((p) => p + 1)}
+                disabled={page === data.meta.totalPages}
+                className="px-3 py-1.5 rounded-lg border border-gray-200 text-xs font-semibold text-gray-600 disabled:opacity-40 hover:bg-gray-50 transition-colors"
+              >
+                Siguiente
+              </button>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );
