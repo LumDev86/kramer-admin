@@ -198,6 +198,38 @@ export default function VentasPage() {
     handleCode(code);
   };
 
+  // handleCode se redefine en cada render (usa closures de estado); un ref evita que el
+  // listener global (que se suscribe una sola vez) quede atado a una versión vieja.
+  const handleCodeRef = useRef(handleCode);
+  handleCodeRef.current = handleCode;
+
+  // El lector de código de barras es un teclado USB: tipea rápido y termina en Enter.
+  // Si el cursor no está parado en el input de escaneo (foco en un botón, en ningún lado,
+  // etc.) sus teclas se pierden. Para que el escaneo funcione esté o no el foco ahí,
+  // escuchamos el teclado a nivel de toda la pantalla y armamos el código nosotros mismos,
+  // salvo que el foco esté en un campo de texto real (ahí sí queremos que el usuario tipee
+  // normalmente: precio manual, "paga con...", monto de cierre de caja, etc.)
+  useEffect(() => {
+    let buffer = '';
+    const handler = (e: KeyboardEvent) => {
+      const active = document.activeElement as HTMLElement | null;
+      const isEditable =
+        !!active && (active.tagName === 'INPUT' || active.tagName === 'TEXTAREA' || active.isContentEditable);
+      if (isEditable) return;
+
+      if (e.key === 'Enter') {
+        e.preventDefault();
+        const code = buffer;
+        buffer = '';
+        if (code) handleCodeRef.current(code);
+        return;
+      }
+      if (e.key.length === 1) buffer += e.key;
+    };
+    window.addEventListener('keydown', handler);
+    return () => window.removeEventListener('keydown', handler);
+  }, []);
+
   const handleAddManual = async () => {
     if (!manualName.trim() || !manualPrice) return;
     const saleId = await ensureActiveSale();
