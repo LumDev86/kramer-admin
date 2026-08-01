@@ -4,8 +4,9 @@ import { useEffect, useRef, useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import Link from 'next/link';
 import { sales, products, cashSessions, Sale, SaleItem, Product, PaymentMethod, CashSession } from '@/lib/api';
-import { Plus, Trash, X, Receipt, Wallet, ChartBar, Check, CaretDown } from '@phosphor-icons/react';
+import { Plus, Trash, X, Receipt, Wallet, ChartBar, Check, CaretDown, MagnifyingGlass } from '@phosphor-icons/react';
 import ConfirmModal from '@/components/ui/ConfirmModal';
+import ProductSearchModal from '@/components/ui/ProductSearchModal';
 
 const money = (value: number | string) =>
   `$${Number(value).toLocaleString('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
@@ -20,6 +21,7 @@ export default function VentasPage() {
   const [manualOpen, setManualOpen] = useState(false);
   const [manualName, setManualName] = useState('');
   const [manualPrice, setManualPrice] = useState('');
+  const [productSearchOpen, setProductSearchOpen] = useState(false);
   const [toCancel, setToCancel] = useState<Sale | null>(null);
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>('CASH');
   const [paidAmount, setPaidAmount] = useState('');
@@ -212,6 +214,15 @@ export default function VentasPage() {
   useEffect(() => {
     let buffer = '';
     const handler = (e: KeyboardEvent) => {
+      // F10 abre/cierra el buscador manual de productos (para cuando el lector no reconoce
+      // el código) sin importar dónde esté el foco; preventDefault evita que el navegador
+      // lo interprete como atajo para activar la barra de menú.
+      if (e.key === 'F10') {
+        e.preventDefault();
+        setProductSearchOpen((o) => !o);
+        return;
+      }
+
       const active = document.activeElement as HTMLElement | null;
       const isEditable =
         !!active && (active.tagName === 'INPUT' || active.tagName === 'TEXTAREA' || active.isContentEditable);
@@ -483,6 +494,15 @@ export default function VentasPage() {
                 className="flex-1 border border-gray-200 rounded-xl px-4 py-3 text-sm outline-none focus:border-orange-400 font-semibold"
               />
               <button
+                onClick={() => setProductSearchOpen(true)}
+                title="Buscar producto (F10)"
+                className="flex-shrink-0 flex items-center gap-2 px-4 rounded-xl border border-gray-200 text-sm font-semibold text-gray-600 hover:bg-gray-50 transition-colors"
+              >
+                <MagnifyingGlass size={16} weight="bold" />
+                <span className="hidden sm:inline">Buscar</span>
+                <span className="hidden md:inline text-xs text-gray-400 font-medium">F10</span>
+              </button>
+              <button
                 onClick={() => setManualOpen(true)}
                 className="flex-shrink-0 px-4 rounded-xl border border-gray-200 text-sm font-semibold text-gray-600 hover:bg-gray-50 transition-colors"
               >
@@ -732,6 +752,13 @@ export default function VentasPage() {
           </div>
         )}
       </div>
+
+      {productSearchOpen && (
+        <ProductSearchModal
+          onSelect={(product) => { setProductSearchOpen(false); addProduct(product); }}
+          onClose={() => setProductSearchOpen(false)}
+        />
+      )}
 
       {toCancel && (
         <ConfirmModal
