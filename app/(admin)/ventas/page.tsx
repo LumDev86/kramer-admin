@@ -4,9 +4,8 @@ import { useEffect, useRef, useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import Link from 'next/link';
 import { sales, products, cashSessions, Sale, SaleItem, Product, PaymentMethod, CashSession } from '@/lib/api';
-import { Plus, Camera, Trash, X, Receipt, Wallet, ChartBar, Check, CaretDown } from '@phosphor-icons/react';
+import { Plus, Trash, X, Receipt, Wallet, ChartBar, Check, CaretDown } from '@phosphor-icons/react';
 import ConfirmModal from '@/components/ui/ConfirmModal';
-import BarcodeCameraScanner from '@/components/ui/BarcodeCameraScanner';
 
 const money = (value: number | string) =>
   `$${Number(value).toLocaleString('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
@@ -21,7 +20,6 @@ export default function VentasPage() {
   const [manualOpen, setManualOpen] = useState(false);
   const [manualName, setManualName] = useState('');
   const [manualPrice, setManualPrice] = useState('');
-  const [cameraOpen, setCameraOpen] = useState(false);
   const [toCancel, setToCancel] = useState<Sale | null>(null);
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>('CASH');
   const [paidAmount, setPaidAmount] = useState('');
@@ -38,7 +36,6 @@ export default function VentasPage() {
   const [paidActionError, setPaidActionError] = useState('');
 
   const { data: openSales } = useQuery({ queryKey: ['sales', 'open'], queryFn: sales.getOpen });
-  const { data: summary } = useQuery({ queryKey: ['sales', 'summary'], queryFn: () => sales.getSummary() });
   const { data: currentSession, isLoading: sessionLoading } = useQuery({
     queryKey: ['cash-session', 'current'],
     queryFn: cashSessions.getCurrent,
@@ -121,7 +118,6 @@ export default function VentasPage() {
 
   const invalidatePaidActionQueries = () => {
     qc.invalidateQueries({ queryKey: ['sales', 'session', currentSession?.id] });
-    qc.invalidateQueries({ queryKey: ['sales', 'summary'] });
     qc.invalidateQueries({ queryKey: ['cash-session', 'current'] });
   };
 
@@ -150,7 +146,6 @@ export default function VentasPage() {
       sales.pay(saleId, data),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['sales', 'open'] });
-      qc.invalidateQueries({ queryKey: ['sales', 'summary'] });
       qc.invalidateQueries({ queryKey: ['cash-session', 'current'] });
       qc.invalidateQueries({ queryKey: ['sales', 'session', currentSession?.id] });
       setActiveSaleId(null);
@@ -217,13 +212,10 @@ export default function VentasPage() {
     scanInputRef.current?.focus();
   };
 
-  const handleCameraDetected = (code: string) => {
-    setCameraOpen(false);
-    handleCode(code);
-  };
-
   const total = activeSale ? Number(activeSale.total) : 0;
-  const paidAmountNumber = parseFloat(paidAmount) || 0;
+  // "Paga con..." es opcional: si el cajero no lo completa, se asume pago exacto (el
+  // backend ya default-ea paidAmount al total cuando no se lo mandamos).
+  const paidAmountNumber = paidAmount === '' ? total : parseFloat(paidAmount) || 0;
   const change = paymentMethod === 'CASH' ? paidAmountNumber - total : 0;
   const canPay =
     !!activeSale &&
@@ -237,7 +229,7 @@ export default function VentasPage() {
       saleId: activeSale.id,
       data: {
         paymentMethod,
-        ...(paymentMethod === 'CASH' && { paidAmount: paidAmountNumber }),
+        ...(paymentMethod === 'CASH' && paidAmount !== '' && { paidAmount: paidAmountNumber }),
       },
     });
   };
@@ -410,8 +402,7 @@ export default function VentasPage() {
         </button>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-[1fr_320px] gap-6 items-start">
-        <div className="flex flex-col gap-4">
+      <div className="flex flex-col gap-4">
           {/* Pestañas de tickets abiertos */}
           <div className="flex items-center gap-2 overflow-x-auto pb-1">
             {tickets.map((sale, i) => (
@@ -459,12 +450,6 @@ export default function VentasPage() {
                 placeholder="Escaneá o tipeá el código y presioná Enter"
                 className="flex-1 border border-gray-200 rounded-xl px-4 py-3 text-sm outline-none focus:border-orange-400 font-semibold"
               />
-              <button
-                onClick={() => setCameraOpen(true)}
-                className="flex items-center gap-2 px-4 rounded-xl border border-gray-200 text-sm font-semibold text-gray-600 hover:bg-gray-50 transition-colors"
-              >
-                <Camera size={18} />
-              </button>
               <button
                 onClick={() => setManualOpen(true)}
                 className="flex-shrink-0 px-4 rounded-xl border border-gray-200 text-sm font-semibold text-gray-600 hover:bg-gray-50 transition-colors"
@@ -622,11 +607,11 @@ export default function VentasPage() {
                     step="0.01"
                     value={paidAmount}
                     onChange={(e) => setPaidAmount(e.target.value)}
-                    placeholder="Paga con..."
+                    placeholder="Paga con... (opcional)"
                     className="flex-1 border border-gray-200 rounded-xl px-3 py-2.5 text-sm outline-none focus:border-orange-400 font-medium"
                   />
                   <p className={`text-sm font-bold ${change >= 0 ? 'text-green-600' : 'text-gray-300'}`}>
-                    Vuelto: {change >= 0 ? money(change) : '—'}
+                    Vuelto: {paidAmount !== '' && change >= 0 ? money(change) : '—'}
                   </p>
                 </div>
               )}
@@ -644,25 +629,6 @@ export default function VentasPage() {
               </button>
             </div>
           )}
-        </div>
-
-        {/* Total del día */}
-        <div className="bg-white rounded-2xl shadow-sm p-5 flex flex-col gap-4 lg:sticky lg:top-6">
-          <p className="text-sm font-bold text-gray-500 uppercase tracking-wide">Venta total de hoy</p>
-          <p className="text-3xl font-extrabold text-gray-800">{money(summary?.total ?? 0)}</p>
-          <p className="text-xs text-gray-400 font-medium">{summary?.count ?? 0} tickets cobrados</p>
-
-          <div className="flex flex-col gap-2 pt-2 border-t border-gray-100">
-            <div className="flex items-center justify-between text-sm">
-              <span className="text-gray-500 font-medium">Efectivo</span>
-              <span className="font-bold text-gray-700">{money(summary?.byMethod.CASH ?? 0)}</span>
-            </div>
-            <div className="flex items-center justify-between text-sm">
-              <span className="text-gray-500 font-medium">Transferencia</span>
-              <span className="font-bold text-gray-700">{money(summary?.byMethod.TRANSFER ?? 0)}</span>
-            </div>
-          </div>
-        </div>
       </div>
 
       {/* Tickets cobrados del turno */}
@@ -734,10 +700,6 @@ export default function VentasPage() {
           </div>
         )}
       </div>
-
-      {cameraOpen && (
-        <BarcodeCameraScanner onDetected={handleCameraDetected} onClose={() => setCameraOpen(false)} />
-      )}
 
       {toCancel && (
         <ConfirmModal
