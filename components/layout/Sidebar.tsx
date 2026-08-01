@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
-import { House, Package, Tag, Image, Receipt, Truck, ChartBar, SignOut } from '@phosphor-icons/react';
+import { House, Package, Tag, Image, Receipt, Truck, ChartBar, SignOut, Users } from '@phosphor-icons/react';
 import { removeToken } from '@/lib/auth';
 
 const NAV = [
@@ -12,6 +12,7 @@ const NAV = [
   { href: '/productos',     label: 'Productos',     icon: Package  },
   { href: '/categorias',    label: 'Categorías',    icon: Tag      },
   { href: '/distribuidoras', label: 'Distribuidoras', icon: Truck  },
+  { href: '/clientes',      label: 'Clientes',      icon: Users    },
   { href: '/banners',       label: 'Banners',       icon: Image    },
 ];
 

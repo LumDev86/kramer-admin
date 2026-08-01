@@ -161,7 +161,7 @@ export const config = {
 };
 
 export type SaleStatus = 'OPEN' | 'PAID' | 'CANCELLED';
-export type PaymentMethod = 'CASH' | 'TRANSFER';
+export type PaymentMethod = 'CASH' | 'TRANSFER' | 'CREDIT';
 
 export interface SaleItem {
   id: string;
@@ -182,6 +182,7 @@ export interface Sale {
   paidAmount: string | null;
   changeAmount: string | null;
   userId: string;
+  clienteId: string | null;
   items: SaleItem[];
   openedAt: string;
   paidAt: string | null;
@@ -191,7 +192,7 @@ export interface Sale {
 export interface SaleSummary {
   total: number;
   count: number;
-  byMethod: { CASH: number; TRANSFER: number };
+  byMethod: { CASH: number; TRANSFER: number; CREDIT: number };
 }
 
 export const sales = {
@@ -205,7 +206,7 @@ export const sales = {
     request<Sale>(`/sales/${saleId}/items/${itemId}`, { method: 'PATCH', body: JSON.stringify(data) }),
   removeItem: (saleId: string, itemId: string) =>
     request<Sale>(`/sales/${saleId}/items/${itemId}`, { method: 'DELETE' }),
-  pay: (saleId: string, data: { paymentMethod: PaymentMethod; paidAmount?: number }) =>
+  pay: (saleId: string, data: { paymentMethod: PaymentMethod; paidAmount?: number; clienteId?: string }) =>
     request<Sale>(`/sales/${saleId}/pay`, { method: 'POST', body: JSON.stringify(data) }),
   cancel: (saleId: string) => request<Sale>(`/sales/${saleId}/cancel`, { method: 'POST' }),
   getSummaryRange: (from: string, to: string) =>
@@ -230,6 +231,7 @@ export interface CurrentCashSession extends CashSession {
   salesTotal: number;
   salesCash: number;
   salesTransfer: number;
+  salesCredit: number;
   salesCount: number;
 }
 
@@ -248,6 +250,7 @@ export interface CashSessionBreakdown {
   salesTotal: number;
   salesCash: number;
   salesTransfer: number;
+  salesCredit: number;
   salesCount: number;
   profit: number;
   byCategory: CategoryBreakdown[];
@@ -268,6 +271,66 @@ export const cashSessions = {
     const q = qs.toString() ? `?${qs}` : '';
     return request<CashSession[]>(`/cash-sessions${q}`);
   },
+};
+
+export interface Cliente {
+  id: string;
+  nombre: string;
+  apellido: string;
+  apodo: string | null;
+  telefono: string | null;
+  direccion: string | null;
+  creditLimit: string | null;
+  isActive: boolean;
+  deuda?: number;
+  createdAt: string;
+}
+
+export interface ClientePago {
+  id: string;
+  clienteId: string;
+  amount: string;
+  note: string | null;
+  createdAt: string;
+}
+
+export interface ClienteConHistorial extends Cliente {
+  sales: Sale[];
+  pagos: ClientePago[];
+}
+
+export const clientes = {
+  getAll: (params: { page?: number; limit?: number; search?: string } = {}) => {
+    const qs = new URLSearchParams();
+    if (params.page)   qs.set('page',   String(params.page));
+    if (params.limit)  qs.set('limit',  String(params.limit));
+    if (params.search) qs.set('search', params.search);
+    const q = qs.toString() ? `?${qs}` : '';
+    return request<PaginatedResponse<Cliente>>(`/clientes${q}`);
+  },
+  getById: (id: string) => request<ClienteConHistorial>(`/clientes/${id}`),
+  create: (data: {
+    nombre: string;
+    apellido: string;
+    apodo?: string;
+    telefono?: string;
+    direccion?: string;
+    creditLimit?: number;
+  }) => request<Cliente>('/clientes', { method: 'POST', body: JSON.stringify(data) }),
+  update: (
+    id: string,
+    data: {
+      nombre?: string;
+      apellido?: string;
+      apodo?: string | null;
+      telefono?: string | null;
+      direccion?: string | null;
+      creditLimit?: number | null;
+    }
+  ) => request<Cliente>(`/clientes/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
+  toggleActive: (id: string) => request<Cliente>(`/clientes/${id}/toggle-active`, { method: 'PATCH' }),
+  registerPago: (id: string, data: { amount: number; note?: string }) =>
+    request<ClientePago>(`/clientes/${id}/pagos`, { method: 'POST', body: JSON.stringify(data) }),
 };
 
 export interface Distribuidor {

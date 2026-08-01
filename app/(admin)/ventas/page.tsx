@@ -3,13 +3,20 @@
 import { useEffect, useRef, useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import Link from 'next/link';
-import { sales, products, cashSessions, Sale, SaleItem, Product, PaymentMethod, CashSession } from '@/lib/api';
+import { sales, products, cashSessions, Sale, SaleItem, Product, Cliente, PaymentMethod, CashSession } from '@/lib/api';
 import { Plus, Trash, X, Receipt, Wallet, ChartBar, Check, CaretDown, MagnifyingGlass } from '@phosphor-icons/react';
 import ConfirmModal from '@/components/ui/ConfirmModal';
 import ProductSearchModal from '@/components/ui/ProductSearchModal';
+import ClienteSearchModal from '@/components/ui/ClienteSearchModal';
 
 const money = (value: number | string) =>
   `$${Number(value).toLocaleString('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+
+const PAYMENT_METHOD_LABELS: Record<PaymentMethod, string> = {
+  CASH: 'Efectivo',
+  TRANSFER: 'Transferencia',
+  CREDIT: 'Fiado',
+};
 
 export default function VentasPage() {
   const qc = useQueryClient();
@@ -25,6 +32,8 @@ export default function VentasPage() {
   const [toCancel, setToCancel] = useState<Sale | null>(null);
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>('CASH');
   const [paidAmount, setPaidAmount] = useState('');
+  const [clienteSearchOpen, setClienteSearchOpen] = useState(false);
+  const [selectedCliente, setSelectedCliente] = useState<Cliente | null>(null);
   const [payError, setPayError] = useState('');
   const [openingAmount, setOpeningAmount] = useState('');
   const [openSessionError, setOpenSessionError] = useState('');
@@ -152,6 +161,7 @@ export default function VentasPage() {
       qc.invalidateQueries({ queryKey: ['sales', 'session', currentSession?.id] });
       setActiveSaleId(null);
       setPaidAmount('');
+      setSelectedCliente(null);
       setPayError('');
     },
     onError: (err: any) => setPayError(err.message ?? 'Error al cobrar'),
@@ -263,7 +273,9 @@ export default function VentasPage() {
   const canPay =
     !!activeSale &&
     activeSale.items.length > 0 &&
-    (paymentMethod === 'TRANSFER' || paidAmountNumber >= total);
+    (paymentMethod === 'CASH' ? paidAmountNumber >= total
+      : paymentMethod === 'CREDIT' ? !!selectedCliente
+      : true);
 
   const handlePay = () => {
     if (!activeSale) return;
@@ -273,6 +285,7 @@ export default function VentasPage() {
       data: {
         paymentMethod,
         ...(paymentMethod === 'CASH' && paidAmount !== '' && { paidAmount: paidAmountNumber }),
+        ...(paymentMethod === 'CREDIT' && selectedCliente && { clienteId: selectedCliente.id }),
       },
     });
   };
@@ -649,7 +662,31 @@ export default function VentasPage() {
                 >
                   Transferencia
                 </button>
+                <button
+                  onClick={() => { setPaymentMethod('CREDIT'); if (!selectedCliente) setClienteSearchOpen(true); }}
+                  className={`flex-1 py-2.5 rounded-xl text-sm font-bold transition-colors ${
+                    paymentMethod === 'CREDIT' ? 'bg-orange-500 text-white' : 'bg-gray-50 text-gray-500 hover:bg-gray-100'
+                  }`}
+                >
+                  Fiado
+                </button>
               </div>
+
+              {paymentMethod === 'CREDIT' && (
+                <div className="flex items-center justify-between gap-3 bg-gray-50 rounded-xl px-3 py-2.5">
+                  <p className="text-sm font-semibold text-gray-700 truncate">
+                    {selectedCliente
+                      ? `${selectedCliente.nombre} ${selectedCliente.apellido}`
+                      : 'Sin cliente seleccionado'}
+                  </p>
+                  <button
+                    onClick={() => setClienteSearchOpen(true)}
+                    className="flex-shrink-0 text-xs font-bold text-orange-500 hover:text-orange-600 transition-colors"
+                  >
+                    {selectedCliente ? 'Cambiar' : 'Elegir cliente'}
+                  </button>
+                </div>
+              )}
 
               {paymentMethod === 'CASH' && (
                 <div className="flex items-center gap-3">
@@ -710,7 +747,7 @@ export default function VentasPage() {
                   <div className="flex items-center justify-between gap-2">
                     <div>
                       <p className={`text-sm font-bold ${sale.status === 'CANCELLED' ? 'line-through text-gray-400' : 'text-gray-700'}`}>
-                        {money(sale.total)} · {sale.paymentMethod === 'CASH' ? 'Efectivo' : 'Transferencia'}
+                        {money(sale.total)} · {PAYMENT_METHOD_LABELS[sale.paymentMethod ?? 'CASH']}
                       </p>
                       <p className="text-xs text-gray-400">
                         {sale.paidAt &&
@@ -760,6 +797,13 @@ export default function VentasPage() {
         />
       )}
 
+      {clienteSearchOpen && (
+        <ClienteSearchModal
+          onSelect={(cliente) => { setSelectedCliente(cliente); setClienteSearchOpen(false); }}
+          onClose={() => setClienteSearchOpen(false)}
+        />
+      )}
+
       {toCancel && (
         <ConfirmModal
           message={`¿Cancelar el ticket? ${toCancel.items.length > 0 ? 'Se perderán los productos cargados.' : ''}`}
@@ -796,6 +840,7 @@ export default function VentasPage() {
             <div className="flex flex-col gap-1.5 text-sm bg-gray-50 rounded-xl p-3">
               <div className="flex justify-between"><span className="text-gray-500">Inicial</span><span className="font-semibold">{money(currentSession.openingAmount)}</span></div>
               <div className="flex justify-between"><span className="text-gray-500">Ventas efectivo</span><span className="font-semibold">{money(currentSession.salesCash)}</span></div>
+              <div className="flex justify-between"><span className="text-gray-500">Ventas fiado</span><span className="font-semibold">{money(currentSession.salesCredit)}</span></div>
               <div className="flex justify-between border-t border-gray-200 pt-1.5"><span className="text-gray-500">Esperado</span><span className="font-bold">{money(Number(currentSession.openingAmount) + currentSession.salesCash)}</span></div>
             </div>
             <input
