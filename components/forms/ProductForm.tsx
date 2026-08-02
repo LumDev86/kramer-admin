@@ -3,11 +3,12 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { Product, products, categories } from '@/lib/api';
+import { Product, products, categories, ImageSearchResult } from '@/lib/api';
 import ImageUpload from '@/components/ui/ImageUpload';
 import UnitSelector from '@/components/ui/UnitSelector';
 import CategorySelector from '@/components/ui/CategorySelector';
 import ToggleSwitch from '@/components/ui/ToggleSwitch';
+import { MagnifyingGlass, X } from '@phosphor-icons/react';
 
 interface Props {
   product?: Product;
@@ -30,6 +31,9 @@ export default function ProductForm({ product }: Props) {
     isActive:    product?.isActive                     ?? true,
   });
   const [image, setImage] = useState<File | null>(null);
+  const [aiImageUrl, setAiImageUrl] = useState<string | null>(null);
+  const [imageSearchResults, setImageSearchResults] = useState<ImageSearchResult[] | null>(null);
+  const [imageSearchLoading, setImageSearchLoading] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [generatingBarcode, setGeneratingBarcode] = useState(false);
@@ -59,6 +63,7 @@ export default function ProductForm({ product }: Props) {
       if (form.barcode)    fd.append('barcode',     form.barcode);
       fd.append('isActive', String(form.isActive));
       if (image) fd.append('image', image);
+      else if (aiImageUrl) fd.append('imageSourceUrl', aiImageUrl);
 
       if (isEdit) {
         await products.update(product.id, fd);
@@ -75,6 +80,21 @@ export default function ProductForm({ product }: Props) {
   };
 
   const set = (field: string, value: string) => setForm((f) => ({ ...f, [field]: value }));
+
+  const handleImageSearch = async () => {
+    const q = form.title.trim();
+    if (!q) return;
+    setImageSearchLoading(true);
+    setError('');
+    try {
+      const results = await products.imageSearch(q);
+      setImageSearchResults(results);
+    } catch (err: any) {
+      setError(err.message ?? 'Error al buscar imágenes');
+    } finally {
+      setImageSearchLoading(false);
+    }
+  };
 
   const handleGenerateBarcode = async () => {
     setGeneratingBarcode(true);
@@ -117,7 +137,50 @@ export default function ProductForm({ product }: Props) {
     <form onSubmit={handleSubmit} className="bg-white rounded-2xl shadow-sm p-6 flex flex-col gap-5 max-w-xl">
       <div className="flex flex-col gap-1">
         <label className="text-xs font-semibold text-gray-500">Imagen {!isEdit && '*'}</label>
-        <ImageUpload currentUrl={product?.imageUrl} onChange={setImage} required={!isEdit} withBgRemoval />
+        {aiImageUrl ? (
+          <div className="relative w-full h-52 border-2 border-orange-200 rounded-xl overflow-hidden bg-gray-50">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src={aiImageUrl} alt="Imagen elegida" className="w-full h-full object-contain p-2" />
+            <button
+              type="button"
+              onClick={() => setAiImageUrl(null)}
+              className="absolute top-2 right-2 w-7 h-7 bg-white rounded-full shadow flex items-center justify-center hover:bg-red-50 transition-colors"
+            >
+              <X size={14} weight="bold" className="text-gray-500" />
+            </button>
+          </div>
+        ) : (
+          <>
+            <ImageUpload currentUrl={product?.imageUrl} onChange={setImage} required={!isEdit} withBgRemoval />
+            <button
+              type="button"
+              disabled={!form.title.trim() || imageSearchLoading}
+              onClick={handleImageSearch}
+              className="flex items-center justify-center gap-1.5 py-2 rounded-xl border border-gray-200 text-xs font-semibold text-gray-600 hover:bg-gray-50 transition-colors disabled:opacity-50"
+            >
+              <MagnifyingGlass size={14} weight="bold" />
+              {imageSearchLoading ? 'Buscando...' : 'Buscar imagen con IA'}
+            </button>
+            {imageSearchResults && imageSearchResults.length > 0 && (
+              <div className="grid grid-cols-4 gap-1">
+                {imageSearchResults.map((r, i) => (
+                  <button
+                    key={i}
+                    type="button"
+                    onClick={() => { setAiImageUrl(r.imageUrl); setImageSearchResults(null); setImage(null); }}
+                    className="relative w-full aspect-square rounded-lg overflow-hidden border border-gray-200 hover:border-orange-400 transition-colors bg-gray-50"
+                  >
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img src={r.thumbnailUrl} alt="" className="w-full h-full object-cover" />
+                  </button>
+                ))}
+              </div>
+            )}
+            {imageSearchResults && imageSearchResults.length === 0 && (
+              <p className="text-xs text-gray-400 text-center">No se encontraron imágenes.</p>
+            )}
+          </>
+        )}
       </div>
 
       <div className="flex flex-col gap-1">
