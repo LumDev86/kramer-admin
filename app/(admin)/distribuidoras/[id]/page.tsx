@@ -11,6 +11,7 @@ import ConfirmModal from '@/components/ui/ConfirmModal';
 import ImageUpload from '@/components/ui/ImageUpload';
 import UnitSelector from '@/components/ui/UnitSelector';
 import CategorySelector from '@/components/ui/CategorySelector';
+import ImageLightbox from '@/components/ui/ImageLightbox';
 
 const money = (value: number | string) =>
   `$${Number(value).toLocaleString('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
@@ -36,6 +37,7 @@ export default function DistribuidoraDetallePage() {
 
   const [activeFacturaId, setActiveFacturaId] = useState<string | null>(null);
   const [uploadError, setUploadError] = useState('');
+  const [lightboxUrl, setLightboxUrl] = useState<string | null>(null);
   const [revealCount, setRevealCount] = useState(Infinity);
   const [toCancel, setToCancel] = useState<Factura | null>(null);
   const [linkingItemId, setLinkingItemId] = useState<string | null>(null);
@@ -338,7 +340,14 @@ export default function DistribuidoraDetallePage() {
           <div className="bg-white rounded-2xl shadow-sm p-3">
             <div className="relative w-full aspect-[3/4] rounded-xl overflow-hidden bg-gray-100">
               {activeFactura.imageUrl ? (
-                <Image src={activeFactura.imageUrl} alt="Factura" fill sizes="280px" className="object-contain" />
+                <button
+                  type="button"
+                  onClick={() => setLightboxUrl(activeFactura.imageUrl)}
+                  className="absolute inset-0 cursor-zoom-in"
+                  title="Ver imagen ampliada"
+                >
+                  <Image src={activeFactura.imageUrl} alt="Factura" fill sizes="280px" className="object-contain" />
+                </button>
               ) : (
                 <div className="w-full h-full flex items-center justify-center text-xs text-gray-400 font-medium text-center px-4">
                   Imagen eliminada
@@ -846,9 +855,14 @@ export default function DistribuidoraDetallePage() {
             {historial.map((f) => (
               <div key={f.id} className="flex items-center gap-4 px-5 py-3">
                 {f.imageUrl ? (
-                  <a href={f.imageUrl} target="_blank" rel="noopener noreferrer" className="relative w-12 h-12 rounded-lg overflow-hidden bg-gray-100 flex-shrink-0">
+                  <button
+                    type="button"
+                    onClick={() => setLightboxUrl(f.imageUrl)}
+                    className="relative w-12 h-12 rounded-lg overflow-hidden bg-gray-100 flex-shrink-0 cursor-zoom-in"
+                    title="Ver imagen ampliada"
+                  >
                     <Image src={f.imageUrl} alt="Factura" fill sizes="48px" className="object-cover" />
-                  </a>
+                  </button>
                 ) : (
                   <div
                     title="La imagen se borró automáticamente (factura cancelada hace más de 2 días)"
@@ -883,6 +897,8 @@ export default function DistribuidoraDetallePage() {
           onCancel={() => setToCancel(null)}
         />
       )}
+
+      {lightboxUrl && <ImageLightbox imageUrl={lightboxUrl} alt="Factura" onClose={() => setLightboxUrl(null)} />}
     </div>
   );
 }
