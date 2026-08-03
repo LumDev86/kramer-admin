@@ -516,15 +516,18 @@ export default function DistribuidoraDetallePage() {
                         <td className="px-4 py-3">
                           <input
                             type="number"
+                            step="1"
                             defaultValue={item.cantidad}
-                            onBlur={(e) =>
-                              parseFloat(e.target.value) !== item.cantidad &&
-                              updateItemMutation.mutate({
-                                facturaId: activeFactura.id,
-                                itemId: item.id,
-                                data: { cantidad: parseFloat(e.target.value) },
-                              })
-                            }
+                            onBlur={(e) => {
+                              const cantidad = Math.round(parseFloat(e.target.value));
+                              if (!isNaN(cantidad) && cantidad !== item.cantidad) {
+                                updateItemMutation.mutate({
+                                  facturaId: activeFactura.id,
+                                  itemId: item.id,
+                                  data: { cantidad },
+                                });
+                              }
+                            }}
                             className="w-16 text-sm font-semibold outline-none border-b border-transparent focus:border-orange-300"
                           />
                         </td>
