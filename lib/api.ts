@@ -362,6 +362,7 @@ export interface FacturaItem {
   medidaDetectada: number | null;
   medidaUnidadDetectada: string | null;
   unidadesPorBultoDetectada: number | null;
+  alicuotaIvaDetectada: number | null;
   subtotal: string;
   createdAt: string;
 }

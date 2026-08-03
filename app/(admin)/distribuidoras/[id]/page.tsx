@@ -404,6 +404,11 @@ export default function DistribuidoraDetallePage() {
                               📦 Detectado por bulto de {item.unidadesPorBultoDetectada} un. · cant./precio ya normalizados por unidad
                             </p>
                           )}
+                          {item.alicuotaIvaDetectada != null && (
+                            <p className="text-[11px] text-gray-400 font-medium mt-0.5">
+                              🧾 IVA {item.alicuotaIvaDetectada}% ya incluido en el costo
+                            </p>
+                          )}
                           {item.product ? (
                             <div className="flex flex-col gap-1 mt-1">
                               <div className="flex items-center gap-1.5">
