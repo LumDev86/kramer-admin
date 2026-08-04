@@ -29,21 +29,21 @@ export default function DistribuidorasPage() {
 
   return (
     <div className="flex flex-col gap-6">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
         <div>
           <h1 className="text-2xl font-extrabold text-gray-800">Distribuidoras</h1>
           <p className="text-sm text-gray-400 font-medium mt-0.5">{data?.length ?? 0} distribuidoras</p>
         </div>
         <Link
           href="/distribuidoras/nueva"
-          className="flex items-center gap-2 bg-orange-500 hover:bg-orange-600 text-white font-bold px-4 py-2.5 rounded-xl text-sm transition-colors"
+          className="flex items-center justify-center gap-2 bg-orange-500 hover:bg-orange-600 text-white font-bold px-4 py-2.5 rounded-xl text-sm transition-colors"
         >
           <Plus size={16} weight="bold" />
           Nueva distribuidora
         </Link>
       </div>
 
-      <div className="bg-white rounded-2xl shadow-sm overflow-hidden">
+      <div className="bg-white rounded-2xl shadow-sm overflow-hidden overflow-x-auto">
         <table className="w-full text-sm">
           <thead className="border-b border-gray-100">
             <tr className="text-left">

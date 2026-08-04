@@ -6,7 +6,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import Link from 'next/link';
 import Image from 'next/image';
 import { distribuidores, facturas, products, categories, Factura, FacturaItem, Product, ImageSearchResult } from '@/lib/api';
-import { CaretLeft, UploadSimple, Trash, Warning, Check, X, MagnifyingGlass } from '@phosphor-icons/react';
+import { CaretLeft, UploadSimple, Trash, Warning, Check, X, MagnifyingGlass, Camera } from '@phosphor-icons/react';
 import ConfirmModal from '@/components/ui/ConfirmModal';
 import ImageUpload from '@/components/ui/ImageUpload';
 import UnitSelector from '@/components/ui/UnitSelector';
@@ -33,6 +33,7 @@ const getPriceChange = (item: FacturaItem): { pct: number; oldCost: number; newC
 export default function DistribuidoraDetallePage() {
   const { id } = useParams() as { id: string };
   const qc = useQueryClient();
+  const cameraInputRef = useRef<HTMLInputElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const [activeFacturaId, setActiveFacturaId] = useState<string | null>(null);
@@ -272,12 +273,12 @@ export default function DistribuidoraDetallePage() {
 
   return (
     <div className="flex flex-col gap-6">
-      <div className="flex items-center gap-3">
+      <div className="flex items-center gap-3 flex-wrap">
         <Link href="/distribuidoras" className="text-gray-400 hover:text-gray-600 transition-colors">
           <CaretLeft size={20} weight="bold" />
         </Link>
-        <div className="flex-1">
-          <h1 className="text-2xl font-extrabold text-gray-800">{data.nombre}</h1>
+        <div className="flex-1 min-w-0">
+          <h1 className="text-2xl font-extrabold text-gray-800 truncate">{data.nombre}</h1>
           <p className="text-sm text-gray-400 font-medium mt-0.5">{data.telefono ?? 'Sin teléfono'}</p>
         </div>
         <div className="text-right">
@@ -286,7 +287,7 @@ export default function DistribuidoraDetallePage() {
         </div>
       </div>
 
-      <div className="bg-white rounded-2xl shadow-sm p-5 flex items-center justify-between">
+      <div className="bg-white rounded-2xl shadow-sm p-5 flex flex-col sm:flex-row sm:items-center gap-4 sm:justify-between">
         <div>
           <p className="text-sm font-bold text-gray-700">Cargar una factura nueva</p>
           <p className="text-xs text-gray-400 mt-0.5">Sacale una foto y la IA va a leer los productos automáticamente</p>
@@ -294,15 +295,31 @@ export default function DistribuidoraDetallePage() {
             💡 Para que salga mejor: buena luz, la hoja derecha (no en ángulo) y acercate para que el texto se lea grande
           </p>
         </div>
-        <div>
+        <div className="flex flex-col sm:flex-row gap-2">
+          <input
+            ref={cameraInputRef}
+            type="file"
+            accept="image/*"
+            capture="environment"
+            className="hidden"
+            onChange={handleFileChange}
+          />
           <input ref={fileInputRef} type="file" accept="image/*" className="hidden" onChange={handleFileChange} />
+          <button
+            onClick={() => cameraInputRef.current?.click()}
+            disabled={uploadMutation.isPending}
+            className="flex items-center justify-center gap-2 bg-orange-500 hover:bg-orange-600 text-white font-bold px-4 py-2.5 rounded-xl text-sm transition-colors disabled:opacity-60"
+          >
+            <Camera size={16} weight="bold" />
+            {uploadMutation.isPending ? 'Leyendo factura...' : 'Sacar foto'}
+          </button>
           <button
             onClick={() => fileInputRef.current?.click()}
             disabled={uploadMutation.isPending}
-            className="flex items-center gap-2 bg-orange-500 hover:bg-orange-600 text-white font-bold px-4 py-2.5 rounded-xl text-sm transition-colors disabled:opacity-60"
+            className="flex items-center justify-center gap-2 border border-gray-200 text-gray-600 hover:bg-gray-50 font-bold px-4 py-2.5 rounded-xl text-sm transition-colors disabled:opacity-60"
           >
             <UploadSimple size={16} weight="bold" />
-            {uploadMutation.isPending ? 'Leyendo factura...' : 'Cargar factura'}
+            Elegir archivo
           </button>
         </div>
       </div>
@@ -365,6 +382,7 @@ export default function DistribuidoraDetallePage() {
             )}
 
             <div className="bg-white rounded-2xl shadow-sm overflow-hidden">
+            <div className="overflow-x-auto">
               <table className="w-full text-sm">
                 <thead className="border-b border-gray-100">
                   <tr className="text-left">
@@ -758,6 +776,7 @@ export default function DistribuidoraDetallePage() {
                   )}
                 </tbody>
               </table>
+            </div>
 
               <div className="p-4 border-t border-gray-100">
                 {manualOpen ? (

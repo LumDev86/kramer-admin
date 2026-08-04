@@ -35,7 +35,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
   return (
     <div className="flex min-h-screen">
       <Sidebar />
-      <main className="ml-60 flex-1 p-8 animate-fadeIn">
+      <main className="md:ml-60 flex-1 p-4 pt-20 sm:p-6 md:p-8 md:pt-8 animate-fadeIn min-w-0">
         {children}
       </main>
     </div>
