@@ -357,6 +357,7 @@ export interface FacturaItem {
   } | null;
   nombreDetectado: string;
   codigoDetectado: string | null;
+  codigoArticuloDetectado: string | null;
   cantidad: number;
   precioUnitario: string;
   medidaDetectada: number | null;

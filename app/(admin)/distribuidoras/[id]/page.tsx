@@ -427,6 +427,12 @@ export default function DistribuidoraDetallePage() {
                               🧾 IVA {item.alicuotaIvaDetectada}% ya incluido en el costo
                             </p>
                           )}
+                          {item.codigoArticuloDetectado && (
+                            <p className="text-[11px] text-gray-400 font-medium mt-0.5">
+                              🏷️ Cód. artículo de esta distribuidora: {item.codigoArticuloDetectado}
+                              {item.productId && ' · guardado para reconocerlo solo la próxima vez'}
+                            </p>
+                          )}
                           {item.product ? (
                             <div className="flex flex-col gap-1 mt-1">
                               <div className="flex items-center gap-1.5">
