@@ -401,6 +401,23 @@ export interface DistribuidorConFacturas extends Distribuidor {
   facturas: Factura[];
 }
 
+export interface ProductoDistribuidor {
+  id: string;
+  title: string;
+  cost: string | null;
+  price: string;
+  imageUrl: string;
+}
+
+export interface ProductoAjustado {
+  id: string;
+  title: string;
+  costAnterior: string | null;
+  costNuevo: string | null;
+  precioAnterior: string;
+  precioNuevo: string;
+}
+
 export const distribuidores = {
   getAll: () => request<Distribuidor[]>('/distribuidores'),
   getById: (id: string) => request<DistribuidorConFacturas>(`/distribuidores/${id}`),
@@ -409,6 +426,9 @@ export const distribuidores = {
   update: (id: string, data: { nombre?: string; telefono?: string | null; notas?: string | null }) =>
     request<Distribuidor>(`/distribuidores/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
   delete: (id: string) => request<void>(`/distribuidores/${id}`, { method: 'DELETE' }),
+  getProductos: (id: string) => request<ProductoDistribuidor[]>(`/distribuidores/${id}/productos`),
+  aplicarAumento: (id: string, data: { pct: number; productIds: string[] }) =>
+    request<ProductoAjustado[]>(`/distribuidores/${id}/aplicar-aumento`, { method: 'POST', body: JSON.stringify(data) }),
 };
 
 export const facturas = {

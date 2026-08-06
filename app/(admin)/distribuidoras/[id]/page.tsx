@@ -6,12 +6,13 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import Link from 'next/link';
 import Image from 'next/image';
 import { distribuidores, facturas, products, categories, Factura, FacturaItem, Product, ImageSearchResult } from '@/lib/api';
-import { CaretLeft, UploadSimple, Trash, Warning, Check, X, MagnifyingGlass, Camera } from '@phosphor-icons/react';
+import { CaretLeft, UploadSimple, Trash, Warning, Check, X, MagnifyingGlass, Camera, TrendUp } from '@phosphor-icons/react';
 import ConfirmModal from '@/components/ui/ConfirmModal';
 import ImageUpload from '@/components/ui/ImageUpload';
 import UnitSelector from '@/components/ui/UnitSelector';
 import CategorySelector from '@/components/ui/CategorySelector';
 import ImageLightbox from '@/components/ui/ImageLightbox';
+import AplicarAumentoModal from '@/components/ui/AplicarAumentoModal';
 
 const money = (value: number | string) =>
   `$${Number(value).toLocaleString('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
@@ -41,6 +42,7 @@ export default function DistribuidoraDetallePage() {
   const [lightboxUrl, setLightboxUrl] = useState<string | null>(null);
   const [revealCount, setRevealCount] = useState(Infinity);
   const [toCancel, setToCancel] = useState<Factura | null>(null);
+  const [showAumentoModal, setShowAumentoModal] = useState(false);
   const [linkingItemId, setLinkingItemId] = useState<string | null>(null);
   const [linkQuery, setLinkQuery] = useState('');
   const [linkResults, setLinkResults] = useState<Product[] | null>(null);
@@ -285,6 +287,13 @@ export default function DistribuidoraDetallePage() {
           <p className="text-xs font-bold text-gray-400 uppercase tracking-wide">Total gastado</p>
           <p className="text-2xl font-extrabold text-orange-500">{money(totalGastado)}</p>
         </div>
+        <button
+          onClick={() => setShowAumentoModal(true)}
+          className="flex items-center gap-2 border border-gray-200 text-gray-600 hover:bg-gray-50 font-bold px-4 py-2.5 rounded-xl text-sm transition-colors"
+        >
+          <TrendUp size={16} weight="bold" />
+          Aplicar aumento
+        </button>
       </div>
 
       <div className="bg-white rounded-2xl shadow-sm p-5 flex flex-col sm:flex-row sm:items-center gap-4 sm:justify-between">
@@ -932,6 +941,18 @@ export default function DistribuidoraDetallePage() {
       )}
 
       {lightboxUrl && <ImageLightbox imageUrl={lightboxUrl} alt="Factura" onClose={() => setLightboxUrl(null)} />}
+
+      {showAumentoModal && (
+        <AplicarAumentoModal
+          distribuidorId={id}
+          distribuidorNombre={data.nombre}
+          onClose={() => setShowAumentoModal(false)}
+          onApplied={() => {
+            invalidate();
+            qc.invalidateQueries({ queryKey: ['products'] });
+          }}
+        />
+      )}
     </div>
   );
 }
