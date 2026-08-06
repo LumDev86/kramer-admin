@@ -17,8 +17,10 @@ export default function ClienteForm({ cliente }: Props) {
   const [nombre, setNombre] = useState(cliente?.nombre ?? '');
   const [apellido, setApellido] = useState(cliente?.apellido ?? '');
   const [apodo, setApodo] = useState(cliente?.apodo ?? '');
+  const [dni, setDni] = useState(cliente?.dni ?? '');
   const [telefono, setTelefono] = useState(cliente?.telefono ?? '');
   const [direccion, setDireccion] = useState(cliente?.direccion ?? '');
+  const [email, setEmail] = useState(cliente?.email ?? '');
   const [creditLimit, setCreditLimit] = useState(cliente?.creditLimit ?? '');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
@@ -33,8 +35,10 @@ export default function ClienteForm({ cliente }: Props) {
           nombre,
           apellido,
           apodo: apodo || null,
+          dni: dni || null,
           telefono: telefono || null,
           direccion: direccion || null,
+          email: email || null,
           creditLimit: creditLimit !== '' ? parseFloat(String(creditLimit)) : null,
         });
       } else {
@@ -42,8 +46,10 @@ export default function ClienteForm({ cliente }: Props) {
           nombre,
           apellido,
           ...(apodo && { apodo }),
+          ...(dni && { dni }),
           ...(telefono && { telefono }),
           ...(direccion && { direccion }),
+          ...(email && { email }),
           ...(creditLimit !== '' && { creditLimit: parseFloat(String(creditLimit)) }),
         });
       }
@@ -83,26 +89,50 @@ export default function ClienteForm({ cliente }: Props) {
         </div>
       </div>
 
-      <div className="flex flex-col gap-1">
-        <label className="text-xs font-semibold text-gray-500">Apodo</label>
-        <input
-          type="text"
-          value={apodo}
-          onChange={(e) => setApodo(e.target.value)}
-          placeholder="Como le dicen habitualmente"
-          className="border border-gray-200 rounded-xl px-3 py-2.5 text-sm outline-none focus:border-orange-400 font-medium"
-        />
+      <div className="flex gap-4">
+        <div className="flex-1 flex flex-col gap-1">
+          <label className="text-xs font-semibold text-gray-500">Apodo</label>
+          <input
+            type="text"
+            value={apodo}
+            onChange={(e) => setApodo(e.target.value)}
+            placeholder="Como le dicen habitualmente"
+            className="border border-gray-200 rounded-xl px-3 py-2.5 text-sm outline-none focus:border-orange-400 font-medium"
+          />
+        </div>
+        <div className="flex-1 flex flex-col gap-1">
+          <label className="text-xs font-semibold text-gray-500">DNI</label>
+          <input
+            type="text"
+            value={dni}
+            onChange={(e) => setDni(e.target.value)}
+            placeholder="30123456"
+            className="border border-gray-200 rounded-xl px-3 py-2.5 text-sm outline-none focus:border-orange-400 font-medium"
+          />
+        </div>
       </div>
 
-      <div className="flex flex-col gap-1">
-        <label className="text-xs font-semibold text-gray-500">Teléfono</label>
-        <input
-          type="text"
-          value={telefono}
-          onChange={(e) => setTelefono(e.target.value)}
-          placeholder="11-1234-5678"
-          className="border border-gray-200 rounded-xl px-3 py-2.5 text-sm outline-none focus:border-orange-400 font-medium"
-        />
+      <div className="flex gap-4">
+        <div className="flex-1 flex flex-col gap-1">
+          <label className="text-xs font-semibold text-gray-500">Teléfono</label>
+          <input
+            type="text"
+            value={telefono}
+            onChange={(e) => setTelefono(e.target.value)}
+            placeholder="11-1234-5678"
+            className="border border-gray-200 rounded-xl px-3 py-2.5 text-sm outline-none focus:border-orange-400 font-medium"
+          />
+        </div>
+        <div className="flex-1 flex flex-col gap-1">
+          <label className="text-xs font-semibold text-gray-500">Email</label>
+          <input
+            type="email"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            placeholder="cliente@ejemplo.com"
+            className="border border-gray-200 rounded-xl px-3 py-2.5 text-sm outline-none focus:border-orange-400 font-medium"
+          />
+        </div>
       </div>
 
       <div className="flex flex-col gap-1">
@@ -115,6 +145,12 @@ export default function ClienteForm({ cliente }: Props) {
           className="border border-gray-200 rounded-xl px-3 py-2.5 text-sm outline-none focus:border-orange-400 font-medium"
         />
       </div>
+
+      <p className="text-xs text-gray-400 -mt-2">
+        El cliente ahora puede registrarse solo desde la tienda online para ver su cuenta. Cargarlo acá a mano es
+        para el caso puntual de alguien que no puede autoregistrarse — no le da acceso al portal (no tiene
+        contraseña) hasta que se registre él mismo con este email.
+      </p>
 
       <div className="flex flex-col gap-1">
         <label className="text-xs font-semibold text-gray-500">Límite de crédito (fiado)</label>

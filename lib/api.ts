@@ -278,8 +278,10 @@ export interface Cliente {
   nombre: string;
   apellido: string;
   apodo: string | null;
+  dni: string | null;
   telefono: string | null;
   direccion: string | null;
+  email: string | null;
   creditLimit: string | null;
   isActive: boolean;
   deuda?: number;
@@ -313,8 +315,10 @@ export const clientes = {
     nombre: string;
     apellido: string;
     apodo?: string;
+    dni?: string;
     telefono?: string;
     direccion?: string;
+    email?: string;
     creditLimit?: number;
   }) => request<Cliente>('/clientes', { method: 'POST', body: JSON.stringify(data) }),
   update: (
@@ -323,8 +327,10 @@ export const clientes = {
       nombre?: string;
       apellido?: string;
       apodo?: string | null;
+      dni?: string | null;
       telefono?: string | null;
       direccion?: string | null;
+      email?: string | null;
       creditLimit?: number | null;
     }
   ) => request<Cliente>(`/clientes/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
