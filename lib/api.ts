@@ -465,3 +465,72 @@ export const banners = {
   update:  (id: string, form: FormData) => request<Banner>(`/banners/${id}`, { method: 'PUT', body: form }),
   delete:  (id: string) => request<void>(`/banners/${id}`, { method: 'DELETE' }),
 };
+
+export type TipoPeriodo = 'dia' | 'semana' | 'mes' | 'anio';
+
+export interface ProductoReporte {
+  productId: string | null;
+  name: string;
+  quantity: number;
+  total: number;
+  profit: number;
+}
+
+export interface FacturaResumenReporte {
+  id: string;
+  distribuidorId: string;
+  distribuidorNombre: string;
+  total: number;
+  confirmedAt: string | null;
+}
+
+export interface DistribuidorGastoReporte {
+  distribuidorId: string;
+  nombre: string;
+  total: number;
+  facturasCount: number;
+}
+
+export interface ProductoAumentadoReporte {
+  productId: string;
+  title: string;
+  precioAnterior: number;
+  precioNuevo: number;
+  pct: number;
+}
+
+export interface Reporte {
+  periodo: { tipo: TipoPeriodo; desde: string; hasta: string };
+  ventas: {
+    total: number;
+    count: number;
+    byMethod: { CASH: number; TRANSFER: number; CREDIT: number };
+    ticketPromedio: number;
+    variacionPct: number | null;
+  };
+  ganancia: {
+    total: number;
+    margenPct: number;
+    variacionPct: number | null;
+  };
+  perdidas: { faltantesCaja: number; turnosConFaltante: number };
+  ventasPorCategoria: { name: string; total: number }[];
+  productosMasVendidos: ProductoReporte[];
+  productosMasRentables: { productId: string | null; name: string; profit: number }[];
+  distribuidoras: {
+    totalGastado: number;
+    porDistribuidora: DistribuidorGastoReporte[];
+    facturas: FacturaResumenReporte[];
+  };
+  productosConAumento: ProductoAumentadoReporte[];
+  fiado: { otorgado: number; cobrado: number };
+  cortesDeCaja: CashSession[];
+}
+
+export const reportes = {
+  getReporte: (tipo: TipoPeriodo, fecha?: string) => {
+    const qs = new URLSearchParams({ tipo });
+    if (fecha) qs.set('fecha', fecha);
+    return request<Reporte>(`/reportes?${qs}`);
+  },
+};

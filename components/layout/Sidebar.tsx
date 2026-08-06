@@ -48,7 +48,7 @@ export default function Sidebar() {
     <>
       <button
         onClick={() => setOpen(true)}
-        className="md:hidden fixed top-4 left-4 z-30 w-10 h-10 rounded-xl bg-white shadow-sm border border-gray-100 flex items-center justify-center text-gray-600"
+        className="md:hidden print:hidden fixed top-4 left-4 z-30 w-10 h-10 rounded-xl bg-white shadow-sm border border-gray-100 flex items-center justify-center text-gray-600"
       >
         <List size={20} weight="bold" />
       </button>
@@ -58,7 +58,7 @@ export default function Sidebar() {
       )}
 
       <aside
-        className={`w-60 min-h-screen bg-white border-r border-gray-100 flex flex-col fixed top-0 left-0 z-50 shadow-sm transition-transform duration-200 md:translate-x-0 ${
+        className={`w-60 min-h-screen bg-white border-r border-gray-100 flex flex-col fixed top-0 left-0 z-50 shadow-sm transition-transform duration-200 md:translate-x-0 print:hidden ${
           open ? 'translate-x-0' : '-translate-x-full'
         }`}
       >
