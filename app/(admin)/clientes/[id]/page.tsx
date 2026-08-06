@@ -5,7 +5,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useParams } from 'next/navigation';
 import Link from 'next/link';
 import { clientes } from '@/lib/api';
-import { CaretLeft, PencilSimple } from '@phosphor-icons/react';
+import { CaretLeft, PencilSimple, Bell, Copy, Check, WhatsappLogo } from '@phosphor-icons/react';
 import ConfirmModal from '@/components/ui/ConfirmModal';
 
 const money = (value: number | string) =>
@@ -13,6 +13,13 @@ const money = (value: number | string) =>
 
 const formatDateTime = (value: string) =>
   new Date(value).toLocaleString('es-AR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' });
+
+// wa.me necesita el número con código de país sin signos; si ya viene con 54 lo dejamos,
+// si no, asumimos Argentina (mercado de esta tienda) y se lo agregamos como mejor esfuerzo
+const toWhatsappNumber = (telefono: string): string => {
+  const digits = telefono.replace(/\D/g, '');
+  return digits.startsWith('54') ? digits : `549${digits}`;
+};
 
 export default function ClienteDetallePage() {
   const { id } = useParams() as { id: string };
@@ -22,6 +29,9 @@ export default function ClienteDetallePage() {
   const [pagoNote, setPagoNote] = useState('');
   const [pagoError, setPagoError] = useState('');
   const [confirmToggle, setConfirmToggle] = useState(false);
+  const [recuperoUrl, setRecuperoUrl] = useState<string | null>(null);
+  const [recuperoError, setRecuperoError] = useState('');
+  const [copiedRecupero, setCopiedRecupero] = useState(false);
 
   const { data: cliente, isLoading } = useQuery({
     queryKey: ['cliente', id],
@@ -47,11 +57,29 @@ export default function ClienteDetallePage() {
     },
   });
 
+  const recuperoMutation = useMutation({
+    mutationFn: () => clientes.generarRecupero(id),
+    onSuccess: (data) => {
+      setRecuperoUrl(data.url);
+      setRecuperoError('');
+      qc.invalidateQueries({ queryKey: ['cliente', id] });
+      qc.invalidateQueries({ queryKey: ['clientes', 'reset-pendientes'] });
+    },
+    onError: (err: any) => setRecuperoError(err.message ?? 'Error al generar el link'),
+  });
+
   const handlePago = () => {
     const amount = parseFloat(pagoAmount);
     if (!amount || amount <= 0) return;
     setPagoError('');
     pagoMutation.mutate({ amount, ...(pagoNote.trim() && { note: pagoNote.trim() }) });
+  };
+
+  const handleCopyRecupero = () => {
+    if (!recuperoUrl) return;
+    navigator.clipboard.writeText(recuperoUrl);
+    setCopiedRecupero(true);
+    setTimeout(() => setCopiedRecupero(false), 2000);
   };
 
   if (isLoading) {
@@ -87,6 +115,61 @@ export default function ClienteDetallePage() {
           Editar
         </Link>
       </div>
+
+      {cliente.passwordResetRequestedAt && !recuperoUrl && (
+        <div className="bg-red-50 border border-red-200 rounded-2xl p-4 flex flex-col sm:flex-row sm:items-center gap-3 sm:justify-between">
+          <div className="flex items-center gap-2">
+            <Bell size={18} weight="fill" className="text-red-500 flex-shrink-0" />
+            <p className="text-sm font-semibold text-red-700">
+              Este cliente pidió recuperar su contraseña el {formatDateTime(cliente.passwordResetRequestedAt)}
+            </p>
+          </div>
+          <button
+            onClick={() => recuperoMutation.mutate()}
+            disabled={recuperoMutation.isPending}
+            className="flex-shrink-0 px-4 py-2.5 rounded-xl bg-red-500 hover:bg-red-600 text-white text-sm font-bold transition-colors disabled:opacity-50"
+          >
+            {recuperoMutation.isPending ? 'Generando...' : 'Generar link de recupero'}
+          </button>
+        </div>
+      )}
+
+      {recuperoError && (
+        <p className="text-xs text-red-500 font-semibold bg-red-50 rounded-xl px-4 py-2.5">{recuperoError}</p>
+      )}
+
+      {recuperoUrl && (
+        <div className="bg-green-50 border border-green-200 rounded-2xl p-4 flex flex-col gap-3">
+          <p className="text-sm font-semibold text-green-700">
+            Link generado (válido por 24hs). Mandaselo al cliente para que elija su contraseña nueva:
+          </p>
+          <div className="flex flex-col sm:flex-row gap-2">
+            <div className="flex-1 bg-white border border-green-200 rounded-xl px-3 py-2.5 text-xs font-mono text-gray-600 truncate">
+              {recuperoUrl}
+            </div>
+            <button
+              onClick={handleCopyRecupero}
+              className="flex items-center justify-center gap-1.5 px-4 py-2.5 rounded-xl border border-gray-200 text-sm font-semibold text-gray-600 hover:bg-gray-50 transition-colors flex-shrink-0"
+            >
+              {copiedRecupero ? <Check size={15} weight="bold" className="text-green-600" /> : <Copy size={15} weight="bold" />}
+              {copiedRecupero ? 'Copiado' : 'Copiar'}
+            </button>
+            {cliente.telefono && (
+              <a
+                href={`https://wa.me/${toWhatsappNumber(cliente.telefono)}?text=${encodeURIComponent(
+                  `Hola ${cliente.nombre}! Para restablecer tu contraseña de Kiosco Kramer entrá a este link: ${recuperoUrl}`
+                )}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="flex items-center justify-center gap-1.5 px-4 py-2.5 rounded-xl bg-[#25D366] hover:opacity-90 text-white text-sm font-bold transition-opacity flex-shrink-0"
+              >
+                <WhatsappLogo size={16} weight="fill" />
+                Enviar por WhatsApp
+              </a>
+            )}
+          </div>
+        </div>
+      )}
 
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
         <div className="bg-white rounded-2xl shadow-sm p-5">

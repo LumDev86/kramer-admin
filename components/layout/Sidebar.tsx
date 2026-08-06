@@ -3,8 +3,10 @@
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
+import { useQuery } from '@tanstack/react-query';
 import { House, Package, Tag, Image, Receipt, Truck, ChartBar, SignOut, Users, List, X } from '@phosphor-icons/react';
-import { removeToken } from '@/lib/auth';
+import { removeToken, getToken } from '@/lib/auth';
+import { clientes } from '@/lib/api';
 
 const NAV = [
   { href: '/',              label: 'Dashboard',     icon: House    },
@@ -21,6 +23,13 @@ export default function Sidebar() {
   const pathname = usePathname();
   const router = useRouter();
   const [open, setOpen] = useState(false);
+
+  const { data: resetPendientes } = useQuery({
+    queryKey: ['clientes', 'reset-pendientes'],
+    queryFn: () => clientes.getAll({ resetPendiente: true, limit: 1 }),
+    enabled: !!getToken(),
+  });
+  const resetPendientesCount = resetPendientes?.meta.total ?? 0;
 
   // cerrar el drawer solo al navegar (mobile) - en desktop es siempre visible y esto no afecta nada
   useEffect(() => {
@@ -78,7 +87,12 @@ export default function Sidebar() {
               }`}
             >
               <Icon size={18} weight={isActive(href) ? 'fill' : 'regular'} />
-              {label}
+              <span className="flex-1">{label}</span>
+              {href === '/clientes' && resetPendientesCount > 0 && (
+                <span className="w-5 h-5 rounded-full bg-red-500 text-white text-[10px] font-bold flex items-center justify-center flex-shrink-0">
+                  {resetPendientesCount > 9 ? '9+' : resetPendientesCount}
+                </span>
+              )}
             </Link>
           ))}
         </nav>

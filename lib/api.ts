@@ -285,6 +285,7 @@ export interface Cliente {
   creditLimit: string | null;
   isActive: boolean;
   deuda?: number;
+  passwordResetRequestedAt: string | null;
   createdAt: string;
 }
 
@@ -302,11 +303,12 @@ export interface ClienteConHistorial extends Cliente {
 }
 
 export const clientes = {
-  getAll: (params: { page?: number; limit?: number; search?: string } = {}) => {
+  getAll: (params: { page?: number; limit?: number; search?: string; resetPendiente?: boolean } = {}) => {
     const qs = new URLSearchParams();
     if (params.page)   qs.set('page',   String(params.page));
     if (params.limit)  qs.set('limit',  String(params.limit));
     if (params.search) qs.set('search', params.search);
+    if (params.resetPendiente) qs.set('resetPendiente', 'true');
     const q = qs.toString() ? `?${qs}` : '';
     return request<PaginatedResponse<Cliente>>(`/clientes${q}`);
   },
@@ -337,6 +339,8 @@ export const clientes = {
   toggleActive: (id: string) => request<Cliente>(`/clientes/${id}/toggle-active`, { method: 'PATCH' }),
   registerPago: (id: string, data: { amount: number; note?: string }) =>
     request<ClientePago>(`/clientes/${id}/pagos`, { method: 'POST', body: JSON.stringify(data) }),
+  generarRecupero: (id: string) =>
+    request<{ url: string; expiresAt: string }>(`/clientes/${id}/generar-recupero`, { method: 'POST' }),
 };
 
 export interface Distribuidor {

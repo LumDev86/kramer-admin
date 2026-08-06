@@ -81,6 +81,9 @@ export default function ClientesPage() {
                     <Link href={`/clientes/${c.id}`} className="font-semibold text-gray-800 hover:text-orange-500">
                       {c.nombre} {c.apellido}
                     </Link>
+                    {c.passwordResetRequestedAt && (
+                      <span className="ml-1.5 text-[10px] font-bold text-red-500 align-middle">🔔 Pidió recuperar contraseña</span>
+                    )}
                     {c.apodo && <p className="text-xs text-gray-400">{c.apodo}</p>}
                   </td>
                   <td className="px-4 py-3 text-gray-500">{c.telefono ?? '—'}</td>
