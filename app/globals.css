@@ -15,3 +15,12 @@ button:not(:disabled), a, [role="switch"], select, label[for] {
 
 .animate-fadeIn  { animation: fadeIn  0.25s ease-out both; }
 .animate-slideUp { animation: slideUp 0.3s  ease-out both; }
+
+@media print {
+  @page {
+    margin: 1.5cm;
+  }
+  body {
+    background: white;
+  }
+}

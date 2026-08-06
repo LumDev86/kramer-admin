@@ -235,12 +235,12 @@ export default function ClienteDetallePage() {
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <div className="bg-white rounded-2xl shadow-sm overflow-hidden">
           <div className="px-4 py-3.5 border-b border-gray-100">
-            <p className="text-sm font-bold text-gray-700">Historial de compras fiadas</p>
+            <p className="text-sm font-bold text-gray-700">Historial de compras a crédito</p>
           </div>
           <div className="divide-y divide-gray-50 max-h-[420px] overflow-y-auto">
             {cliente.sales.length === 0 ? (
               <p className="px-4 py-6 text-center text-sm text-gray-400 font-medium">
-                Todavía no tiene compras fiadas.
+                Todavía no tiene compras a crédito.
               </p>
             ) : (
               cliente.sales.map((sale) => (
@@ -298,7 +298,7 @@ export default function ClienteDetallePage() {
         <ConfirmModal
           message={
             cliente.isActive
-              ? '¿Dar de baja a este cliente? No se le va a poder cobrar un fiado nuevo hasta reactivarlo.'
+              ? '¿Dar de baja a este cliente? No se le va a poder cobrar un crédito nuevo hasta reactivarlo.'
               : '¿Reactivar a este cliente?'
           }
           loading={toggleMutation.isPending}

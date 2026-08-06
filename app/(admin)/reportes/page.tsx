@@ -56,6 +56,11 @@ const formatPeriodoLabel = (periodo: { tipo: TipoPeriodo; desde: string; hasta: 
   return `Año ${desde.getFullYear()}`;
 };
 
+const TIPO_ABREV: Record<TipoPeriodo, string> = { dia: 'D', semana: 'S', mes: 'M', anio: 'A' };
+
+const numeroDocumento = (periodo: { tipo: TipoPeriodo; desde: string }): string =>
+  `RPT-${TIPO_ABREV[periodo.tipo]}-${periodo.desde.replace(/-/g, '')}`;
+
 const VariacionBadge = ({ pct }: { pct: number | null }) => {
   if (pct === null) {
     return <span className="text-[11px] text-gray-400 font-semibold">Sin período anterior para comparar</span>;
@@ -104,14 +109,21 @@ export default function ReportesPage() {
 
   return (
     <div className="flex flex-col gap-6" id="reporte-imprimible">
-      <div className="hidden print:flex items-center gap-4 pb-4 border-b-2 border-gray-800 mb-2">
-        <div className="relative w-14 h-14 flex-shrink-0">
-          <Image src="/logo.png" alt="Kiosco Kramer" fill className="object-contain" />
+      <div className="hidden print:flex items-start justify-between gap-4 pb-4 mb-4 border-b-4 border-double border-gray-800">
+        <div className="flex items-center gap-4">
+          <div className="relative w-16 h-16 flex-shrink-0">
+            <Image src="/logo.png" alt="Kiosco Kramer" fill className="object-contain" />
+          </div>
+          <div>
+            <h1 className="text-2xl font-extrabold text-gray-900 tracking-tight">KIOSCO KRAMER</h1>
+            <p className="text-[11px] text-gray-500 uppercase tracking-widest font-semibold">Panel de administración</p>
+          </div>
         </div>
-        <div>
-          <h1 className="text-xl font-extrabold text-gray-900">Reporte — Kiosco Kramer</h1>
-          <p className="text-sm text-gray-600">{data ? formatPeriodoLabel(data.periodo) : ''}</p>
-          <p className="text-xs text-gray-400">Generado el {new Date().toLocaleString('es-AR')}</p>
+        <div className="text-right border border-gray-800 rounded px-4 py-2 min-w-[220px]">
+          <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Reporte de gestión</p>
+          <p className="text-sm font-mono font-bold text-gray-800 mt-0.5">{data ? numeroDocumento(data.periodo) : ''}</p>
+          <p className="text-xs text-gray-700 font-semibold mt-1">{data ? formatPeriodoLabel(data.periodo) : ''}</p>
+          <p className="text-[10px] text-gray-400 mt-1">Emitido {new Date().toLocaleString('es-AR')}</p>
         </div>
       </div>
 
@@ -167,13 +179,13 @@ export default function ReportesPage() {
       ) : (
         <>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-            <div className="bg-white rounded-2xl shadow-sm p-5 flex flex-col gap-1">
+            <div className="bg-white rounded-2xl shadow-sm print:shadow-none print:border print:border-gray-300 print:rounded-none print:break-inside-avoid p-5 flex flex-col gap-1">
               <p className="text-xs font-bold text-gray-400 uppercase tracking-wide">Ventas totales</p>
               <p className="text-2xl font-extrabold text-gray-800">{money(data.ventas.total)}</p>
               <p className="text-xs text-gray-400">{data.ventas.count} tickets</p>
               <VariacionBadge pct={data.ventas.variacionPct} />
             </div>
-            <div className="bg-white rounded-2xl shadow-sm p-5 flex flex-col gap-1">
+            <div className="bg-white rounded-2xl shadow-sm print:shadow-none print:border print:border-gray-300 print:rounded-none print:break-inside-avoid p-5 flex flex-col gap-1">
               <p className="text-xs font-bold text-gray-400 uppercase tracking-wide">Ganancia</p>
               <p className="text-2xl font-extrabold text-green-600">{money(data.ganancia.total)}</p>
               <p className="text-xs text-gray-400">Margen {data.ganancia.margenPct.toFixed(1)}%</p>
@@ -182,36 +194,36 @@ export default function ReportesPage() {
                 Resultado neto tras faltantes: <span className="font-bold text-gray-600">{money(data.ganancia.total - data.perdidas.faltantesCaja)}</span>
               </p>
             </div>
-            <div className="bg-white rounded-2xl shadow-sm p-5 flex flex-col gap-1">
+            <div className="bg-white rounded-2xl shadow-sm print:shadow-none print:border print:border-gray-300 print:rounded-none print:break-inside-avoid p-5 flex flex-col gap-1">
               <p className="text-xs font-bold text-gray-400 uppercase tracking-wide">Pérdidas (faltantes de caja)</p>
               <p className={`text-2xl font-extrabold ${data.perdidas.faltantesCaja > 0 ? 'text-red-500' : 'text-gray-800'}`}>
                 {money(data.perdidas.faltantesCaja)}
               </p>
               <p className="text-xs text-gray-400">{data.perdidas.turnosConFaltante} turno{data.perdidas.turnosConFaltante !== 1 ? 's' : ''} con faltante</p>
             </div>
-            <div className="bg-white rounded-2xl shadow-sm p-5 flex flex-col gap-1">
+            <div className="bg-white rounded-2xl shadow-sm print:shadow-none print:border print:border-gray-300 print:rounded-none print:break-inside-avoid p-5 flex flex-col gap-1">
               <p className="text-xs font-bold text-gray-400 uppercase tracking-wide">Ticket promedio</p>
               <p className="text-2xl font-extrabold text-gray-800">{money(data.ventas.ticketPromedio)}</p>
             </div>
           </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-            <div className="bg-white rounded-2xl shadow-sm p-5">
+            <div className="bg-white rounded-2xl shadow-sm print:shadow-none print:border print:border-gray-300 print:rounded-none print:break-inside-avoid p-5">
               <p className="text-xs font-bold text-gray-400 uppercase tracking-wide">Efectivo</p>
               <p className="text-xl font-extrabold text-gray-800 mt-1">{money(data.ventas.byMethod.CASH)}</p>
             </div>
-            <div className="bg-white rounded-2xl shadow-sm p-5">
+            <div className="bg-white rounded-2xl shadow-sm print:shadow-none print:border print:border-gray-300 print:rounded-none print:break-inside-avoid p-5">
               <p className="text-xs font-bold text-gray-400 uppercase tracking-wide">Transferencia</p>
               <p className="text-xl font-extrabold text-gray-800 mt-1">{money(data.ventas.byMethod.TRANSFER)}</p>
             </div>
-            <div className="bg-white rounded-2xl shadow-sm p-5">
-              <p className="text-xs font-bold text-gray-400 uppercase tracking-wide">Fiado</p>
+            <div className="bg-white rounded-2xl shadow-sm print:shadow-none print:border print:border-gray-300 print:rounded-none print:break-inside-avoid p-5">
+              <p className="text-xs font-bold text-gray-400 uppercase tracking-wide">Crédito</p>
               <p className="text-xl font-extrabold text-gray-800 mt-1">{money(data.ventas.byMethod.CREDIT)}</p>
             </div>
           </div>
 
-          <div className="bg-white rounded-2xl shadow-sm p-5">
-            <p className="text-sm font-bold text-gray-700 mb-3">Movimiento de fiado</p>
+          <div className="bg-white rounded-2xl shadow-sm print:shadow-none print:border print:border-gray-300 print:rounded-none print:break-inside-avoid p-5">
+            <p className="text-sm font-bold text-gray-700 mb-3">Movimiento de crédito</p>
             <div className="flex gap-8">
               <div>
                 <p className="text-xs font-bold text-gray-400 uppercase tracking-wide">Crédito otorgado</p>
@@ -225,7 +237,7 @@ export default function ReportesPage() {
           </div>
 
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-            <div className="bg-white rounded-2xl shadow-sm overflow-hidden">
+            <div className="bg-white rounded-2xl shadow-sm print:shadow-none print:border print:border-gray-300 print:rounded-none print:break-inside-avoid overflow-hidden">
               <div className="px-5 py-3.5 border-b border-gray-100">
                 <p className="text-sm font-bold text-gray-700">Ventas por categoría</p>
               </div>
@@ -243,7 +255,7 @@ export default function ReportesPage() {
               </div>
             </div>
 
-            <div className="bg-white rounded-2xl shadow-sm overflow-hidden">
+            <div className="bg-white rounded-2xl shadow-sm print:shadow-none print:border print:border-gray-300 print:rounded-none print:break-inside-avoid overflow-hidden">
               <div className="px-5 py-3.5 border-b border-gray-100">
                 <p className="text-sm font-bold text-gray-700">Productos más vendidos</p>
               </div>
@@ -261,7 +273,7 @@ export default function ReportesPage() {
               </div>
             </div>
 
-            <div className="bg-white rounded-2xl shadow-sm overflow-hidden">
+            <div className="bg-white rounded-2xl shadow-sm print:shadow-none print:border print:border-gray-300 print:rounded-none print:break-inside-avoid overflow-hidden">
               <div className="px-5 py-3.5 border-b border-gray-100">
                 <p className="text-sm font-bold text-gray-700">Productos más rentables</p>
               </div>
@@ -279,7 +291,7 @@ export default function ReportesPage() {
               </div>
             </div>
 
-            <div className="bg-white rounded-2xl shadow-sm overflow-hidden">
+            <div className="bg-white rounded-2xl shadow-sm print:shadow-none print:border print:border-gray-300 print:rounded-none print:break-inside-avoid overflow-hidden">
               <div className="px-5 py-3.5 border-b border-gray-100">
                 <p className="text-sm font-bold text-gray-700">Productos con aumento de precio</p>
               </div>
@@ -300,7 +312,7 @@ export default function ReportesPage() {
             </div>
           </div>
 
-          <div className="bg-white rounded-2xl shadow-sm overflow-hidden">
+          <div className="bg-white rounded-2xl shadow-sm print:shadow-none print:border print:border-gray-300 print:rounded-none print:break-inside-avoid overflow-hidden">
             <div className="px-5 py-3.5 border-b border-gray-100 flex items-center justify-between">
               <p className="text-sm font-bold text-gray-700">Distribuidoras</p>
               <p className="text-sm font-extrabold text-orange-500">{money(data.distribuidoras.totalGastado)}</p>
@@ -329,7 +341,7 @@ export default function ReportesPage() {
             )}
           </div>
 
-          <div className="bg-white rounded-2xl shadow-sm overflow-hidden">
+          <div className="bg-white rounded-2xl shadow-sm print:shadow-none print:border print:border-gray-300 print:rounded-none print:break-inside-avoid overflow-hidden">
             <div className="px-5 py-4 border-b border-gray-100">
               <p className="text-sm font-bold text-gray-700">Cortes de caja</p>
             </div>
@@ -418,6 +430,34 @@ export default function ReportesPage() {
               </tbody>
             </table>
             </div>
+          </div>
+
+          <div className="hidden print:block border-t-4 border-double border-gray-800 pt-4 mt-2 print:break-inside-avoid">
+            <div className="ml-auto w-full max-w-xs flex flex-col gap-1.5 text-sm">
+              <div className="flex justify-between">
+                <span className="text-gray-600">Ventas totales</span>
+                <span className="font-mono font-semibold">{money(data.ventas.total)}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-gray-600">Ganancia bruta</span>
+                <span className="font-mono font-semibold">{money(data.ganancia.total)}</span>
+              </div>
+              <div className="flex justify-between text-red-700">
+                <span>(-) Faltantes de caja</span>
+                <span className="font-mono font-semibold">-{money(data.perdidas.faltantesCaja)}</span>
+              </div>
+              <div className="flex justify-between border-t-2 border-gray-800 pt-1.5 mt-1 text-base">
+                <span className="font-extrabold text-gray-900">RESULTADO NETO</span>
+                <span className="font-mono font-extrabold text-gray-900">
+                  {money(data.ganancia.total - data.perdidas.faltantesCaja)}
+                </span>
+              </div>
+            </div>
+            <p className="text-[10px] text-gray-400 mt-6 text-center leading-relaxed">
+              Documento interno de gestión generado automáticamente por el panel administrativo de Kiosco Kramer.
+              <br />
+              No es un comprobante fiscal ni tiene validez impositiva.
+            </p>
           </div>
         </>
       )}

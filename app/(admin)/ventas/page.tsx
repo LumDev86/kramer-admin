@@ -15,7 +15,7 @@ const money = (value: number | string) =>
 const PAYMENT_METHOD_LABELS: Record<PaymentMethod, string> = {
   CASH: 'Efectivo',
   TRANSFER: 'Transferencia',
-  CREDIT: 'Fiado',
+  CREDIT: 'Crédito',
 };
 
 export default function VentasPage() {
@@ -668,7 +668,7 @@ export default function VentasPage() {
                     paymentMethod === 'CREDIT' ? 'bg-orange-500 text-white' : 'bg-gray-50 text-gray-500 hover:bg-gray-100'
                   }`}
                 >
-                  Fiado
+                  Crédito
                 </button>
               </div>
 
@@ -840,7 +840,7 @@ export default function VentasPage() {
             <div className="flex flex-col gap-1.5 text-sm bg-gray-50 rounded-xl p-3">
               <div className="flex justify-between"><span className="text-gray-500">Inicial</span><span className="font-semibold">{money(currentSession.openingAmount)}</span></div>
               <div className="flex justify-between"><span className="text-gray-500">Ventas efectivo</span><span className="font-semibold">{money(currentSession.salesCash)}</span></div>
-              <div className="flex justify-between"><span className="text-gray-500">Ventas fiado</span><span className="font-semibold">{money(currentSession.salesCredit)}</span></div>
+              <div className="flex justify-between"><span className="text-gray-500">Ventas a crédito</span><span className="font-semibold">{money(currentSession.salesCredit)}</span></div>
               <div className="flex justify-between border-t border-gray-200 pt-1.5"><span className="text-gray-500">Esperado</span><span className="font-bold">{money(Number(currentSession.openingAmount) + currentSession.salesCash)}</span></div>
             </div>
             <input

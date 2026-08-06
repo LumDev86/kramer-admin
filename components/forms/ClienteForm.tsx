@@ -153,7 +153,7 @@ export default function ClienteForm({ cliente }: Props) {
       </p>
 
       <div className="flex flex-col gap-1">
-        <label className="text-xs font-semibold text-gray-500">Límite de crédito (fiado)</label>
+        <label className="text-xs font-semibold text-gray-500">Límite de crédito</label>
         <input
           type="number"
           min="0"
@@ -164,7 +164,7 @@ export default function ClienteForm({ cliente }: Props) {
           className="border border-gray-200 rounded-xl px-3 py-2.5 text-sm outline-none focus:border-orange-400 font-medium"
         />
         <p className="text-xs text-gray-400">
-          Si lo completás, el sistema no va a dejar cobrarle un fiado que supere este monto de deuda.
+          Si lo completás, el sistema no va a dejar cobrarle un crédito que supere este monto de deuda.
         </p>
       </div>
 
