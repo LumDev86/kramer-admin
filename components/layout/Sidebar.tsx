@@ -4,18 +4,20 @@ import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { useQuery } from '@tanstack/react-query';
-import { House, Package, Tag, Image, Receipt, Truck, ChartBar, SignOut, Users, List, X } from '@phosphor-icons/react';
+import { House, Package, Tag, Image, Receipt, Truck, ChartBar, SignOut, Users, List, X, ShoppingBag, Bicycle } from '@phosphor-icons/react';
 import { removeToken, getToken } from '@/lib/auth';
 import { clientes } from '@/lib/api';
 
 const NAV = [
   { href: '/',              label: 'Dashboard',     icon: House    },
   { href: '/ventas',        label: 'Ventas',        icon: Receipt  },
+  { href: '/pedidos',       label: 'Pedidos',       icon: ShoppingBag },
   { href: '/reportes',      label: 'Reportes',      icon: ChartBar },
   { href: '/productos',     label: 'Productos',     icon: Package  },
   { href: '/categorias',    label: 'Categorías',    icon: Tag      },
   { href: '/distribuidoras', label: 'Distribuidoras', icon: Truck  },
   { href: '/clientes',      label: 'Clientes',      icon: Users    },
+  { href: '/repartidores',  label: 'Repartidores',  icon: Bicycle  },
   { href: '/banners',       label: 'Banners',       icon: Image    },
 ];
 

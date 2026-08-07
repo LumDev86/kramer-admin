@@ -534,3 +534,66 @@ export const reportes = {
     return request<Reporte>(`/reportes?${qs}`);
   },
 };
+
+export type PedidoStatus = 'NUEVO' | 'EN_PREPARACION' | 'EN_CAMINO' | 'ENTREGADO' | 'CANCELADO';
+
+export interface PedidoItem {
+  id: string;
+  pedidoId: string;
+  productId: string | null;
+  name: string;
+  unitPrice: string;
+  quantity: number;
+  subtotal: string;
+}
+
+export interface Repartidor {
+  id: string;
+  negocioId: string;
+  nombre: string;
+  telefono: string;
+  isActive: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface Pedido {
+  id: string;
+  negocioId: string;
+  numero: string;
+  status: PedidoStatus;
+  nombreCliente: string;
+  telefonoCliente: string;
+  direccion: string;
+  notas: string | null;
+  paymentMethod: 'CASH' | 'TRANSFER';
+  total: string;
+  items: PedidoItem[];
+  repartidorId: string | null;
+  repartidor: { id: string; nombre: string; telefono: string } | null;
+  saleId: string | null;
+  trackingToken: string;
+  createdAt: string;
+  enPreparacionAt: string | null;
+  enCaminoAt: string | null;
+  entregadoAt: string | null;
+  canceladoAt: string | null;
+}
+
+export const pedidos = {
+  getAll: (status?: PedidoStatus) => {
+    const qs = status ? `?status=${status}` : '';
+    return request<Pedido[]>(`/pedidos${qs}`);
+  },
+  getById: (id: string) => request<Pedido>(`/pedidos/${id}`),
+  asignar: (id: string, repartidorId: string) =>
+    request<Pedido>(`/pedidos/${id}/asignar`, { method: 'PATCH', body: JSON.stringify({ repartidorId }) }),
+  actualizarEstado: (id: string, status: PedidoStatus) =>
+    request<Pedido>(`/pedidos/${id}/estado`, { method: 'PATCH', body: JSON.stringify({ status }) }),
+  cancelar: (id: string) => request<Pedido>(`/pedidos/${id}/cancelar`, { method: 'POST' }),
+};
+
+export const repartidores = {
+  getAll: () => request<Repartidor[]>('/repartidores'),
+  toggleActive: (id: string) => request<Repartidor>(`/repartidores/${id}/toggle-active`, { method: 'PATCH' }),
+};
