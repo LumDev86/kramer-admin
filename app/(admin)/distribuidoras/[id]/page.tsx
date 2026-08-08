@@ -66,6 +66,7 @@ export default function DistribuidoraDetallePage() {
   const [aiImageUrl, setAiImageUrl] = useState<string | null>(null);
   const [imageSearchResults, setImageSearchResults] = useState<ImageSearchResult[] | null>(null);
   const [imageSearchLoading, setImageSearchLoading] = useState(false);
+  const [priceDrafts, setPriceDrafts] = useState<Record<string, string>>({});
 
   const { data, isLoading } = useQuery({
     queryKey: ['distribuidor', id],
@@ -102,6 +103,18 @@ export default function DistribuidoraDetallePage() {
     mutationFn: ({ facturaId, itemId }: { facturaId: string; itemId: string }) =>
       facturas.removeItem(facturaId, itemId),
     onSuccess: invalidate,
+  });
+
+  const updateProductPriceMutation = useMutation({
+    mutationFn: ({ productId, price }: { productId: string; price: number }) => {
+      const form = new FormData();
+      form.append('price', String(price));
+      return products.update(productId, form);
+    },
+    onSuccess: () => {
+      invalidate();
+      qc.invalidateQueries({ queryKey: ['products'] });
+    },
   });
 
   const addItemMutation = useMutation({
@@ -465,10 +478,41 @@ export default function DistribuidoraDetallePage() {
                                 if (!change) return null;
                                 const subiendo = change.pct > 0;
                                 return (
-                                  <p className={`text-[11px] font-bold ${subiendo ? 'text-red-500' : 'text-green-600'}`}>
-                                    {subiendo ? '⬆' : '⬇'} {subiendo ? 'Aumentó' : 'Bajó'} {Math.abs(change.pct).toFixed(1)}%
-                                    {' '}respecto a la última factura ({money(change.oldCost)} → {money(change.newCost)})
-                                  </p>
+                                  <div className="flex flex-col gap-1">
+                                    <p className={`text-[11px] font-bold ${subiendo ? 'text-red-500' : 'text-green-600'}`}>
+                                      {subiendo ? '⬆' : '⬇'} {subiendo ? 'Aumentó' : 'Bajó'} {Math.abs(change.pct).toFixed(1)}%
+                                      {' '}respecto a la última factura ({money(change.oldCost)} → {money(change.newCost)})
+                                    </p>
+                                    {subiendo && item.product && (
+                                      <div className="flex items-center gap-1.5 flex-wrap">
+                                        <span className="text-[11px] text-gray-400 font-medium whitespace-nowrap">
+                                          Precio de venta actual: {money(item.product.price)}
+                                        </span>
+                                        <input
+                                          type="number"
+                                          step="0.01"
+                                          value={priceDrafts[item.id] ?? item.product.price}
+                                          onChange={(e) =>
+                                            setPriceDrafts((d) => ({ ...d, [item.id]: e.target.value }))
+                                          }
+                                          className="w-20 text-[11px] font-semibold border border-gray-200 rounded-lg px-1.5 py-0.5 outline-none focus:border-orange-400"
+                                        />
+                                        <button
+                                          onClick={() => {
+                                            const raw = priceDrafts[item.id] ?? item.product!.price;
+                                            const newPrice = parseFloat(raw);
+                                            if (!isNaN(newPrice) && newPrice > 0) {
+                                              updateProductPriceMutation.mutate({ productId: item.product!.id, price: newPrice });
+                                            }
+                                          }}
+                                          disabled={updateProductPriceMutation.isPending}
+                                          className="text-[11px] font-bold text-orange-500 hover:text-orange-600 whitespace-nowrap disabled:opacity-50"
+                                        >
+                                          Actualizar precio
+                                        </button>
+                                      </div>
+                                    )}
+                                  </div>
                                 );
                               })()}
                             </div>
