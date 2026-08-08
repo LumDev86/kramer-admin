@@ -232,6 +232,11 @@ export default function VentasPage() {
         setProductSearchOpen((o) => !o);
         return;
       }
+      if (e.key === 'F1') {
+        e.preventDefault();
+        handleF1Ref.current();
+        return;
+      }
       if (e.key === 'F2') {
         e.preventDefault();
         handleF2Ref.current();
@@ -295,16 +300,38 @@ export default function VentasPage() {
     });
   };
 
-  // F2 = "cobrar": si es crédito y todavía no hay cliente elegido, abre el buscador en vez
-  // de cobrar (no hay nada que cobrar todavía); si ya se puede cobrar, cobra directo.
+  // F1 = "cobrar a crédito": pasa el método a CREDIT y abre el buscador de clientes (si ya
+  // hay uno elegido de antes, no auto-cobra — que lo confirme a propósito con F2).
+  const handleF1 = () => {
+    if (clienteSearchOpen) return; // mientras el buscador está abierto, dejamos que sus propios atajos manden
+    if (!activeSale || activeSale.items.length === 0 || payMutation.isPending) return;
+    setPaymentMethod('CREDIT');
+    if (!selectedCliente) setClienteSearchOpen(true);
+  };
+  const handleF1Ref = useRef(handleF1);
+  handleF1Ref.current = handleF1;
+
+  // F2 = "cobrar en efectivo": si ya estábamos en medio de un cobro a crédito con cliente
+  // elegido, F2 lo confirma tal cual (no lo pisa); si no, cobra en efectivo directo sin
+  // depender de qué botón haya quedado tildado antes.
   const handleF2 = () => {
     if (clienteSearchOpen) return; // mientras el buscador está abierto, F2 confirma el cliente resaltado ahí
-    if (!activeSale || activeSale.items.length === 0) return;
-    if (paymentMethod === 'CREDIT' && !selectedCliente) {
-      setClienteSearchOpen(true);
+    if (!activeSale || activeSale.items.length === 0 || payMutation.isPending) return;
+
+    if (paymentMethod === 'CREDIT' && selectedCliente) {
+      handlePay();
       return;
     }
-    if (canPay && !payMutation.isPending) handlePay();
+
+    setPayError('');
+    setPaymentMethod('CASH');
+    payMutation.mutate({
+      saleId: activeSale.id,
+      data: {
+        paymentMethod: 'CASH',
+        ...(paidAmount !== '' && { paidAmount: paidAmountNumber }),
+      },
+    });
   };
   const handleF2Ref = useRef(handleF2);
   handleF2Ref.current = handleF2;
@@ -671,7 +698,7 @@ export default function VentasPage() {
                     paymentMethod === 'CASH' ? 'bg-orange-500 text-white' : 'bg-gray-50 text-gray-500 hover:bg-gray-100'
                   }`}
                 >
-                  Efectivo
+                  Efectivo <span className="opacity-60 font-medium">· F2</span>
                 </button>
                 <button
                   onClick={() => { setPaymentMethod('CREDIT'); if (!selectedCliente) setClienteSearchOpen(true); }}
@@ -679,7 +706,7 @@ export default function VentasPage() {
                     paymentMethod === 'CREDIT' ? 'bg-orange-500 text-white' : 'bg-gray-50 text-gray-500 hover:bg-gray-100'
                   }`}
                 >
-                  Crédito
+                  Crédito <span className="opacity-60 font-medium">· F1</span>
                 </button>
               </div>
 
@@ -728,8 +755,10 @@ export default function VentasPage() {
                 {payMutation.isPending
                   ? 'Cobrando...'
                   : paymentMethod === 'CREDIT' && !selectedCliente
-                  ? 'F2 · Elegir cliente'
-                  : `F2 · Cobrar ${money(total)}`}
+                  ? 'F1 · Elegir cliente'
+                  : paymentMethod === 'CREDIT'
+                  ? `F2 · Cobrar ${money(total)} a crédito`
+                  : `F2 · Cobrar ${money(total)} en efectivo`}
               </button>
             </div>
           )}
