@@ -232,6 +232,11 @@ export default function VentasPage() {
         setProductSearchOpen((o) => !o);
         return;
       }
+      if (e.key === 'F2') {
+        e.preventDefault();
+        handleF2Ref.current();
+        return;
+      }
 
       const active = document.activeElement as HTMLElement | null;
       const isEditable =
@@ -289,6 +294,20 @@ export default function VentasPage() {
       },
     });
   };
+
+  // F2 = "cobrar": si es crédito y todavía no hay cliente elegido, abre el buscador en vez
+  // de cobrar (no hay nada que cobrar todavía); si ya se puede cobrar, cobra directo.
+  const handleF2 = () => {
+    if (clienteSearchOpen) return; // mientras el buscador está abierto, F2 confirma el cliente resaltado ahí
+    if (!activeSale || activeSale.items.length === 0) return;
+    if (paymentMethod === 'CREDIT' && !selectedCliente) {
+      setClienteSearchOpen(true);
+      return;
+    }
+    if (canPay && !payMutation.isPending) handlePay();
+  };
+  const handleF2Ref = useRef(handleF2);
+  handleF2Ref.current = handleF2;
 
   if (sessionLoading) {
     return <div className="w-8 h-8 border-4 border-orange-500 border-t-transparent rounded-full animate-spin" />;
@@ -655,14 +674,6 @@ export default function VentasPage() {
                   Efectivo
                 </button>
                 <button
-                  onClick={() => setPaymentMethod('TRANSFER')}
-                  className={`flex-1 py-2.5 rounded-xl text-sm font-bold transition-colors ${
-                    paymentMethod === 'TRANSFER' ? 'bg-orange-500 text-white' : 'bg-gray-50 text-gray-500 hover:bg-gray-100'
-                  }`}
-                >
-                  Transferencia
-                </button>
-                <button
                   onClick={() => { setPaymentMethod('CREDIT'); if (!selectedCliente) setClienteSearchOpen(true); }}
                   className={`flex-1 py-2.5 rounded-xl text-sm font-bold transition-colors ${
                     paymentMethod === 'CREDIT' ? 'bg-orange-500 text-white' : 'bg-gray-50 text-gray-500 hover:bg-gray-100'
@@ -714,7 +725,11 @@ export default function VentasPage() {
                 disabled={!canPay || payMutation.isPending}
                 className="w-full py-3 rounded-xl bg-green-600 hover:bg-green-700 text-white text-sm font-extrabold transition-colors disabled:opacity-50"
               >
-                {payMutation.isPending ? 'Cobrando...' : `Cobrar ${money(total)}`}
+                {payMutation.isPending
+                  ? 'Cobrando...'
+                  : paymentMethod === 'CREDIT' && !selectedCliente
+                  ? 'F2 · Elegir cliente'
+                  : `F2 · Cobrar ${money(total)}`}
               </button>
             </div>
           )}
