@@ -67,6 +67,12 @@ export default function DistribuidoraDetallePage() {
   const [imageSearchResults, setImageSearchResults] = useState<ImageSearchResult[] | null>(null);
   const [imageSearchLoading, setImageSearchLoading] = useState(false);
   const [priceDrafts, setPriceDrafts] = useState<Record<string, string>>({});
+  const [linkingProduct, setLinkingProduct] = useState<{
+    item: FacturaItem;
+    product: { id: string; title: string; price: string };
+  } | null>(null);
+  const [linkPrice, setLinkPrice] = useState('');
+  const [linkGananciaPct, setLinkGananciaPct] = useState('');
 
   const { data, isLoading } = useQuery({
     queryKey: ['distribuidor', id],
@@ -256,11 +262,26 @@ export default function DistribuidoraDetallePage() {
     setLinkResults(result.data);
   };
 
-  const linkProduct = (facturaId: string, item: FacturaItem, product: { id: string }) => {
-    updateItemMutation.mutate({ facturaId, itemId: item.id, data: { productId: product.id } });
+  // vincular no cierra el trámite solo: primero se confirma/ajusta el precio de venta,
+  // igual que al dar de alta un producto nuevo (precio + % de ganancia sobre el costo)
+  const openLinkConfirm = (item: FacturaItem, product: { id: string; title: string; price: string }) => {
+    setLinkingProduct({ item, product });
+    setLinkPrice(product.price);
+    setLinkGananciaPct('');
     setLinkingItemId(null);
     setLinkQuery('');
     setLinkResults(null);
+  };
+
+  const confirmLinkProduct = (facturaId: string) => {
+    if (!linkingProduct) return;
+    const { item, product } = linkingProduct;
+    updateItemMutation.mutate({ facturaId, itemId: item.id, data: { productId: product.id } });
+    const newPrice = parseFloat(linkPrice);
+    if (!isNaN(newPrice) && newPrice > 0 && newPrice !== Number(product.price)) {
+      updateProductPriceMutation.mutate({ productId: product.id, price: newPrice });
+    }
+    setLinkingProduct(null);
   };
 
   const activeFacturaItemCount = data?.facturas.find((f) => f.id === activeFacturaId)?.items.length ?? 0;
@@ -516,6 +537,67 @@ export default function DistribuidoraDetallePage() {
                                 );
                               })()}
                             </div>
+                          ) : linkingProduct?.item.id === item.id ? (
+                            <div className="flex flex-col gap-1.5 mt-1 bg-orange-50/50 border border-orange-100 rounded-lg p-2 w-full max-w-xs">
+                              <p className="text-[11px] font-semibold text-gray-600 truncate">
+                                Vincular con: {linkingProduct.product.title}
+                              </p>
+                              <div className="flex items-center gap-1.5">
+                                <div className="flex-1">
+                                  <input
+                                    type="number"
+                                    min="0"
+                                    step="0.01"
+                                    value={linkPrice}
+                                    onChange={(e) => setLinkPrice(e.target.value)}
+                                    placeholder="Precio al público"
+                                    className="w-full border border-gray-200 rounded-lg px-2 py-1 text-xs outline-none focus:border-orange-400"
+                                  />
+                                </div>
+                                <div className="w-20 flex items-center gap-1">
+                                  <input
+                                    type="number"
+                                    min="0"
+                                    step="0.1"
+                                    value={linkGananciaPct}
+                                    onChange={(e) => {
+                                      setLinkGananciaPct(e.target.value);
+                                      const pct = parseFloat(e.target.value);
+                                      const cost = Number(item.precioUnitario);
+                                      if (cost > 0 && !isNaN(pct)) setLinkPrice((cost * (1 + pct / 100)).toFixed(2));
+                                    }}
+                                    placeholder="% gcia"
+                                    className="w-full border border-gray-200 rounded-lg px-1.5 py-1 text-xs outline-none focus:border-orange-400"
+                                  />
+                                </div>
+                              </div>
+                              {(() => {
+                                const cost = Number(item.precioUnitario);
+                                const priceNum = parseFloat(linkPrice);
+                                if (!(cost > 0) || isNaN(priceNum)) return null;
+                                const pct = ((priceNum - cost) / cost) * 100;
+                                return (
+                                  <p className={`text-[11px] font-semibold ${pct >= 0 ? 'text-green-600' : 'text-red-500'}`}>
+                                    Ganancia: {pct >= 0 ? '+' : ''}{pct.toFixed(1)}% sobre costo ({money(cost)})
+                                  </p>
+                                );
+                              })()}
+                              <div className="flex gap-2 mt-0.5">
+                                <button
+                                  onClick={() => setLinkingProduct(null)}
+                                  className="flex-1 py-1.5 rounded-lg border border-gray-200 text-[11px] font-semibold text-gray-600"
+                                >
+                                  Cancelar
+                                </button>
+                                <button
+                                  onClick={() => confirmLinkProduct(activeFactura.id)}
+                                  disabled={!linkPrice || updateProductPriceMutation.isPending}
+                                  className="flex-1 py-1.5 rounded-lg bg-orange-500 hover:bg-orange-600 text-white text-[11px] font-bold transition-colors disabled:opacity-50"
+                                >
+                                  Vincular
+                                </button>
+                              </div>
+                            </div>
                           ) : (
                             <div className="flex flex-col gap-1.5 mt-1">
                               {suggestions?.[item.id] && suggestions[item.id].length > 0 && (
@@ -523,7 +605,7 @@ export default function DistribuidoraDetallePage() {
                                   {suggestions[item.id].map((s) => (
                                     <button
                                       key={s.id}
-                                      onClick={() => linkProduct(activeFactura.id, item, s)}
+                                      onClick={() => openLinkConfirm(item, s)}
                                       title={[s.quantity, s.unit].filter(Boolean).join(' ')}
                                       className="px-2 py-1 rounded-lg border border-orange-200 bg-orange-50 text-orange-600 text-[11px] font-semibold hover:bg-orange-100 transition-colors"
                                     >
@@ -547,7 +629,7 @@ export default function DistribuidoraDetallePage() {
                                       {linkResults.map((p) => (
                                         <button
                                           key={p.id}
-                                          onMouseDown={() => linkProduct(activeFactura.id, item, p)}
+                                          onMouseDown={() => openLinkConfirm(item, p)}
                                           className="w-full flex items-center gap-2 px-3 py-2 text-left hover:bg-orange-50 transition-colors"
                                         >
                                           <div className="relative w-8 h-8 flex-shrink-0 bg-gray-100 rounded-md overflow-hidden">
