@@ -184,7 +184,6 @@ export interface Sale {
   userId: string;
   cashSessionId: string | null;
   clienteId: string | null;
-  customerPhone: string | null;
   items: SaleItem[];
   openedAt: string;
   paidAt: string | null;
@@ -213,10 +212,8 @@ export const sales = {
     request<Sale>(`/sales/${saleId}/items/${itemId}`, { method: 'PATCH', body: JSON.stringify(data) }),
   removeItem: (saleId: string, itemId: string) =>
     request<Sale>(`/sales/${saleId}/items/${itemId}`, { method: 'DELETE' }),
-  pay: (
-    saleId: string,
-    data: { paymentMethod: PaymentMethod; paidAmount?: number; clienteId?: string; customerPhone?: string }
-  ) => request<Sale>(`/sales/${saleId}/pay`, { method: 'POST', body: JSON.stringify(data) }),
+  pay: (saleId: string, data: { paymentMethod: PaymentMethod; paidAmount?: number; clienteId?: string }) =>
+    request<Sale>(`/sales/${saleId}/pay`, { method: 'POST', body: JSON.stringify(data) }),
   cancel: (saleId: string) => request<Sale>(`/sales/${saleId}/cancel`, { method: 'POST' }),
   getSummaryRange: (from: string, to: string) =>
     request<SaleSummary>(`/sales/summary-range?from=${from}&to=${to}`),

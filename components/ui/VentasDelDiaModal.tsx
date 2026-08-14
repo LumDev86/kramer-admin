@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { sales, SaleWithCliente, PaymentMethod } from '@/lib/api';
-import { CaretLeft, CaretRight, X, WhatsappLogo, Trash } from '@phosphor-icons/react';
+import { CaretLeft, CaretRight, X, Trash } from '@phosphor-icons/react';
 import ConfirmModal from './ConfirmModal';
 
 const money = (value: number | string) =>
@@ -31,27 +31,6 @@ const horaOf = (sale: SaleWithCliente) =>
     hour: '2-digit',
     minute: '2-digit',
   });
-
-// wa.me necesita el número con código de país sin signos; mismo criterio que el resto del admin
-const toWhatsappNumber = (telefono: string): string => {
-  const digits = telefono.replace(/\D/g, '');
-  return digits.startsWith('54') ? digits : `549${digits}`;
-};
-
-const waLink = (telefono: string, mensaje: string) =>
-  `https://wa.me/${toWhatsappNumber(telefono)}?text=${encodeURIComponent(mensaje)}`;
-
-const buildTicketMessage = (sale: SaleWithCliente): string => {
-  const fecha = new Date(sale.paidAt ?? sale.cancelledAt ?? sale.openedAt).toLocaleString('es-AR', {
-    day: '2-digit',
-    month: '2-digit',
-    year: 'numeric',
-    hour: '2-digit',
-    minute: '2-digit',
-  });
-  const lineas = sale.items.map((item) => `${item.quantity} x ${item.name} — ${money(item.subtotal)}`).join('\n');
-  return `Hola! Te compartimos el ticket de tu compra en Kiosco Kramer 🛒\nTicket ${folioOf(sale.id)} · ${fecha}\n\n${lineas}\n\nTotal: ${money(sale.total)}`;
-};
 
 interface Props {
   currentSessionId: string | null;
@@ -263,18 +242,6 @@ export default function VentasDelDiaModal({ currentSessionId, onClose }: Props) 
                       Pago con: {selected.paymentMethod ? PAYMENT_METHOD_LABELS[selected.paymentMethod] : '—'}
                     </p>
                   </div>
-
-                  {selected.customerPhone && (
-                    <a
-                      href={waLink(selected.customerPhone, buildTicketMessage(selected))}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="flex items-center justify-center gap-2 py-2.5 rounded-xl bg-green-50 text-green-700 text-sm font-bold hover:bg-green-100 transition-colors"
-                    >
-                      <WhatsappLogo size={16} weight="fill" />
-                      Enviar ticket por WhatsApp
-                    </a>
-                  )}
 
                   <div className="flex gap-2">
                     <button
