@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { auth } from '@/lib/api';
 import { getToken } from '@/lib/auth';
-import { unlockAudio, stopAlarm, requestNotificationPermission } from '@/lib/notificationSound';
+import { requestNotificationPermission } from '@/lib/notificationSound';
 import { setupPushSubscription } from '@/lib/push';
 import Sidebar from '@/components/layout/Sidebar';
 
@@ -26,36 +26,18 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // el sonido de "pedido nuevo" necesita un gesto real del usuario para no quedar bloqueado
-  // por la política de autoplay del navegador - el login ya cuenta, pero si la sesión venía
-  // guardada (pestaña reabierta sin loguearse de nuevo) puede no haber habido ningún click
-  // todavía, así que lo destrabamos con el primer click/touch de la sesión, sin pedir nada visible.
-  // Aprovechamos ese mismo primer click para pedir permiso de notificaciones de escritorio y,
-  // si lo conceden, suscribir este navegador a Web Push real - así el aviso llega aunque esta
-  // pestaña esté en segundo plano o el navegador minimizado, no solo cuando está activa.
+  // el aviso de "pedido nuevo" es 100% Web Push (notificación nativa del sistema operativo,
+  // con su propio sonido) - llega aunque esta pestaña esté en segundo plano o el navegador
+  // minimizado. Pedir el permiso necesita un gesto real del usuario; el login ya cuenta, pero
+  // si la sesión venía guardada (pestaña reabierta sin loguearse de nuevo) puede no haber
+  // habido ningún click todavía, así que lo pedimos también en el primer click/touch de la
+  // sesión, sin mostrar nada visible.
   useEffect(() => {
     const handler = () => {
-      unlockAudio();
       requestNotificationPermission().then(() => setupPushSubscription());
     };
     window.addEventListener('pointerdown', handler, { once: true });
     return () => window.removeEventListener('pointerdown', handler);
-  }, []);
-
-  // la alarma de "pedido nuevo" suena en loop hasta que el dueño la atiende: cualquier click
-  // en el panel, o simplemente volver a esta pestaña, la apaga (además del tope de seguridad
-  // de 2 minutos que ya tiene startAlarm por si nadie está mirando).
-  useEffect(() => {
-    const handleInteraction = () => stopAlarm();
-    const handleVisibility = () => {
-      if (document.visibilityState === 'visible') stopAlarm();
-    };
-    window.addEventListener('pointerdown', handleInteraction);
-    document.addEventListener('visibilitychange', handleVisibility);
-    return () => {
-      window.removeEventListener('pointerdown', handleInteraction);
-      document.removeEventListener('visibilitychange', handleVisibility);
-    };
   }, []);
 
   if (checking) {

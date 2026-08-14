@@ -1,13 +1,12 @@
 'use client';
 
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { useQuery } from '@tanstack/react-query';
 import { House, Package, Tag, Image, Receipt, Truck, ChartBar, SignOut, Users, List, X, ShoppingBag, Bicycle } from '@phosphor-icons/react';
 import { removeToken, getToken } from '@/lib/auth';
 import { clientes, pedidos } from '@/lib/api';
-import { startAlarm, notifyNewPedido } from '@/lib/notificationSound';
 
 const NAV = [
   { href: '/',              label: 'Dashboard',     icon: House    },
@@ -41,29 +40,6 @@ export default function Sidebar() {
     refetchInterval: 15000,
   });
   const pedidosNuevosCount = pedidosNuevos?.length ?? 0;
-
-  // set de ids ya vistos para detectar específicamente pedidos NUEVOS que aparecieron entre
-  // un polling y otro (no solo "el conteo subió" - un pedido puede salir de NUEVO al mismo
-  // tiempo que entra otro, y ahí el conteo no cambia pero sí hay que avisar).
-  const pedidosVistos = useRef<Set<string> | null>(null);
-
-  useEffect(() => {
-    if (!pedidosNuevos) return;
-    const idsActuales = new Set(pedidosNuevos.map((p) => p.id));
-
-    // primera carga: solo registra los que ya estaban, no suena por pedidos previos a abrir el panel
-    if (pedidosVistos.current === null) {
-      pedidosVistos.current = idsActuales;
-      return;
-    }
-
-    const nuevos = pedidosNuevos.filter((p) => !pedidosVistos.current!.has(p.id));
-    if (nuevos.length > 0) {
-      startAlarm();
-      notifyNewPedido(nuevos[0].numero, nuevos[0].nombreCliente);
-    }
-    pedidosVistos.current = idsActuales;
-  }, [pedidosNuevos]);
 
   // cerrar el drawer solo al navegar (mobile) - en desktop es siempre visible y esto no afecta nada
   useEffect(() => {
