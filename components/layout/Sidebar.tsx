@@ -1,12 +1,13 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { useQuery } from '@tanstack/react-query';
 import { House, Package, Tag, Image, Receipt, Truck, ChartBar, SignOut, Users, List, X, ShoppingBag, Bicycle } from '@phosphor-icons/react';
 import { removeToken, getToken } from '@/lib/auth';
-import { clientes } from '@/lib/api';
+import { clientes, pedidos } from '@/lib/api';
+import { playNewOrderSound } from '@/lib/notificationSound';
 
 const NAV = [
   { href: '/',              label: 'Dashboard',     icon: House    },
@@ -32,6 +33,34 @@ export default function Sidebar() {
     enabled: !!getToken(),
   });
   const resetPendientesCount = resetPendientes?.meta.total ?? 0;
+
+  const { data: pedidosNuevos } = useQuery({
+    queryKey: ['pedidos', 'nuevos-sidebar'],
+    queryFn: () => pedidos.getAll('NUEVO'),
+    enabled: !!getToken(),
+    refetchInterval: 15000,
+  });
+  const pedidosNuevosCount = pedidosNuevos?.length ?? 0;
+
+  // set de ids ya vistos para detectar específicamente pedidos NUEVOS que aparecieron entre
+  // un polling y otro (no solo "el conteo subió" - un pedido puede salir de NUEVO al mismo
+  // tiempo que entra otro, y ahí el conteo no cambia pero sí hay que avisar).
+  const pedidosVistos = useRef<Set<string> | null>(null);
+
+  useEffect(() => {
+    if (!pedidosNuevos) return;
+    const idsActuales = new Set(pedidosNuevos.map((p) => p.id));
+
+    // primera carga: solo registra los que ya estaban, no suena por pedidos previos a abrir el panel
+    if (pedidosVistos.current === null) {
+      pedidosVistos.current = idsActuales;
+      return;
+    }
+
+    const hayPedidoNuevo = pedidosNuevos.some((p) => !pedidosVistos.current!.has(p.id));
+    if (hayPedidoNuevo) playNewOrderSound();
+    pedidosVistos.current = idsActuales;
+  }, [pedidosNuevos]);
 
   // cerrar el drawer solo al navegar (mobile) - en desktop es siempre visible y esto no afecta nada
   useEffect(() => {
@@ -93,6 +122,11 @@ export default function Sidebar() {
               {href === '/clientes' && resetPendientesCount > 0 && (
                 <span className="w-5 h-5 rounded-full bg-red-500 text-white text-[10px] font-bold flex items-center justify-center flex-shrink-0">
                   {resetPendientesCount > 9 ? '9+' : resetPendientesCount}
+                </span>
+              )}
+              {href === '/pedidos' && pedidosNuevosCount > 0 && (
+                <span className="w-5 h-5 rounded-full bg-red-500 text-white text-[10px] font-bold flex items-center justify-center flex-shrink-0">
+                  {pedidosNuevosCount > 9 ? '9+' : pedidosNuevosCount}
                 </span>
               )}
             </Link>
