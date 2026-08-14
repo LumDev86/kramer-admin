@@ -13,6 +13,31 @@ import VentasDelDiaModal from '@/components/ui/VentasDelDiaModal';
 const money = (value: number | string) =>
   `$${Number(value).toLocaleString('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 
+// no hay un folio secuencial real en el modelo (ver ventas-pos-feature) - se usa el final
+// del id, más corto y legible para identificar el ticket a simple vista
+const folioOf = (id: string) => id.slice(-8).toUpperCase();
+
+// wa.me necesita el número con código de país sin signos; mismo criterio que el resto del admin
+const toWhatsappNumber = (telefono: string): string => {
+  const digits = telefono.replace(/\D/g, '');
+  return digits.startsWith('54') ? digits : `549${digits}`;
+};
+
+const waLink = (telefono: string, mensaje: string) =>
+  `https://wa.me/${toWhatsappNumber(telefono)}?text=${encodeURIComponent(mensaje)}`;
+
+const buildTicketMessage = (sale: Sale): string => {
+  const fecha = new Date(sale.paidAt ?? sale.openedAt).toLocaleString('es-AR', {
+    day: '2-digit',
+    month: '2-digit',
+    year: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+  });
+  const lineas = sale.items.map((item) => `${item.quantity} x ${item.name} — ${money(item.subtotal)}`).join('\n');
+  return `Hola! Te compartimos el ticket de tu compra en Kiosco Kramer 🛒\nTicket ${folioOf(sale.id)} · ${fecha}\n\n${lineas}\n\nTotal: ${money(sale.total)}`;
+};
+
 export default function VentasPage() {
   const qc = useQueryClient();
   const scanInputRef = useRef<HTMLInputElement>(null);
@@ -39,6 +64,7 @@ export default function VentasPage() {
   const [ventasDelDiaOpen, setVentasDelDiaOpen] = useState(false);
   const [customerPhoneOpen, setCustomerPhoneOpen] = useState(false);
   const [customerPhone, setCustomerPhone] = useState('');
+  const [lastPaidSale, setLastPaidSale] = useState<Sale | null>(null);
 
   const { data: openSales } = useQuery({ queryKey: ['sales', 'open'], queryFn: sales.getOpen });
   const { data: currentSession, isLoading: sessionLoading } = useQuery({
@@ -119,7 +145,7 @@ export default function VentasPage() {
   const payMutation = useMutation({
     mutationFn: ({ saleId, data }: { saleId: string; data: Parameters<typeof sales.pay>[1] }) =>
       sales.pay(saleId, data),
-    onSuccess: () => {
+    onSuccess: (sale) => {
       qc.invalidateQueries({ queryKey: ['sales', 'open'] });
       qc.invalidateQueries({ queryKey: ['cash-session', 'current'] });
       setActiveSaleId(null);
@@ -128,6 +154,7 @@ export default function VentasPage() {
       setPayError('');
       setCustomerPhoneOpen(false);
       setCustomerPhone('');
+      setLastPaidSale(sale.customerPhone ? sale : null);
     },
     onError: (err: any) => setPayError(err.message ?? 'Error al cobrar'),
   });
@@ -479,6 +506,39 @@ export default function VentasPage() {
           Cerrar caja
         </button>
       </div>
+
+      {lastPaidSale && (
+        <div className="bg-green-50 rounded-2xl p-4 flex items-center justify-between gap-3">
+          <div className="flex items-center gap-3 min-w-0">
+            <div className="w-10 h-10 rounded-xl bg-green-100 flex items-center justify-center flex-shrink-0">
+              <WhatsappLogo size={18} weight="fill" className="text-green-600" />
+            </div>
+            <div className="min-w-0">
+              <p className="text-sm font-bold text-gray-700">
+                Ticket {folioOf(lastPaidSale.id)} cobrado · {money(lastPaidSale.total)}
+              </p>
+              <p className="text-xs text-gray-500 truncate">Enviale el comprobante al cliente por WhatsApp</p>
+            </div>
+          </div>
+          <div className="flex items-center gap-2 flex-shrink-0">
+            <a
+              href={waLink(lastPaidSale.customerPhone!, buildTicketMessage(lastPaidSale))}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="flex items-center gap-2 px-4 py-2 rounded-xl bg-green-600 hover:bg-green-700 text-white text-sm font-bold transition-colors"
+            >
+              <WhatsappLogo size={16} weight="fill" />
+              Enviar por WhatsApp
+            </a>
+            <button
+              onClick={() => setLastPaidSale(null)}
+              className="w-8 h-8 flex items-center justify-center rounded-lg text-gray-400 hover:bg-gray-100 hover:text-gray-600 transition-colors"
+            >
+              <X size={14} weight="bold" />
+            </button>
+          </div>
+        </div>
+      )}
 
       <div className="flex flex-col gap-4">
           {/* Pestañas de tickets abiertos */}
