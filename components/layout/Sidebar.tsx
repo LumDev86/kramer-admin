@@ -7,7 +7,7 @@ import { useQuery } from '@tanstack/react-query';
 import { House, Package, Tag, Image, Receipt, Truck, ChartBar, SignOut, Users, List, X, ShoppingBag, Bicycle } from '@phosphor-icons/react';
 import { removeToken, getToken } from '@/lib/auth';
 import { clientes, pedidos } from '@/lib/api';
-import { playNewOrderSound } from '@/lib/notificationSound';
+import { startAlarm, notifyNewPedido } from '@/lib/notificationSound';
 
 const NAV = [
   { href: '/',              label: 'Dashboard',     icon: House    },
@@ -57,8 +57,11 @@ export default function Sidebar() {
       return;
     }
 
-    const hayPedidoNuevo = pedidosNuevos.some((p) => !pedidosVistos.current!.has(p.id));
-    if (hayPedidoNuevo) playNewOrderSound();
+    const nuevos = pedidosNuevos.filter((p) => !pedidosVistos.current!.has(p.id));
+    if (nuevos.length > 0) {
+      startAlarm();
+      notifyNewPedido(nuevos[0].numero, nuevos[0].nombreCliente);
+    }
     pedidosVistos.current = idsActuales;
   }, [pedidosNuevos]);
 
