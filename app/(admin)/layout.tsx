@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import { auth } from '@/lib/api';
 import { getToken } from '@/lib/auth';
 import { unlockAudio, stopAlarm, requestNotificationPermission } from '@/lib/notificationSound';
+import { setupPushSubscription } from '@/lib/push';
 import Sidebar from '@/components/layout/Sidebar';
 
 export default function AdminLayout({ children }: { children: React.ReactNode }) {
@@ -29,12 +30,13 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
   // por la política de autoplay del navegador - el login ya cuenta, pero si la sesión venía
   // guardada (pestaña reabierta sin loguearse de nuevo) puede no haber habido ningún click
   // todavía, así que lo destrabamos con el primer click/touch de la sesión, sin pedir nada visible.
-  // Aprovechamos ese mismo primer click para pedir permiso de notificaciones de escritorio
-  // (son las que avisan aunque el navegador no tenga el foco).
+  // Aprovechamos ese mismo primer click para pedir permiso de notificaciones de escritorio y,
+  // si lo conceden, suscribir este navegador a Web Push real - así el aviso llega aunque esta
+  // pestaña esté en segundo plano o el navegador minimizado, no solo cuando está activa.
   useEffect(() => {
     const handler = () => {
       unlockAudio();
-      requestNotificationPermission();
+      requestNotificationPermission().then(() => setupPushSubscription());
     };
     window.addEventListener('pointerdown', handler, { once: true });
     return () => window.removeEventListener('pointerdown', handler);

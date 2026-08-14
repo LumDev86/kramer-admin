@@ -96,9 +96,11 @@ export const isAlarmRinging = (): boolean => !!alarmHowl?.playing();
 
 // Notificación de escritorio: aparece aunque el navegador no tenga el foco (otra ventana,
 // minimizado) mientras la pestaña siga abierta - esto es lo que cubre "no estar mirando el panel".
-export const requestNotificationPermission = () => {
+export const requestNotificationPermission = async (): Promise<void> => {
   if (typeof window === 'undefined' || !('Notification' in window)) return;
-  if (Notification.permission === 'default') Notification.requestPermission().catch(() => {});
+  if (Notification.permission === 'default') {
+    await Notification.requestPermission().catch(() => {});
+  }
 };
 
 export const notifyNewPedido = (numero: string, cliente: string) => {

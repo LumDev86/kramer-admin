@@ -603,3 +603,9 @@ export const repartidores = {
   getAll: () => request<Repartidor[]>('/repartidores'),
   toggleActive: (id: string) => request<Repartidor>(`/repartidores/${id}/toggle-active`, { method: 'PATCH' }),
 };
+
+export const push = {
+  getPublicKey: () => request<{ publicKey: string }>('/push/public-key'),
+  subscribe: (subscription: PushSubscriptionJSON) =>
+    request<{ ok: true }>('/push/subscribe', { method: 'POST', body: JSON.stringify(subscription) }),
+};
