@@ -1,3 +1,8 @@
+// este SW no cachea nada (no hace falta funcionar offline), así que no hay riesgo en activar
+// cada actualización de inmediato en vez de esperar a que se cierren todas las pestañas viejas
+self.addEventListener('install', () => self.skipWaiting());
+self.addEventListener('activate', (event) => event.waitUntil(self.clients.claim()));
+
 self.addEventListener('push', (event) => {
   let payload = { title: 'Pedido nuevo', body: '' };
   try {
