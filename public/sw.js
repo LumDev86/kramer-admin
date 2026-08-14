@@ -11,6 +11,11 @@ self.addEventListener('push', (event) => {
       body: payload.body || '',
       tag: 'kramer-pedido-nuevo',
       requireInteraction: true,
+      // el server manda este mismo push varias veces seguidas para un pedido nuevo (ver
+      // pedido.service.ts) - sin renotify, el navegador solo actualiza el texto de la
+      // notificación existente en silencio; con renotify, cada una vuelve a sonar/vibrar,
+      // logrando el efecto de alarma persistente sin depender de audio propio de la página.
+      renotify: true,
       data: payload.data || {},
     })
   );
