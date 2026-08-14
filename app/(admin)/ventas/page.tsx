@@ -4,19 +4,14 @@ import { useEffect, useRef, useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import Link from 'next/link';
 import { sales, products, cashSessions, Sale, SaleItem, Product, Cliente, PaymentMethod, CashSession } from '@/lib/api';
-import { Plus, Trash, X, Receipt, Wallet, ChartBar, Check, CaretDown, MagnifyingGlass } from '@phosphor-icons/react';
+import { Plus, Trash, X, Receipt, Wallet, ChartBar, Check, MagnifyingGlass, WhatsappLogo, CalendarBlank } from '@phosphor-icons/react';
 import ConfirmModal from '@/components/ui/ConfirmModal';
 import ProductSearchModal from '@/components/ui/ProductSearchModal';
 import ClienteSearchModal from '@/components/ui/ClienteSearchModal';
+import VentasDelDiaModal from '@/components/ui/VentasDelDiaModal';
 
 const money = (value: number | string) =>
   `$${Number(value).toLocaleString('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
-
-const PAYMENT_METHOD_LABELS: Record<PaymentMethod, string> = {
-  CASH: 'Efectivo',
-  TRANSFER: 'Transferencia',
-  CREDIT: 'Crédito',
-};
 
 export default function VentasPage() {
   const qc = useQueryClient();
@@ -41,20 +36,14 @@ export default function VentasPage() {
   const [closingAmount, setClosingAmount] = useState('');
   const [closeError, setCloseError] = useState('');
   const [closeResult, setCloseResult] = useState<CashSession | null>(null);
-  const [sessionListOpen, setSessionListOpen] = useState(false);
-  const [toCancelPaid, setToCancelPaid] = useState<Sale | null>(null);
-  const [itemToRemove, setItemToRemove] = useState<{ sale: Sale; item: SaleItem } | null>(null);
-  const [paidActionError, setPaidActionError] = useState('');
+  const [ventasDelDiaOpen, setVentasDelDiaOpen] = useState(false);
+  const [customerPhoneOpen, setCustomerPhoneOpen] = useState(false);
+  const [customerPhone, setCustomerPhone] = useState('');
 
   const { data: openSales } = useQuery({ queryKey: ['sales', 'open'], queryFn: sales.getOpen });
   const { data: currentSession, isLoading: sessionLoading } = useQuery({
     queryKey: ['cash-session', 'current'],
     queryFn: cashSessions.getCurrent,
-  });
-  const { data: sessionSales } = useQuery({
-    queryKey: ['sales', 'session', currentSession?.id],
-    queryFn: () => sales.getBySession(currentSession!.id),
-    enabled: !!currentSession,
   });
   const { data: closeBreakdown } = useQuery({
     queryKey: ['cash-session', 'breakdown', closeResult?.id],
@@ -127,42 +116,18 @@ export default function VentasPage() {
     },
   });
 
-  const invalidatePaidActionQueries = () => {
-    qc.invalidateQueries({ queryKey: ['sales', 'session', currentSession?.id] });
-    qc.invalidateQueries({ queryKey: ['cash-session', 'current'] });
-  };
-
-  const cancelPaidMutation = useMutation({
-    mutationFn: (saleId: string) => sales.cancel(saleId),
-    onSuccess: () => {
-      invalidatePaidActionQueries();
-      setToCancelPaid(null);
-      setPaidActionError('');
-    },
-    onError: (err: any) => setPaidActionError(err.message ?? 'Error al cancelar el ticket'),
-  });
-
-  const removePaidItemMutation = useMutation({
-    mutationFn: ({ saleId, itemId }: { saleId: string; itemId: string }) => sales.removeItem(saleId, itemId),
-    onSuccess: () => {
-      invalidatePaidActionQueries();
-      setItemToRemove(null);
-      setPaidActionError('');
-    },
-    onError: (err: any) => setPaidActionError(err.message ?? 'Error al quitar el producto'),
-  });
-
   const payMutation = useMutation({
     mutationFn: ({ saleId, data }: { saleId: string; data: Parameters<typeof sales.pay>[1] }) =>
       sales.pay(saleId, data),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['sales', 'open'] });
       qc.invalidateQueries({ queryKey: ['cash-session', 'current'] });
-      qc.invalidateQueries({ queryKey: ['sales', 'session', currentSession?.id] });
       setActiveSaleId(null);
       setPaidAmount('');
       setSelectedCliente(null);
       setPayError('');
+      setCustomerPhoneOpen(false);
+      setCustomerPhone('');
     },
     onError: (err: any) => setPayError(err.message ?? 'Error al cobrar'),
   });
@@ -296,6 +261,7 @@ export default function VentasPage() {
         paymentMethod,
         ...(paymentMethod === 'CASH' && paidAmount !== '' && { paidAmount: paidAmountNumber }),
         ...(paymentMethod === 'CREDIT' && selectedCliente && { clienteId: selectedCliente.id }),
+        ...(customerPhone.trim() && { customerPhone: customerPhone.trim() }),
       },
     });
   };
@@ -330,6 +296,7 @@ export default function VentasPage() {
       data: {
         paymentMethod: 'CASH',
         ...(paidAmount !== '' && { paidAmount: paidAmountNumber }),
+        ...(customerPhone.trim() && { customerPhone: customerPhone.trim() }),
       },
     });
   };
@@ -473,13 +440,22 @@ export default function VentasPage() {
           <h1 className="text-2xl font-extrabold text-gray-800">Ventas</h1>
           <p className="text-sm text-gray-400 font-medium mt-0.5">Registrá ventas escaneando productos</p>
         </div>
-        <Link
-          href="/reportes"
-          className="flex items-center gap-2 text-sm font-semibold text-gray-500 hover:text-orange-500 transition-colors"
-        >
-          <ChartBar size={18} weight="bold" />
-          Ver reportes
-        </Link>
+        <div className="flex items-center gap-4">
+          <button
+            onClick={() => setVentasDelDiaOpen(true)}
+            className="flex items-center gap-2 text-sm font-semibold text-gray-500 hover:text-orange-500 transition-colors"
+          >
+            <CalendarBlank size={18} weight="bold" />
+            Ventas del día
+          </button>
+          <Link
+            href="/reportes"
+            className="flex items-center gap-2 text-sm font-semibold text-gray-500 hover:text-orange-500 transition-colors"
+          >
+            <ChartBar size={18} weight="bold" />
+            Ver reportes
+          </Link>
+        </div>
       </div>
 
       <div className="bg-white rounded-2xl shadow-sm p-4 flex items-center justify-between">
@@ -743,6 +719,33 @@ export default function VentasPage() {
                 </div>
               )}
 
+              {customerPhoneOpen ? (
+                <div className="flex items-center gap-2">
+                  <WhatsappLogo size={16} weight="fill" className="text-green-600 flex-shrink-0" />
+                  <input
+                    type="tel"
+                    value={customerPhone}
+                    onChange={(e) => setCustomerPhone(e.target.value)}
+                    placeholder="WhatsApp del cliente (opcional)"
+                    className="flex-1 border border-gray-200 rounded-xl px-3 py-2 text-sm outline-none focus:border-orange-400 font-medium"
+                  />
+                  <button
+                    onClick={() => { setCustomerPhoneOpen(false); setCustomerPhone(''); }}
+                    className="w-7 h-7 flex-shrink-0 flex items-center justify-center rounded-lg text-gray-400 hover:bg-gray-100 hover:text-gray-600 transition-colors"
+                  >
+                    <X size={14} weight="bold" />
+                  </button>
+                </div>
+              ) : (
+                <button
+                  onClick={() => setCustomerPhoneOpen(true)}
+                  className="self-start flex items-center gap-1.5 text-xs font-bold text-gray-400 hover:text-green-600 transition-colors"
+                >
+                  <WhatsappLogo size={14} weight="fill" />
+                  Guardar WhatsApp del cliente para enviarle el ticket
+                </button>
+              )}
+
               {payError && (
                 <p className="text-xs text-red-500 font-semibold bg-red-50 rounded-lg px-3 py-2">{payError}</p>
               )}
@@ -762,76 +765,6 @@ export default function VentasPage() {
               </button>
             </div>
           )}
-      </div>
-
-      {/* Tickets cobrados del turno */}
-      <div className="bg-white rounded-2xl shadow-sm overflow-hidden">
-        <button
-          onClick={() => setSessionListOpen((o) => !o)}
-          className="w-full flex items-center justify-between px-4 py-3.5"
-        >
-          <span className="text-sm font-bold text-gray-700">
-            Tickets cobrados hoy ({(sessionSales ?? []).filter((s) => s.status === 'PAID').length})
-          </span>
-          <CaretDown
-            size={16}
-            weight="bold"
-            className={`text-gray-400 transition-transform ${sessionListOpen ? 'rotate-180' : ''}`}
-          />
-        </button>
-        {sessionListOpen && (
-          <div className="border-t border-gray-100 divide-y divide-gray-50">
-            {!sessionSales || sessionSales.length === 0 ? (
-              <p className="px-4 py-6 text-center text-sm text-gray-400 font-medium">
-                Todavía no cobraste ningún ticket en este turno.
-              </p>
-            ) : (
-              sessionSales.map((sale) => (
-                <div key={sale.id} className="px-4 py-3">
-                  <div className="flex items-center justify-between gap-2">
-                    <div>
-                      <p className={`text-sm font-bold ${sale.status === 'CANCELLED' ? 'line-through text-gray-400' : 'text-gray-700'}`}>
-                        {money(sale.total)} · {PAYMENT_METHOD_LABELS[sale.paymentMethod ?? 'CASH']}
-                      </p>
-                      <p className="text-xs text-gray-400">
-                        {sale.paidAt &&
-                          new Date(sale.paidAt).toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit' })}
-                      </p>
-                    </div>
-                    {sale.status === 'PAID' ? (
-                      <button
-                        onClick={() => { setPaidActionError(''); setToCancelPaid(sale); }}
-                        className="flex-shrink-0 text-xs font-bold text-red-500 hover:text-red-600 transition-colors"
-                      >
-                        Cancelar ticket
-                      </button>
-                    ) : (
-                      <span className="flex-shrink-0 text-xs font-bold text-gray-400">Cancelado</span>
-                    )}
-                  </div>
-                  {sale.status === 'PAID' && (
-                    <ul className="mt-2 flex flex-col gap-1">
-                      {sale.items.map((item) => (
-                        <li key={item.id} className="flex items-center justify-between text-xs text-gray-500">
-                          <span>{item.quantity} × {item.name}</span>
-                          <div className="flex items-center gap-2">
-                            <span className="font-semibold text-gray-600">{money(item.subtotal)}</span>
-                            <button
-                              onClick={() => { setPaidActionError(''); setItemToRemove({ sale, item }); }}
-                              className="w-5 h-5 flex items-center justify-center rounded text-gray-300 hover:text-red-500 transition-colors"
-                            >
-                              <Trash size={12} weight="bold" />
-                            </button>
-                          </div>
-                        </li>
-                      ))}
-                    </ul>
-                  )}
-                </div>
-              ))
-            )}
-          </div>
-        )}
       </div>
 
       {productSearchOpen && (
@@ -857,23 +790,10 @@ export default function VentasPage() {
         />
       )}
 
-      {toCancelPaid && (
-        <ConfirmModal
-          message="¿Cancelar este ticket ya cobrado? Se repondrá el stock de sus productos y dejará de contar en las ventas del turno."
-          error={paidActionError}
-          loading={cancelPaidMutation.isPending}
-          onConfirm={() => cancelPaidMutation.mutate(toCancelPaid.id)}
-          onCancel={() => { setToCancelPaid(null); setPaidActionError(''); }}
-        />
-      )}
-
-      {itemToRemove && (
-        <ConfirmModal
-          message={`¿Quitar "${itemToRemove.item.name}" de este ticket? Se repondrá su stock y se descontará del total cobrado.`}
-          error={paidActionError}
-          loading={removePaidItemMutation.isPending}
-          onConfirm={() => removePaidItemMutation.mutate({ saleId: itemToRemove.sale.id, itemId: itemToRemove.item.id })}
-          onCancel={() => { setItemToRemove(null); setPaidActionError(''); }}
+      {ventasDelDiaOpen && (
+        <VentasDelDiaModal
+          currentSessionId={currentSession.id}
+          onClose={() => setVentasDelDiaOpen(false)}
         />
       )}
 
