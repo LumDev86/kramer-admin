@@ -2,11 +2,14 @@
 
 import { useEffect, useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import dynamic from 'next/dynamic';
 import { products, categories, banners, config, StoreScheduleDay, StoreConfig } from '@/lib/api';
 import {
   Package, Tag, Image, CheckCircle, XCircle, CalendarBlank,
-  HourglassMedium, Clock, Check, WhatsappLogo, Bank, IdentificationCard, Copy,
+  HourglassMedium, Clock, Check, WhatsappLogo, Bank, IdentificationCard, Copy, MapPin,
 } from '@phosphor-icons/react';
+
+const RepartidoresMap = dynamic(() => import('@/components/maps/RepartidoresMap'), { ssr: false });
 
 const DAYS = ['Domingo', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado'];
 
@@ -124,9 +127,11 @@ export default function DashboardPage() {
   const [busyTime, setBusyTime] = useState<number>(60);
   const [schedule, setSchedule] = useState<StoreScheduleDay[]>([]);
   const [contact, setContact]   = useState({ whatsappNumber: '', cbu: '', alias: '', titular: '' });
+  const [ubicacion, setUbicacion] = useState<{ lat: number; lng: number } | null>(null);
   const [statusSaved, setStatusSaved]     = useState(false);
   const [scheduleSaved, setScheduleSaved] = useState(false);
   const [contactSaved, setContactSaved]   = useState(false);
+  const [ubicacionSaved, setUbicacionSaved] = useState(false);
   const [copiedPreview, setCopiedPreview] = useState<'cbu' | 'alias' | null>(null);
 
   const handleCopyPreview = (text: string, field: 'cbu' | 'alias') => {
@@ -146,6 +151,7 @@ export default function DashboardPage() {
         alias:          storeData.alias          ?? '',
         titular:        storeData.titular        ?? '',
       });
+      setUbicacion(storeData.lat !== null && storeData.lng !== null ? { lat: storeData.lat, lng: storeData.lng } : null);
     }
   }, [storeData]);
 
@@ -173,6 +179,15 @@ export default function DashboardPage() {
       qc.invalidateQueries({ queryKey: ['store-config'] });
       setContactSaved(true);
       setTimeout(() => setContactSaved(false), 2500);
+    },
+  });
+
+  const ubicacionMutation = useMutation({
+    mutationFn: () => config.updateUbicacion(ubicacion!.lat, ubicacion!.lng),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['store-config'] });
+      setUbicacionSaved(true);
+      setTimeout(() => setUbicacionSaved(false), 2500);
     },
   });
 
@@ -499,6 +514,39 @@ export default function DashboardPage() {
           </button>
         </div>
 
+      </div>
+
+      {/* Ubicación del local */}
+      <div className="bg-white rounded-2xl shadow-sm p-6 flex flex-col gap-4">
+        <div>
+          <h2 className="text-base font-extrabold text-gray-700 flex items-center gap-2">
+            <MapPin size={18} weight="fill" className="text-orange-500" />
+            Ubicación del local
+          </h2>
+          <p className="text-xs text-gray-400 mt-0.5">
+            Tocá el mapa para marcar dónde está el kiosco - se usa para calcular qué repartidor está más cerca al asignar un pedido.
+          </p>
+        </div>
+
+        <RepartidoresMap
+          repartidores={[]}
+          storeLat={ubicacion?.lat ?? null}
+          storeLng={ubicacion?.lng ?? null}
+          onMapClick={(lat, lng) => setUbicacion({ lat, lng })}
+        />
+
+        <button
+          onClick={() => ubicacionMutation.mutate()}
+          disabled={!ubicacion || ubicacionMutation.isPending}
+          className={`flex items-center justify-center gap-2 py-3 rounded-xl font-bold text-sm transition-all disabled:opacity-50 w-full max-w-xs mx-auto ${
+            ubicacionSaved
+              ? 'bg-green-500 text-white'
+              : 'bg-orange-500 hover:bg-orange-600 text-white'
+          }`}
+        >
+          {ubicacionSaved && <Check size={16} weight="bold" />}
+          {ubicacionSaved ? 'Guardado' : ubicacionMutation.isPending ? 'Guardando...' : 'Guardar ubicación'}
+        </button>
       </div>
 
     </div>
