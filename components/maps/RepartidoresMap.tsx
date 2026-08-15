@@ -102,7 +102,10 @@ export default function RepartidoresMap({
   return (
     <div
       style={{ width: size, height: size, maxWidth: '100%' }}
-      className="mx-auto rounded-2xl overflow-hidden border border-gray-100"
+      // `isolate` contiene el z-index interno de Leaflet (sus controles llegan a z-index:1000)
+      // dentro de este stacking context - sin esto, los controles del mapa quedaban por encima
+      // de cualquier modal con z-index menor a 1000 (ej. ConfirmModal, z-50), tapándolo
+      className="mx-auto rounded-2xl overflow-hidden border border-gray-100 isolate"
     >
       {/* MapContainer solo aplica center/zoom en el mount inicial (react-leaflet no lo
           re-centra si el prop cambia después) - si la ubicación del local llega asíncrona
