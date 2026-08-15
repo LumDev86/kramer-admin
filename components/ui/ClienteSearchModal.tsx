@@ -51,7 +51,7 @@ export default function ClienteSearchModal({ onSelect, onClose }: Props) {
       } else if (e.key === 'ArrowUp') {
         e.preventDefault();
         if (results.length > 0) setHighlightedIndex((i) => Math.max(i - 1, 0));
-      } else if (e.key === 'F2') {
+      } else if (e.key === 'F2' || e.key === 'Enter') {
         e.preventDefault();
         if (results[highlightedIndex]) onSelect(results[highlightedIndex]);
       }
@@ -87,7 +87,7 @@ export default function ClienteSearchModal({ onSelect, onClose }: Props) {
           </button>
         </div>
         <p className="px-4 py-1.5 text-[11px] text-gray-400 font-medium border-b border-gray-50 flex-shrink-0">
-          ↑↓ para moverte · F2 para elegir · Esc para cerrar
+          ↑↓ para moverte · Enter para elegir · Esc para cerrar
         </p>
         <div className="overflow-y-auto divide-y divide-gray-50">
           {isFetching ? (

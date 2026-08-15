@@ -22,6 +22,9 @@ const toWhatsappNumber = (telefono: string): string => {
 const waLink = (telefono: string, mensaje: string) =>
   `https://wa.me/${toWhatsappNumber(telefono)}?text=${encodeURIComponent(mensaje)}`;
 
+// orden en el que Tab recorre la pantalla de ventas cuando hay un ticket activo
+type Section = 'scan' | 'cart' | 'payment' | 'confirm';
+
 export default function VentasPage() {
   const qc = useQueryClient();
   const scanInputRef = useRef<HTMLInputElement>(null);
@@ -49,6 +52,12 @@ export default function VentasPage() {
   const [sendWaOpen, setSendWaOpen] = useState(false);
   const [waPhone, setWaPhone] = useState('');
   const [ventasDelDiaOpen, setVentasDelDiaOpen] = useState(false);
+  const [section, setSection] = useState<Section>('scan');
+  const [cartIndex, setCartIndex] = useState(0);
+  const cartContainerRef = useRef<HTMLDivElement>(null);
+  const efectivoBtnRef = useRef<HTMLButtonElement>(null);
+  const creditoBtnRef = useRef<HTMLButtonElement>(null);
+  const payButtonRef = useRef<HTMLButtonElement>(null);
 
   const { data: openSales } = useQuery({ queryKey: ['sales', 'open'], queryFn: sales.getOpen });
   const { data: currentSession, isLoading: sessionLoading } = useQuery({
@@ -90,7 +99,16 @@ export default function VentasPage() {
 
   useEffect(() => {
     scanInputRef.current?.focus();
+    setSection('scan');
+    setCartIndex(0);
   }, [activeSale?.id]);
+
+  // si se saca un producto del carrito (o cambia por otro motivo), la fila resaltada no
+  // puede quedar apuntando a un índice que ya no existe
+  useEffect(() => {
+    if (!activeSale) return;
+    setCartIndex((i) => Math.min(i, Math.max(activeSale.items.length - 1, 0)));
+  }, [activeSale?.items.length]);
 
   const createSaleMutation = useMutation({
     mutationFn: sales.create,
@@ -116,6 +134,63 @@ export default function VentasPage() {
     mutationFn: ({ saleId, itemId }: { saleId: string; itemId: string }) => sales.removeItem(saleId, itemId),
     onSuccess: () => qc.invalidateQueries({ queryKey: ['sales', 'open'] }),
   });
+
+  // Tab recorre escaneo -> carrito -> pago -> cobrar en vez del orden natural del navegador
+  // (que iría input por input, botón por botón) - mueve el foco de verdad a cada sección
+  // para que el resaltado visual y los atajos de esa sección (flechas/+/-/Supr en el carrito)
+  // queden sincronizados con dónde está realmente parado el cursor.
+  const cycleSection = (dir: 1 | -1) => {
+    if (!activeSale) return;
+    const order: Section[] = ['scan', 'cart', 'payment', 'confirm'];
+    const next = order[(order.indexOf(section) + dir + order.length) % order.length];
+    setSection(next);
+    if (next === 'scan') scanInputRef.current?.focus();
+    else if (next === 'cart') cartContainerRef.current?.focus();
+    else if (next === 'payment') (paymentMethod === 'CREDIT' ? creditoBtnRef : efectivoBtnRef).current?.focus();
+    else if (next === 'confirm') payButtonRef.current?.focus();
+  };
+  const cycleSectionRef = useRef(cycleSection);
+  cycleSectionRef.current = cycleSection;
+
+  // ↑↓ para elegir qué fila del carrito está resaltada (solo tiene efecto en la sección "cart")
+  const moveCartIndex = (delta: number) => {
+    if (!activeSale) return;
+    setCartIndex((i) => Math.min(Math.max(i + delta, 0), Math.max(activeSale.items.length - 1, 0)));
+  };
+  const moveCartIndexRef = useRef(moveCartIndex);
+  moveCartIndexRef.current = moveCartIndex;
+
+  // +/- del teclado sobre la fila resaltada - mismo límite mínimo que ya usan los botones +/-
+  const adjustCartQty = (delta: number) => {
+    if (!activeSale) return;
+    const item = activeSale.items[cartIndex];
+    if (!item) return;
+    updateItemMutation.mutate({ saleId: activeSale.id, itemId: item.id, quantity: Math.max(1, item.quantity + delta) });
+  };
+  const adjustCartQtyRef = useRef(adjustCartQty);
+  adjustCartQtyRef.current = adjustCartQty;
+
+  // Supr saca del ticket la fila resaltada del carrito
+  const removeCartHighlighted = () => {
+    if (!activeSale) return;
+    const item = activeSale.items[cartIndex];
+    if (!item) return;
+    removeItemMutation.mutate({ saleId: activeSale.id, itemId: item.id });
+  };
+  const removeCartHighlightedRef = useRef(removeCartHighlighted);
+  removeCartHighlightedRef.current = removeCartHighlighted;
+
+  // mientras hay un modal abierto, Tab y las teclas de la sección "carrito" quedan en manos
+  // del propio modal (tiene su recorrido natural o su propio manejo de teclado)
+  const anyModalOpen = productSearchOpen || clienteSearchOpen || manualOpen || !!toCancel || ventasDelDiaOpen || closeModalOpen;
+  const anyModalOpenRef = useRef(anyModalOpen);
+  anyModalOpenRef.current = anyModalOpen;
+
+  const activeSaleRef = useRef(activeSale);
+  activeSaleRef.current = activeSale;
+
+  const sectionRef = useRef(section);
+  sectionRef.current = section;
 
   const cancelMutation = useMutation({
     mutationFn: (saleId: string) => sales.cancel(saleId),
@@ -220,11 +295,29 @@ export default function VentasPage() {
         handleF2Ref.current();
         return;
       }
+      // Tab cambia de "sección" (escaneo -> carrito -> pago -> cobrar) en vez del recorrido
+      // habitual del navegador; se ignora si hay un modal abierto (tienen su propio manejo)
+      // o si todavía no hay un ticket activo (no hay nada que recorrer).
+      if (e.key === 'Tab' && !anyModalOpenRef.current && activeSaleRef.current) {
+        e.preventDefault();
+        cycleSectionRef.current(e.shiftKey ? -1 : 1);
+        return;
+      }
 
       const active = document.activeElement as HTMLElement | null;
       const isEditable =
         !!active && (active.tagName === 'INPUT' || active.tagName === 'TEXTAREA' || active.isContentEditable);
       if (isEditable) return;
+
+      // parado en la sección "carrito": flechas para elegir el producto, +/- para sumar o
+      // restar cantidad, Supr para sacarlo del ticket
+      if (sectionRef.current === 'cart' && activeSaleRef.current) {
+        if (e.key === 'ArrowDown') { e.preventDefault(); moveCartIndexRef.current(1); return; }
+        if (e.key === 'ArrowUp') { e.preventDefault(); moveCartIndexRef.current(-1); return; }
+        if (e.key === '+') { e.preventDefault(); adjustCartQtyRef.current(1); return; }
+        if (e.key === '-') { e.preventDefault(); adjustCartQtyRef.current(-1); return; }
+        if (e.key === 'Delete') { e.preventDefault(); removeCartHighlightedRef.current(); return; }
+      }
 
       if (e.key === 'Enter') {
         e.preventDefault();
@@ -281,7 +374,7 @@ export default function VentasPage() {
   // F1 = "cobrar a crédito": pasa el método a CREDIT y abre el buscador de clientes (si ya
   // hay uno elegido de antes, no auto-cobra — que lo confirme a propósito con F2).
   const handleF1 = () => {
-    if (clienteSearchOpen) return; // mientras el buscador está abierto, dejamos que sus propios atajos manden
+    if (clienteSearchOpen || productSearchOpen) return; // mientras un buscador está abierto, dejamos que sus propios atajos manden
     if (!activeSale || activeSale.items.length === 0 || payMutation.isPending) return;
     setPaymentMethod('CREDIT');
     if (!selectedCliente) setClienteSearchOpen(true);
@@ -293,7 +386,7 @@ export default function VentasPage() {
   // elegido, F2 lo confirma tal cual (no lo pisa); si no, cobra en efectivo directo sin
   // depender de qué botón haya quedado tildado antes.
   const handleF2 = () => {
-    if (clienteSearchOpen) return; // mientras el buscador está abierto, F2 confirma el cliente resaltado ahí
+    if (clienteSearchOpen || productSearchOpen) return; // mientras un buscador está abierto, dejamos que sus propios atajos manden
     if (!activeSale || activeSale.items.length === 0 || payMutation.isPending) return;
 
     if (paymentMethod === 'CREDIT' && selectedCliente) {
@@ -536,6 +629,7 @@ export default function VentasPage() {
                 value={query}
                 onChange={(e) => setQuery(e.target.value)}
                 onKeyDown={handleScanKeyDown}
+                onFocus={() => setSection('scan')}
                 placeholder="Escaneá o tipeá el código y presioná Enter"
                 className="flex-1 border border-gray-200 rounded-xl px-4 py-3 text-sm outline-none focus:border-orange-400 font-semibold"
               />
@@ -601,7 +695,19 @@ export default function VentasPage() {
           </div>
 
           {/* Carrito */}
-          <div className="bg-white rounded-2xl shadow-sm overflow-hidden">
+          <div
+            ref={cartContainerRef}
+            tabIndex={-1}
+            onFocus={() => setSection('cart')}
+            className={`bg-white rounded-2xl shadow-sm overflow-hidden outline-none transition-shadow ${
+              section === 'cart' ? 'ring-2 ring-orange-400' : ''
+            }`}
+          >
+            {!!activeSale && activeSale.items.length > 0 && (
+              <p className="px-4 py-2 text-[11px] text-gray-400 font-medium border-b border-gray-50">
+                Tab cambia de sección · acá: ↑↓ elegir producto · +/− cantidad · Supr eliminar
+              </p>
+            )}
             <table className="w-full text-sm">
               <thead className="border-b border-gray-100">
                 <tr className="text-left">
@@ -619,8 +725,14 @@ export default function VentasPage() {
                     </td>
                   </tr>
                 ) : (
-                  activeSale.items.map((item) => (
-                    <tr key={item.id} className="hover:bg-gray-50 transition-colors">
+                  activeSale.items.map((item, i) => (
+                    <tr
+                      key={item.id}
+                      onMouseEnter={() => setCartIndex(i)}
+                      className={`transition-colors ${
+                        section === 'cart' && i === cartIndex ? 'bg-orange-50' : 'hover:bg-gray-50'
+                      }`}
+                    >
                       <td className="px-4 py-3">
                         <p className="font-semibold text-gray-700">{item.name}</p>
                         <p className="text-xs text-gray-400">{money(item.unitPrice)} c/u</p>
@@ -672,7 +784,11 @@ export default function VentasPage() {
 
           {/* Cobro */}
           {activeSale && activeSale.items.length > 0 && (
-            <div className="bg-white rounded-2xl shadow-sm p-5 flex flex-col gap-4">
+            <div
+              className={`bg-white rounded-2xl shadow-sm p-5 flex flex-col gap-4 transition-shadow ${
+                section === 'payment' ? 'ring-2 ring-orange-400' : ''
+              }`}
+            >
               <div className="flex items-center justify-between">
                 <p className="text-sm font-bold text-gray-500 uppercase tracking-wide">Total</p>
                 <p className="text-2xl font-extrabold text-gray-800">{money(total)}</p>
@@ -680,16 +796,20 @@ export default function VentasPage() {
 
               <div className="flex gap-2">
                 <button
+                  ref={efectivoBtnRef}
                   onClick={() => setPaymentMethod('CASH')}
-                  className={`flex-1 py-2.5 rounded-xl text-sm font-bold transition-colors ${
+                  onFocus={() => setSection('payment')}
+                  className={`flex-1 py-2.5 rounded-xl text-sm font-bold transition-colors outline-none focus:ring-2 focus:ring-orange-300 ${
                     paymentMethod === 'CASH' ? 'bg-orange-500 text-white' : 'bg-gray-50 text-gray-500 hover:bg-gray-100'
                   }`}
                 >
                   Efectivo <span className="opacity-60 font-medium">· F2</span>
                 </button>
                 <button
+                  ref={creditoBtnRef}
                   onClick={() => { setPaymentMethod('CREDIT'); if (!selectedCliente) setClienteSearchOpen(true); }}
-                  className={`flex-1 py-2.5 rounded-xl text-sm font-bold transition-colors ${
+                  onFocus={() => setSection('payment')}
+                  className={`flex-1 py-2.5 rounded-xl text-sm font-bold transition-colors outline-none focus:ring-2 focus:ring-orange-300 ${
                     paymentMethod === 'CREDIT' ? 'bg-orange-500 text-white' : 'bg-gray-50 text-gray-500 hover:bg-gray-100'
                   }`}
                 >
@@ -735,9 +855,11 @@ export default function VentasPage() {
               )}
 
               <button
+                ref={payButtonRef}
                 onClick={handlePay}
+                onFocus={() => setSection('confirm')}
                 disabled={!canPay || payMutation.isPending}
-                className="w-full py-3 rounded-xl bg-green-600 hover:bg-green-700 text-white text-sm font-extrabold transition-colors disabled:opacity-50"
+                className="w-full py-3 rounded-xl bg-green-600 hover:bg-green-700 text-white text-sm font-extrabold transition-colors disabled:opacity-50 outline-none focus:ring-2 focus:ring-green-300"
               >
                 {payMutation.isPending
                   ? 'Cobrando...'

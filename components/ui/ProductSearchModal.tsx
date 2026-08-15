@@ -20,18 +20,11 @@ export default function ProductSearchModal({ onSelect, onClose }: Props) {
   const inputRef = useRef<HTMLInputElement>(null);
   const [search, setSearch] = useState('');
   const [page, setPage] = useState(1);
+  const [highlightedIndex, setHighlightedIndex] = useState(0);
 
   useEffect(() => {
     inputRef.current?.focus();
   }, []);
-
-  useEffect(() => {
-    const handler = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') onClose();
-    };
-    window.addEventListener('keydown', handler);
-    return () => window.removeEventListener('keydown', handler);
-  }, [onClose]);
 
   const { data, isFetching } = useQuery({
     queryKey: ['products', 'search-modal', search, page],
@@ -39,6 +32,34 @@ export default function ProductSearchModal({ onSelect, onClose }: Props) {
   });
 
   const results = data?.data ?? [];
+
+  useEffect(() => {
+    setHighlightedIndex(0);
+  }, [results.length, page, search]);
+
+  // Ref para que el listener (suscripto una sola vez) siempre vea los valores del último render
+  const stateRef = useRef({ results, highlightedIndex, onSelect, onClose });
+  stateRef.current = { results, highlightedIndex, onSelect, onClose };
+
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      const { results, highlightedIndex, onSelect, onClose } = stateRef.current;
+      if (e.key === 'Escape') {
+        onClose();
+      } else if (e.key === 'ArrowDown') {
+        e.preventDefault();
+        if (results.length > 0) setHighlightedIndex((i) => Math.min(i + 1, results.length - 1));
+      } else if (e.key === 'ArrowUp') {
+        e.preventDefault();
+        if (results.length > 0) setHighlightedIndex((i) => Math.max(i - 1, 0));
+      } else if (e.key === 'Enter') {
+        e.preventDefault();
+        if (results[highlightedIndex]) onSelect(results[highlightedIndex]);
+      }
+    };
+    window.addEventListener('keydown', handler);
+    return () => window.removeEventListener('keydown', handler);
+  }, []);
 
   return (
     <div
@@ -66,6 +87,9 @@ export default function ProductSearchModal({ onSelect, onClose }: Props) {
             <X size={16} weight="bold" />
           </button>
         </div>
+        <p className="px-4 py-1.5 text-[11px] text-gray-400 font-medium border-b border-gray-50 flex-shrink-0">
+          ↑↓ para moverte · Enter para elegir · Esc para cerrar
+        </p>
         <div className="overflow-y-auto divide-y divide-gray-50">
           {isFetching ? (
             <p className="px-4 py-8 text-center text-sm text-gray-400 font-medium">Buscando...</p>
@@ -74,11 +98,15 @@ export default function ProductSearchModal({ onSelect, onClose }: Props) {
               {search ? 'Sin resultados.' : 'Escribí para buscar un producto.'}
             </p>
           ) : (
-            results.map((product) => (
+            results.map((product, i) => (
               <button
                 key={product.id}
+                ref={(el) => { if (i === highlightedIndex) el?.scrollIntoView({ block: 'nearest' }); }}
                 onClick={() => onSelect(product)}
-                className="w-full flex items-center gap-3 px-4 py-3 text-left hover:bg-gray-50 transition-colors"
+                onMouseEnter={() => setHighlightedIndex(i)}
+                className={`w-full flex items-center gap-3 px-4 py-3 text-left transition-colors ${
+                  i === highlightedIndex ? 'bg-orange-50' : 'hover:bg-gray-50'
+                }`}
               >
                 <div className="relative w-10 h-10 flex-shrink-0 bg-gray-100 rounded-lg overflow-hidden">
                   {product.imageUrl && (
