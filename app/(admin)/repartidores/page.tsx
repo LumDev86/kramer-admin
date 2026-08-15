@@ -7,6 +7,8 @@ import ToggleSwitch from '@/components/ui/ToggleSwitch';
 
 const RepartidoresMap = dynamic(() => import('@/components/maps/RepartidoresMap'), { ssr: false });
 
+const PANEL_SIZE = 440;
+
 const formatDateTime = (value: string) =>
   new Date(value).toLocaleString('es-AR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' });
 
@@ -26,6 +28,8 @@ export default function RepartidoresPage() {
     onSuccess: () => qc.invalidateQueries({ queryKey: ['repartidores'] }),
   });
 
+  const conectadosCount = data?.filter((r) => r.conectado).length ?? 0;
+
   return (
     <div className="flex flex-col gap-6">
       <div>
@@ -35,63 +39,72 @@ export default function RepartidoresPage() {
         </p>
       </div>
 
-      <RepartidoresMap
-        repartidores={data ?? []}
-        storeLat={storeConfig?.lat ?? null}
-        storeLng={storeConfig?.lng ?? null}
-      />
+      <div className="flex flex-wrap gap-3">
+        <div className="flex-1 min-w-[140px] bg-white rounded-2xl shadow-sm p-4">
+          <p className="text-xs font-bold text-gray-400 uppercase tracking-wide">Conectados ahora</p>
+          <p className="text-2xl font-extrabold text-green-600 mt-1">{conectadosCount}</p>
+        </div>
+        <div className="flex-1 min-w-[140px] bg-white rounded-2xl shadow-sm p-4">
+          <p className="text-xs font-bold text-gray-400 uppercase tracking-wide">Total registrados</p>
+          <p className="text-2xl font-extrabold text-gray-800 mt-1">{data?.length ?? 0}</p>
+        </div>
+      </div>
 
-      <div className="bg-white rounded-2xl shadow-sm overflow-hidden">
-        <table className="w-full text-sm">
-          <thead className="border-b border-gray-100">
-            <tr className="text-left">
-              <th className="px-4 py-3 text-xs font-bold text-gray-400 uppercase tracking-wide">Nombre</th>
-              <th className="px-4 py-3 text-xs font-bold text-gray-400 uppercase tracking-wide">Teléfono</th>
-              <th className="px-4 py-3 text-xs font-bold text-gray-400 uppercase tracking-wide">Registrado</th>
-              <th className="px-4 py-3 text-xs font-bold text-gray-400 uppercase tracking-wide w-24">Conectado</th>
-              <th className="px-4 py-3 text-xs font-bold text-gray-400 uppercase tracking-wide w-20">Activo</th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-gray-50">
+      <div className="flex flex-col lg:flex-row gap-6 items-start">
+        <RepartidoresMap
+          repartidores={data ?? []}
+          storeLat={storeConfig?.lat ?? null}
+          storeLng={storeConfig?.lng ?? null}
+          size={PANEL_SIZE}
+        />
+
+        <div
+          style={{ height: PANEL_SIZE }}
+          className="flex-1 w-full bg-white rounded-2xl shadow-sm flex flex-col overflow-hidden"
+        >
+          <div className="px-4 py-3 border-b border-gray-100 flex-shrink-0">
+            <p className="text-xs font-bold text-gray-400 uppercase tracking-wide">Repartidores</p>
+          </div>
+          <div className="flex-1 overflow-y-auto divide-y divide-gray-50">
             {isLoading ? (
               Array.from({ length: 3 }).map((_, i) => (
-                <tr key={i}>
-                  <td colSpan={5} className="px-4 py-3">
-                    <div className="h-5 bg-gray-100 rounded animate-pulse" />
-                  </td>
-                </tr>
+                <div key={i} className="px-4 py-3.5">
+                  <div className="h-5 bg-gray-100 rounded animate-pulse" />
+                </div>
               ))
             ) : data && data.length > 0 ? (
               data.map((r) => (
-                <tr key={r.id} className={`hover:bg-gray-50 transition-colors ${!r.isActive ? 'opacity-50' : ''}`}>
-                  <td className="px-4 py-3 font-semibold text-gray-800">{r.nombre}</td>
-                  <td className="px-4 py-3 text-gray-500">{r.telefono}</td>
-                  <td className="px-4 py-3 text-gray-400 text-xs">{formatDateTime(r.createdAt)}</td>
-                  <td className="px-4 py-3">
-                    {r.conectado ? (
-                      <span className="text-[11px] font-bold px-2 py-1 rounded-full bg-green-100 text-green-700">En línea</span>
-                    ) : (
-                      <span className="text-[11px] font-bold px-2 py-1 rounded-full bg-gray-100 text-gray-500">Desconectado</span>
-                    )}
-                  </td>
-                  <td className="px-4 py-3">
-                    <ToggleSwitch
-                      checked={r.isActive}
-                      loading={toggleMutation.isPending && toggleMutation.variables === r.id}
-                      onChange={() => toggleMutation.mutate(r.id)}
-                    />
-                  </td>
-                </tr>
+                <div
+                  key={r.id}
+                  className={`px-4 py-3.5 flex items-center gap-3 transition-colors ${!r.isActive ? 'opacity-50' : ''}`}
+                >
+                  <div className="min-w-0 flex-1">
+                    <p className="font-semibold text-gray-800 text-sm truncate">{r.nombre}</p>
+                    <p className="text-xs text-gray-400">{r.telefono} · desde {formatDateTime(r.createdAt)}</p>
+                  </div>
+                  {r.conectado ? (
+                    <span className="flex-shrink-0 text-[11px] font-bold px-2 py-1 rounded-full bg-green-100 text-green-700">
+                      En línea
+                    </span>
+                  ) : (
+                    <span className="flex-shrink-0 text-[11px] font-bold px-2 py-1 rounded-full bg-gray-100 text-gray-500">
+                      Desconectado
+                    </span>
+                  )}
+                  <ToggleSwitch
+                    checked={r.isActive}
+                    loading={toggleMutation.isPending && toggleMutation.variables === r.id}
+                    onChange={() => toggleMutation.mutate(r.id)}
+                  />
+                </div>
               ))
             ) : (
-              <tr>
-                <td colSpan={5} className="px-4 py-8 text-center text-sm text-gray-400 font-medium">
-                  Todavía no se registró ningún repartidor.
-                </td>
-              </tr>
+              <p className="px-4 py-8 text-center text-sm text-gray-400 font-medium">
+                Todavía no se registró ningún repartidor.
+              </p>
             )}
-          </tbody>
-        </table>
+          </div>
+        </div>
       </div>
     </div>
   );
