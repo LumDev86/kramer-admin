@@ -4,7 +4,7 @@ import { useEffect, useRef, useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import Link from 'next/link';
 import { sales, products, cashSessions, Sale, SaleItem, Product, Cliente, PaymentMethod, CashSession } from '@/lib/api';
-import { Plus, Trash, X, Receipt, Wallet, ChartBar, Check, MagnifyingGlass, CalendarBlank } from '@phosphor-icons/react';
+import { Plus, Trash, X, Receipt, Wallet, ChartBar, Check, MagnifyingGlass, CalendarBlank, WhatsappLogo } from '@phosphor-icons/react';
 import ConfirmModal from '@/components/ui/ConfirmModal';
 import ProductSearchModal from '@/components/ui/ProductSearchModal';
 import ClienteSearchModal from '@/components/ui/ClienteSearchModal';
@@ -12,6 +12,15 @@ import VentasDelDiaModal from '@/components/ui/VentasDelDiaModal';
 
 const money = (value: number | string) =>
   `$${Number(value).toLocaleString('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+
+// mismo criterio que toWhatsappNumber/waLink en pedidos/[id]/page.tsx
+const toWhatsappNumber = (telefono: string): string => {
+  const digits = telefono.replace(/\D/g, '');
+  return digits.startsWith('54') ? digits : `549${digits}`;
+};
+
+const waLink = (telefono: string, mensaje: string) =>
+  `https://wa.me/${toWhatsappNumber(telefono)}?text=${encodeURIComponent(mensaje)}`;
 
 export default function VentasPage() {
   const qc = useQueryClient();
@@ -36,6 +45,9 @@ export default function VentasPage() {
   const [closingAmount, setClosingAmount] = useState('');
   const [closeError, setCloseError] = useState('');
   const [closeResult, setCloseResult] = useState<CashSession | null>(null);
+  const [lastPaidSale, setLastPaidSale] = useState<{ id: string; total: string; telefonoSugerido: string } | null>(null);
+  const [sendWaOpen, setSendWaOpen] = useState(false);
+  const [waPhone, setWaPhone] = useState('');
   const [ventasDelDiaOpen, setVentasDelDiaOpen] = useState(false);
 
   const { data: openSales } = useQuery({ queryKey: ['sales', 'open'], queryFn: sales.getOpen });
@@ -117,9 +129,12 @@ export default function VentasPage() {
   const payMutation = useMutation({
     mutationFn: ({ saleId, data }: { saleId: string; data: Parameters<typeof sales.pay>[1] }) =>
       sales.pay(saleId, data),
-    onSuccess: () => {
+    onSuccess: (sale) => {
       qc.invalidateQueries({ queryKey: ['sales', 'open'] });
       qc.invalidateQueries({ queryKey: ['cash-session', 'current'] });
+      // el cliente elegido para el cobro a crédito ya no queda accesible después de este
+      // reset - se lo guarda acá para sugerir su teléfono al mandar el ticket
+      setLastPaidSale({ id: sale.id, total: sale.total, telefonoSugerido: selectedCliente?.telefono ?? '' });
       setActiveSaleId(null);
       setPaidAmount('');
       setSelectedCliente(null);
@@ -130,6 +145,8 @@ export default function VentasPage() {
 
   const ensureActiveSale = async (): Promise<string> => {
     if (activeSale) return activeSale.id;
+    setLastPaidSale(null);
+    setSendWaOpen(false);
     const sale = await createSaleMutation.mutateAsync();
     return sale.id;
   };
@@ -730,6 +747,66 @@ export default function VentasPage() {
                   ? `F2 · Cobrar ${money(total)} a crédito`
                   : `F2 · Cobrar ${money(total)} en efectivo`}
               </button>
+            </div>
+          )}
+
+          {/* Cartel post-cobro: opcional, no bloquea la próxima venta (se limpia solo
+              apenas se arranca otra en ensureActiveSale) */}
+          {!activeSale && lastPaidSale && (
+            <div className="bg-white rounded-2xl shadow-sm p-5 flex flex-col gap-3 animate-fadeIn">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <div className="w-8 h-8 rounded-full bg-green-100 flex items-center justify-center flex-shrink-0">
+                    <Check size={16} weight="bold" className="text-green-600" />
+                  </div>
+                  <div>
+                    <p className="text-sm font-bold text-gray-800">Venta cobrada</p>
+                    <p className="text-xs text-gray-400">{money(lastPaidSale.total)}</p>
+                  </div>
+                </div>
+                <button
+                  onClick={() => { setLastPaidSale(null); setSendWaOpen(false); }}
+                  className="text-gray-400 hover:text-gray-600 transition-colors"
+                >
+                  <X size={16} weight="bold" />
+                </button>
+              </div>
+
+              {!sendWaOpen ? (
+                <button
+                  onClick={() => { setWaPhone(lastPaidSale.telefonoSugerido); setSendWaOpen(true); }}
+                  className="flex items-center justify-center gap-2 py-2.5 rounded-xl bg-[#25D366] hover:opacity-90 text-white text-sm font-bold transition-opacity"
+                >
+                  <WhatsappLogo size={16} weight="fill" />
+                  Enviar ticket por WhatsApp
+                </button>
+              ) : (
+                <div className="flex items-center gap-2">
+                  <input
+                    type="tel"
+                    autoFocus
+                    value={waPhone}
+                    onChange={(e) => setWaPhone(e.target.value)}
+                    placeholder="+54 9 11 1234-5678"
+                    className="flex-1 border border-gray-200 rounded-xl px-3 py-2.5 text-sm outline-none focus:border-orange-400 font-medium"
+                  />
+                  <a
+                    href={
+                      waPhone.trim()
+                        ? waLink(waPhone, `¡Hola! Acá tenés tu ticket de compra: ${sales.ticketPdfUrl(lastPaidSale.id)}`)
+                        : undefined
+                    }
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    onClick={() => { setLastPaidSale(null); setSendWaOpen(false); }}
+                    className={`flex-shrink-0 px-4 py-2.5 rounded-xl text-sm font-bold transition-colors ${
+                      waPhone.trim() ? 'bg-[#25D366] hover:opacity-90 text-white' : 'bg-gray-100 text-gray-300 pointer-events-none'
+                    }`}
+                  >
+                    Enviar
+                  </a>
+                </div>
+              )}
             </div>
           )}
       </div>

@@ -218,6 +218,7 @@ export const sales = {
     request<Sale>(`/sales/${saleId}/items/${itemId}`, { method: 'DELETE' }),
   pay: (saleId: string, data: { paymentMethod: PaymentMethod; paidAmount?: number; clienteId?: string }) =>
     request<Sale>(`/sales/${saleId}/pay`, { method: 'POST', body: JSON.stringify(data) }),
+  ticketPdfUrl: (saleId: string) => `${API_URL}/sales/${saleId}/ticket.pdf`,
   cancel: (saleId: string) => request<Sale>(`/sales/${saleId}/cancel`, { method: 'POST' }),
   getSummaryRange: (from: string, to: string) =>
     request<SaleSummary>(`/sales/summary-range?from=${from}&to=${to}`),
