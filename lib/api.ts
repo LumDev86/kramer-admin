@@ -582,6 +582,8 @@ export interface Pedido {
   notas: string | null;
   paymentMethod: 'CASH' | 'TRANSFER';
   total: string;
+  distanciaKm: number | null;
+  cruzaVias: boolean | null;
   items: PedidoItem[];
   repartidorId: string | null;
   repartidor: { id: string; nombre: string; telefono: string } | null;

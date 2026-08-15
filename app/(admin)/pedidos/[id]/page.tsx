@@ -135,6 +135,11 @@ export default function PedidoDetallePage() {
           <p className="text-xs font-bold text-gray-400 uppercase tracking-wide mb-2">Pago y total</p>
           <p className="font-semibold text-gray-800">{PAYMENT_LABEL[pedido.paymentMethod]}</p>
           <p className="text-2xl font-extrabold text-orange-500 mt-1">{money(pedido.total)}</p>
+          {pedido.distanciaKm !== null && (
+            <p className="text-xs text-gray-400 mt-1">
+              {pedido.distanciaKm.toFixed(1)} km{pedido.cruzaVias ? ' · cruza las vías' : ''}
+            </p>
+          )}
         </div>
       </div>
 
