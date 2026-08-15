@@ -14,6 +14,9 @@ const RepartidoresMap = dynamic(() => import('@/components/maps/RepartidoresMap'
 const DAYS = ['Domingo', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado'];
 
 const HOURS = Array.from({ length: 24 }, (_, i) => i);
+// la hora de cierre puede pasar de 24 para los horarios que cruzan la medianoche (ej. 25 =
+// 01:00 del día siguiente) - hasta 29 (05:00) cubre bien los horarios nocturnos reales
+const CLOSE_HOURS = Array.from({ length: 30 }, (_, i) => i);
 
 // mismas 4 opciones que ya tiene configuracion/page.tsx - este selector es un duplicado
 // (por eso "Automático" faltaba acá, quedó desincronizado cuando se agregó allá)
@@ -96,16 +99,16 @@ function Toggle({ checked, onChange }: { checked: boolean; onChange: (v: boolean
   );
 }
 
-function HourSelect({ value, onChange }: { value: number; onChange: (v: number) => void }) {
+function HourSelect({ value, onChange, options = HOURS }: { value: number; onChange: (v: number) => void; options?: number[] }) {
   return (
     <select
       value={value}
       onChange={(e) => onChange(parseInt(e.target.value))}
       className="border border-gray-200 rounded-lg px-2 py-1.5 text-sm font-bold text-gray-700 outline-none focus:border-orange-400 bg-white cursor-pointer"
     >
-      {HOURS.map((h) => (
+      {options.map((h) => (
         <option key={h} value={h}>
-          {String(h).padStart(2, '0')}:00
+          {h < 24 ? `${String(h).padStart(2, '0')}:00` : `${String(h - 24).padStart(2, '0')}:00 (+1 día)`}
         </option>
       ))}
     </select>
@@ -323,6 +326,7 @@ export default function DashboardPage() {
                       <HourSelect
                         value={day.closeHour}
                         onChange={(v) => updateDay(day.dayOfWeek, 'closeHour', v)}
+                        options={CLOSE_HOURS}
                       />
                     </div>
                   ) : (
