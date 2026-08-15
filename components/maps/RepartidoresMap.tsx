@@ -41,7 +41,7 @@ interface Props {
   selectedId?: string | null;
   onSelect?: (repartidorId: string) => void;
   onMapClick?: (lat: number, lng: number) => void;
-  height?: string;
+  size?: number;
 }
 
 export default function RepartidoresMap({
@@ -51,7 +51,7 @@ export default function RepartidoresMap({
   selectedId,
   onSelect,
   onMapClick,
-  height = '360px',
+  size = 480,
 }: Props) {
   const conectados = useMemo(() => {
     const now = Date.now();
@@ -73,7 +73,10 @@ export default function RepartidoresMap({
       : [-34.8222, -58.5358]; // fallback: Ezeiza, por si todavía no se cargó ninguna ubicación
 
   return (
-    <div style={{ height }} className="rounded-2xl overflow-hidden border border-gray-100">
+    <div
+      style={{ width: size, height: size, maxWidth: '100%' }}
+      className="mx-auto rounded-2xl overflow-hidden border border-gray-100"
+    >
       {/* MapContainer solo aplica center/zoom en el mount inicial (react-leaflet no lo
           re-centra si el prop cambia después) - si la ubicación del local llega asíncrona
           (después del primer render, con center todavía en el fallback), el mapa quedaba
