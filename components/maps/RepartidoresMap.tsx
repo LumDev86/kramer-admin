@@ -74,7 +74,11 @@ export default function RepartidoresMap({
 
   return (
     <div style={{ height }} className="rounded-2xl overflow-hidden border border-gray-100">
-      <MapContainer center={center} zoom={14} scrollWheelZoom style={{ height: '100%', width: '100%' }}>
+      {/* MapContainer solo aplica center/zoom en el mount inicial (react-leaflet no lo
+          re-centra si el prop cambia después) - si la ubicación del local llega asíncrona
+          (después del primer render, con center todavía en el fallback), el mapa quedaba
+          centrado en el lugar viejo. La key fuerza un remount apenas cambia el centro real. */}
+      <MapContainer key={center.join(',')} center={center} zoom={14} scrollWheelZoom style={{ height: '100%', width: '100%' }}>
         <TileLayer
           attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
           url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
