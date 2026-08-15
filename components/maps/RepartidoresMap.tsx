@@ -1,8 +1,8 @@
 'use client';
 
 import 'leaflet/dist/leaflet.css';
-import { useMemo } from 'react';
-import { MapContainer, TileLayer, Marker, Popup, useMapEvents } from 'react-leaflet';
+import { useEffect, useMemo } from 'react';
+import { MapContainer, TileLayer, Marker, Popup, useMap, useMapEvents } from 'react-leaflet';
 import L from 'leaflet';
 import { Repartidor } from '@/lib/api';
 import { distanciaKm } from '@/lib/geo';
@@ -24,6 +24,7 @@ const pinIcon = (color: string, size = 30) =>
 const ICON_LOCAL = pinIcon('#f97316', 32); // naranja - el local
 const ICON_REPARTIDOR = pinIcon('#16a34a', 28); // verde - repartidor conectado
 const ICON_REPARTIDOR_SELECCIONADO = pinIcon('#2563eb', 32); // azul - seleccionado
+const ICON_DESTINO = pinIcon('#9333ea', 30); // morado - destino del pedido
 
 // más viejo que esto se trata como stale (la app pudo haber crasheado sin llamar a
 // /desconectar) - no se muestra en el mapa aunque conectado siga en true en la base
@@ -34,10 +35,24 @@ const MapClickHandler = ({ onClick }: { onClick: (lat: number, lng: number) => v
   return null;
 };
 
+// encuadra el mapa para que entren todos los puntos relevantes a la vez - center/zoom fijos
+// (más abajo) alcanzan cuando el único punto de referencia es el local, pero con un destino
+// lejos (ej. un pedido en Canning) puede quedar fuera de esos ~14 de zoom
+const FitBounds = ({ points }: { points: [number, number][] }) => {
+  const map = useMap();
+  useEffect(() => {
+    if (points.length < 2) return;
+    map.fitBounds(points, { padding: [40, 40], maxZoom: 16 });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [JSON.stringify(points)]);
+  return null;
+};
+
 interface Props {
   repartidores: Repartidor[];
   storeLat: number | null;
   storeLng: number | null;
+  destino?: { lat: number; lng: number } | null;
   selectedId?: string | null;
   onSelect?: (repartidorId: string) => void;
   onMapClick?: (lat: number, lng: number) => void;
@@ -48,6 +63,7 @@ export default function RepartidoresMap({
   repartidores,
   storeLat,
   storeLng,
+  destino,
   selectedId,
   onSelect,
   onMapClick,
@@ -72,6 +88,17 @@ export default function RepartidoresMap({
       ? [conectados[0].lat!, conectados[0].lng!]
       : [-34.8222, -58.5358]; // fallback: Ezeiza, por si todavía no se cargó ninguna ubicación
 
+  // solo se arma cuando hay un destino que mostrar - en los otros usos de este componente
+  // (lista de repartidores, selector de ubicación del local) no se pasa `destino` y el mapa
+  // se comporta como siempre (center/zoom fijos de arriba)
+  const boundsPoints: [number, number][] = destino
+    ? [
+        ...(storeLat !== null && storeLng !== null ? [[storeLat, storeLng] as [number, number]] : []),
+        [destino.lat, destino.lng],
+        ...conectados.map((r): [number, number] => [r.lat!, r.lng!]),
+      ]
+    : [];
+
   return (
     <div
       style={{ width: size, height: size, maxWidth: '100%' }}
@@ -87,10 +114,17 @@ export default function RepartidoresMap({
           url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
         />
         {onMapClick && <MapClickHandler onClick={onMapClick} />}
+        {boundsPoints.length > 1 && <FitBounds points={boundsPoints} />}
 
         {storeLat !== null && storeLng !== null && (
           <Marker position={[storeLat, storeLng]} icon={ICON_LOCAL}>
             <Popup>Kiosco Kramer (local)</Popup>
+          </Marker>
+        )}
+
+        {destino && (
+          <Marker position={[destino.lat, destino.lng]} icon={ICON_DESTINO}>
+            <Popup>Destino del pedido</Popup>
           </Marker>
         )}
 
@@ -106,6 +140,11 @@ export default function RepartidoresMap({
               {storeLat !== null && storeLng !== null && (
                 <p className="text-xs text-gray-500">
                   {distanciaKm(storeLat, storeLng, r.lat!, r.lng!).toFixed(1)} km del local
+                </p>
+              )}
+              {destino && (
+                <p className="text-xs text-gray-500">
+                  {distanciaKm(destino.lat, destino.lng, r.lat!, r.lng!).toFixed(1)} km del destino
                 </p>
               )}
               {onSelect && (

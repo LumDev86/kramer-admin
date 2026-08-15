@@ -584,6 +584,8 @@ export interface Pedido {
   total: string;
   distanciaKm: number | null;
   cruzaVias: boolean | null;
+  destinoLat: number | null;
+  destinoLng: number | null;
   items: PedidoItem[];
   repartidorId: string | null;
   repartidor: { id: string; nombre: string; telefono: string } | null;

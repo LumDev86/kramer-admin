@@ -172,6 +172,11 @@ export default function PedidoDetallePage() {
               repartidores={listaRepartidores ?? []}
               storeLat={storeConfig?.lat ?? null}
               storeLng={storeConfig?.lng ?? null}
+              destino={
+                pedido.destinoLat !== null && pedido.destinoLng !== null
+                  ? { lat: pedido.destinoLat, lng: pedido.destinoLng }
+                  : null
+              }
               onSelect={(repartidorId) => asignarMutation.mutate(repartidorId)}
             />
             {noConectados.length > 0 && (
