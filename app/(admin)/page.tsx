@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { products, categories, banners, config, StoreScheduleDay, StoreConfig } from '@/lib/api';
 import {
-  Package, Tag, Image, CheckCircle, XCircle,
+  Package, Tag, Image, CheckCircle, XCircle, CalendarBlank,
   HourglassMedium, Clock, Check, WhatsappLogo, Bank, IdentificationCard, Copy,
 } from '@phosphor-icons/react';
 
@@ -12,7 +12,19 @@ const DAYS = ['Domingo', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', '
 
 const HOURS = Array.from({ length: 24 }, (_, i) => i);
 
+// mismas 4 opciones que ya tiene configuracion/page.tsx - este selector es un duplicado
+// (por eso "Automático" faltaba acá, quedó desincronizado cuando se agregó allá)
 const STATUS_OPTIONS = [
+  {
+    value: 'auto',
+    label: 'Automático',
+    sub: 'Sigue el horario de atención',
+    icon: CalendarBlank,
+    ring: 'ring-blue-400',
+    bg: 'bg-blue-50',
+    iconColor: 'text-blue-500',
+    badge: 'bg-blue-100 text-blue-700',
+  },
   {
     value: 'open',
     label: 'Abierto',
