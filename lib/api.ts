@@ -515,6 +515,7 @@ export interface Reporte {
     total: number;
     count: number;
     byMethod: { CASH: number; TRANSFER: number; CREDIT: number };
+    byChannel: { POS: { total: number; count: number }; DELIVERY: { total: number; count: number } };
     ticketPromedio: number;
     variacionPct: number | null;
   };

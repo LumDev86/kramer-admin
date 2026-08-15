@@ -222,6 +222,19 @@ export default function ReportesPage() {
             </div>
           </div>
 
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div className="bg-white rounded-2xl shadow-sm print:shadow-none print:border print:border-gray-300 print:rounded-none print:break-inside-avoid p-5">
+              <p className="text-xs font-bold text-gray-400 uppercase tracking-wide">Ventas en el local</p>
+              <p className="text-xl font-extrabold text-gray-800 mt-1">{money(data.ventas.byChannel.POS.total)}</p>
+              <p className="text-xs text-gray-400">{data.ventas.byChannel.POS.count} ticket{data.ventas.byChannel.POS.count !== 1 ? 's' : ''}</p>
+            </div>
+            <div className="bg-white rounded-2xl shadow-sm print:shadow-none print:border print:border-gray-300 print:rounded-none print:break-inside-avoid p-5">
+              <p className="text-xs font-bold text-gray-400 uppercase tracking-wide">Ventas por pedidos (delivery)</p>
+              <p className="text-xl font-extrabold text-gray-800 mt-1">{money(data.ventas.byChannel.DELIVERY.total)}</p>
+              <p className="text-xs text-gray-400">{data.ventas.byChannel.DELIVERY.count} pedido{data.ventas.byChannel.DELIVERY.count !== 1 ? 's' : ''}</p>
+            </div>
+          </div>
+
           <div className="bg-white rounded-2xl shadow-sm print:shadow-none print:border print:border-gray-300 print:rounded-none print:break-inside-avoid p-5">
             <p className="text-sm font-bold text-gray-700 mb-3">Movimiento de crédito</p>
             <div className="flex gap-8">
