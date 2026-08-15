@@ -599,9 +599,12 @@ export interface Pedido {
 }
 
 export const pedidos = {
-  getAll: (status?: PedidoStatus) => {
-    const qs = status ? `?status=${status}` : '';
-    return request<Pedido[]>(`/pedidos${qs}`);
+  getAll: (status?: PedidoStatus, fecha?: string) => {
+    const params = new URLSearchParams();
+    if (status) params.set('status', status);
+    if (fecha) params.set('fecha', fecha);
+    const qs = params.toString();
+    return request<Pedido[]>(`/pedidos${qs ? `?${qs}` : ''}`);
   },
   getById: (id: string) => request<Pedido>(`/pedidos/${id}`),
   asignar: (id: string, repartidorId: string) =>

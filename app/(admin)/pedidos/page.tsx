@@ -3,13 +3,19 @@
 import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import Link from 'next/link';
+import { CaretLeft, CaretRight } from '@phosphor-icons/react';
 import { pedidos, PedidoStatus } from '@/lib/api';
 
 const money = (value: number | string) =>
   `$${Number(value).toLocaleString('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 
-const formatDateTime = (value: string) =>
-  new Date(value).toLocaleString('es-AR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' });
+// mismo criterio que VentasDelDiaModal.tsx (toISODate) - la fecha local, no UTC
+const toISODate = (d: Date): string => {
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${y}-${m}-${day}`;
+};
 
 const TABS: { value: PedidoStatus | 'TODOS'; label: string }[] = [
   { value: 'TODOS', label: 'Todos' },
@@ -38,10 +44,13 @@ const STATUS_LABEL: Record<PedidoStatus, string> = {
 
 export default function PedidosPage() {
   const [tab, setTab] = useState<PedidoStatus | 'TODOS'>('TODOS');
+  const [fecha, setFecha] = useState(() => new Date());
+  const fechaISO = toISODate(fecha);
+  const esHoy = fechaISO === toISODate(new Date());
 
   const { data, isLoading } = useQuery({
-    queryKey: ['pedidos', tab],
-    queryFn: () => pedidos.getAll(tab === 'TODOS' ? undefined : tab),
+    queryKey: ['pedidos', tab, fechaISO],
+    queryFn: () => pedidos.getAll(tab === 'TODOS' ? undefined : tab, fechaISO),
     refetchInterval: 15000,
   });
 
@@ -52,18 +61,46 @@ export default function PedidosPage() {
         <p className="text-sm text-gray-400 font-medium mt-0.5">{data?.length ?? 0} pedidos</p>
       </div>
 
-      <div className="flex gap-1 bg-gray-50 rounded-xl p-1 w-fit flex-wrap">
-        {TABS.map((t) => (
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div className="flex gap-1 bg-gray-50 rounded-xl p-1 w-fit flex-wrap">
+          {TABS.map((t) => (
+            <button
+              key={t.value}
+              onClick={() => setTab(t.value)}
+              className={`px-3 py-2 rounded-lg text-sm font-bold transition-colors ${
+                tab === t.value ? 'bg-white text-orange-600 shadow-sm' : 'text-gray-500 hover:text-gray-700'
+              }`}
+            >
+              {t.label}
+            </button>
+          ))}
+        </div>
+
+        <div className="flex items-center gap-2 bg-gray-50 rounded-xl p-1">
           <button
-            key={t.value}
-            onClick={() => setTab(t.value)}
-            className={`px-3 py-2 rounded-lg text-sm font-bold transition-colors ${
-              tab === t.value ? 'bg-white text-orange-600 shadow-sm' : 'text-gray-500 hover:text-gray-700'
-            }`}
+            onClick={() => setFecha((d) => { const n = new Date(d); n.setDate(n.getDate() - 1); return n; })}
+            className="w-8 h-8 rounded-lg flex items-center justify-center text-gray-500 hover:bg-white transition-colors"
           >
-            {t.label}
+            <CaretLeft size={14} weight="bold" />
           </button>
-        ))}
+          <p className="text-xs font-bold text-gray-700 capitalize w-36 text-center">
+            {fecha.toLocaleDateString('es-AR', { weekday: 'short', day: 'numeric', month: 'short' })}
+          </p>
+          <button
+            onClick={() => setFecha((d) => { const n = new Date(d); n.setDate(n.getDate() + 1); return n; })}
+            className="w-8 h-8 rounded-lg flex items-center justify-center text-gray-500 hover:bg-white transition-colors"
+          >
+            <CaretRight size={14} weight="bold" />
+          </button>
+          {!esHoy && (
+            <button
+              onClick={() => setFecha(new Date())}
+              className="text-xs font-bold text-orange-500 hover:text-orange-600 px-2"
+            >
+              Hoy
+            </button>
+          )}
+        </div>
       </div>
 
       <div className="bg-white rounded-2xl shadow-sm overflow-hidden">
@@ -76,7 +113,7 @@ export default function PedidosPage() {
               <th className="px-4 py-3 text-xs font-bold text-gray-400 uppercase tracking-wide">Total</th>
               <th className="px-4 py-3 text-xs font-bold text-gray-400 uppercase tracking-wide">Repartidor</th>
               <th className="px-4 py-3 text-xs font-bold text-gray-400 uppercase tracking-wide">Estado</th>
-              <th className="px-4 py-3 text-xs font-bold text-gray-400 uppercase tracking-wide">Fecha</th>
+              <th className="px-4 py-3 text-xs font-bold text-gray-400 uppercase tracking-wide">Hora</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-gray-50">
@@ -104,7 +141,9 @@ export default function PedidosPage() {
                       {STATUS_LABEL[p.status]}
                     </span>
                   </td>
-                  <td className="px-4 py-3 text-gray-400 text-xs">{formatDateTime(p.createdAt)}</td>
+                  <td className="px-4 py-3 text-gray-400 text-xs">
+                    {new Date(p.createdAt).toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit' })}
+                  </td>
                 </tr>
               ))
             ) : (
