@@ -4,9 +4,13 @@ import { useState } from 'react';
 import { useParams } from 'next/navigation';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import Link from 'next/link';
-import { pedidos, repartidores as repartidoresApi, PedidoStatus } from '@/lib/api';
+import dynamic from 'next/dynamic';
+import { pedidos, repartidores as repartidoresApi, config, PedidoStatus } from '@/lib/api';
 import { CaretLeft, WhatsappLogo } from '@phosphor-icons/react';
 import ConfirmModal from '@/components/ui/ConfirmModal';
+
+// Leaflet necesita `window` - no puede renderizarse en el servidor
+const RepartidoresMap = dynamic(() => import('@/components/maps/RepartidoresMap'), { ssr: false });
 
 const CLIENT_URL = 'https://kramer-client.vercel.app';
 
@@ -40,7 +44,6 @@ export default function PedidoDetallePage() {
   const { id } = useParams() as { id: string };
   const qc = useQueryClient();
   const [toCancel, setToCancel] = useState(false);
-  const [repartidorSeleccionado, setRepartidorSeleccionado] = useState('');
 
   const { data: pedido, isLoading } = useQuery({
     queryKey: ['pedido', id],
@@ -51,7 +54,10 @@ export default function PedidoDetallePage() {
   const { data: listaRepartidores } = useQuery({
     queryKey: ['repartidores'],
     queryFn: () => repartidoresApi.getAll(),
+    refetchInterval: 10000, // los pines del mapa se mueven, no alcanza con traerlos una sola vez
   });
+
+  const { data: storeConfig } = useQuery({ queryKey: ['store-config'], queryFn: config.get });
 
   const invalidate = () => {
     qc.invalidateQueries({ queryKey: ['pedido', id] });
@@ -65,10 +71,7 @@ export default function PedidoDetallePage() {
 
   const asignarMutation = useMutation({
     mutationFn: (repartidorId: string) => pedidos.asignar(id, repartidorId),
-    onSuccess: () => {
-      invalidate();
-      setRepartidorSeleccionado('');
-    },
+    onSuccess: invalidate,
   });
 
   const cancelarMutation = useMutation({
@@ -93,6 +96,7 @@ export default function PedidoDetallePage() {
   };
 
   const activos = listaRepartidores?.filter((r) => r.isActive) ?? [];
+  const noConectados = activos.filter((r) => !r.conectado);
   const esFinal = pedido.status === 'ENTREGADO' || pedido.status === 'CANCELADO';
 
   const siguienteAccion: { label: string; status: PedidoStatus }[] =
@@ -157,27 +161,31 @@ export default function PedidoDetallePage() {
         ) : (
           <>
             <p className="text-xs text-gray-400">
-              Sin asignar todavía — cualquier repartidor activo ya lo puede ver y tomar desde su app. Si preferís elegir vos quién lo hace, asignalo acá:
+              Asigná el pedido tocando al repartidor más cercano en el mapa.
             </p>
-            <div className="flex gap-2">
-              <select
-                value={repartidorSeleccionado}
-                onChange={(e) => setRepartidorSeleccionado(e.target.value)}
-                className="flex-1 border border-gray-200 rounded-xl px-3 py-2 text-sm outline-none focus:border-orange-400"
-              >
-                <option value="">Elegir repartidor...</option>
-                {activos.map((r) => (
-                  <option key={r.id} value={r.id}>{r.nombre} · {r.telefono}</option>
+            <RepartidoresMap
+              repartidores={listaRepartidores ?? []}
+              storeLat={storeConfig?.lat ?? null}
+              storeLng={storeConfig?.lng ?? null}
+              onSelect={(repartidorId) => asignarMutation.mutate(repartidorId)}
+            />
+            {noConectados.length > 0 && (
+              <div className="flex flex-col gap-1.5">
+                <p className="text-xs font-bold text-gray-400 uppercase tracking-wide">
+                  Activos sin conectar (igual se pueden asignar)
+                </p>
+                {noConectados.map((r) => (
+                  <button
+                    key={r.id}
+                    onClick={() => asignarMutation.mutate(r.id)}
+                    disabled={asignarMutation.isPending}
+                    className="text-left text-sm px-3 py-2 rounded-xl border border-gray-200 text-gray-600 hover:bg-gray-50 transition-colors disabled:opacity-50"
+                  >
+                    {r.nombre} · {r.telefono}
+                  </button>
                 ))}
-              </select>
-              <button
-                onClick={() => repartidorSeleccionado && asignarMutation.mutate(repartidorSeleccionado)}
-                disabled={!repartidorSeleccionado || asignarMutation.isPending}
-                className="px-4 py-2 rounded-xl bg-orange-500 hover:bg-orange-600 text-white text-sm font-bold transition-colors disabled:opacity-50"
-              >
-                Asignar
-              </button>
-            </div>
+              </div>
+            )}
           </>
         )}
       </div>

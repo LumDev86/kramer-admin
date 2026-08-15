@@ -2,8 +2,11 @@
 
 import { useEffect, useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import dynamic from 'next/dynamic';
 import { config, StoreScheduleDay } from '@/lib/api';
-import { CheckCircle, Clock, XCircle, HourglassMedium, CalendarBlank } from '@phosphor-icons/react';
+import { CheckCircle, Clock, XCircle, HourglassMedium, CalendarBlank, MapPin } from '@phosphor-icons/react';
+
+const RepartidoresMap = dynamic(() => import('@/components/maps/RepartidoresMap'), { ssr: false });
 
 const DAYS = ['Domingo', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado'];
 
@@ -59,12 +62,15 @@ export default function ConfiguracionPage() {
   const [schedule, setSchedule] = useState<StoreScheduleDay[]>([]);
   const [savedStatus, setSavedStatus] = useState(false);
   const [savedSchedule, setSavedSchedule] = useState(false);
+  const [ubicacion, setUbicacion] = useState<{ lat: number; lng: number } | null>(null);
+  const [savedUbicacion, setSavedUbicacion] = useState(false);
 
   useEffect(() => {
     if (data) {
       setStatus(data.status);
       setBusyTime(data.busyTime ?? 60);
       setSchedule(data.schedule);
+      setUbicacion(data.lat !== null && data.lng !== null ? { lat: data.lat, lng: data.lng } : null);
     }
   }, [data]);
 
@@ -83,6 +89,15 @@ export default function ConfiguracionPage() {
       qc.invalidateQueries({ queryKey: ['store-config'] });
       setSavedSchedule(true);
       setTimeout(() => setSavedSchedule(false), 2000);
+    },
+  });
+
+  const ubicacionMutation = useMutation({
+    mutationFn: () => config.updateUbicacion(ubicacion!.lat, ubicacion!.lng),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['store-config'] });
+      setSavedUbicacion(true);
+      setTimeout(() => setSavedUbicacion(false), 2000);
     },
   });
 
@@ -169,6 +184,38 @@ export default function ConfiguracionPage() {
           }`}
         >
           {savedStatus ? '✓ Estado guardado' : statusMutation.isPending ? 'Guardando...' : 'Guardar estado'}
+        </button>
+      </div>
+
+      {/* Ubicación del local */}
+      <div className="bg-white rounded-2xl shadow-sm p-6 flex flex-col gap-4">
+        <div>
+          <h2 className="text-base font-extrabold text-gray-700 flex items-center gap-2">
+            <MapPin size={18} weight="fill" className="text-orange-500" />
+            Ubicación del local
+          </h2>
+          <p className="text-xs text-gray-400 mt-0.5">
+            Tocá el mapa para marcar dónde está el kiosco - se usa para calcular qué repartidor está más cerca al asignar un pedido.
+          </p>
+        </div>
+
+        <RepartidoresMap
+          repartidores={[]}
+          storeLat={ubicacion?.lat ?? null}
+          storeLng={ubicacion?.lng ?? null}
+          onMapClick={(lat, lng) => setUbicacion({ lat, lng })}
+        />
+
+        <button
+          onClick={() => ubicacionMutation.mutate()}
+          disabled={!ubicacion || ubicacionMutation.isPending}
+          className={`py-3 rounded-xl font-bold text-sm transition-all disabled:opacity-50 ${
+            savedUbicacion
+              ? 'bg-green-500 text-white'
+              : 'bg-orange-500 hover:bg-orange-600 text-white'
+          }`}
+        >
+          {savedUbicacion ? '✓ Ubicación guardada' : ubicacionMutation.isPending ? 'Guardando...' : 'Guardar ubicación'}
         </button>
       </div>
 

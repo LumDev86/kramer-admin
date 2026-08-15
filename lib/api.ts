@@ -137,6 +137,8 @@ export interface StoreConfig {
   cbu: string | null;
   alias: string | null;
   titular: string | null;
+  lat: number | null;
+  lng: number | null;
   updatedAt: string;
   schedule: StoreScheduleDay[];
 }
@@ -158,6 +160,8 @@ export const config = {
       method: 'PUT',
       body: JSON.stringify(data),
     }),
+  updateUbicacion: (lat: number, lng: number) =>
+    request<StoreConfig>('/config/ubicacion', { method: 'PUT', body: JSON.stringify({ lat, lng }) }),
 };
 
 export type SaleStatus = 'OPEN' | 'PAID' | 'CANCELLED';
@@ -559,6 +563,10 @@ export interface Repartidor {
   nombre: string;
   telefono: string;
   isActive: boolean;
+  conectado: boolean;
+  lat: number | null;
+  lng: number | null;
+  ubicacionAt: string | null;
   createdAt: string;
   updatedAt: string;
 }
