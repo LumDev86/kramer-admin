@@ -8,6 +8,7 @@ import dynamic from 'next/dynamic';
 import { pedidos, repartidores as repartidoresApi, config, PedidoStatus } from '@/lib/api';
 import { CaretLeft, WhatsappLogo, WarningCircle } from '@phosphor-icons/react';
 import ConfirmModal from '@/components/ui/ConfirmModal';
+import { estaEnLinea } from '@/lib/geo';
 
 // Leaflet necesita `window` - no puede renderizarse en el servidor
 const RepartidoresMap = dynamic(() => import('@/components/maps/RepartidoresMap'), { ssr: false });
@@ -96,7 +97,11 @@ export default function PedidoDetallePage() {
   };
 
   const activos = listaRepartidores?.filter((r) => r.isActive) ?? [];
-  const noConectados = activos.filter((r) => !r.conectado);
+  // mismo criterio que el mapa (estaEnLinea) para decidir quién sale ahí arriba - antes acá se
+  // filtraba por el booleano `conectado` crudo de la base, así que un repartidor con
+  // `conectado: true` pero ubicación vieja (app cerrada de golpe) quedaba invisible en las dos
+  // listas a la vez: no salía en el mapa (por vieja) ni acá (porque en la base seguía "conectado")
+  const fueraDeLinea = activos.filter((r) => !estaEnLinea(r));
   const esFinal = pedido.status === 'ENTREGADO' || pedido.status === 'CANCELADO';
 
   const siguienteAccion: { label: string; status: PedidoStatus }[] =
@@ -195,12 +200,12 @@ export default function PedidoDetallePage() {
               }
               onSelect={(repartidorId) => asignarMutation.mutate(repartidorId)}
             />
-            {noConectados.length > 0 && (
+            {fueraDeLinea.length > 0 && (
               <div className="flex flex-col gap-1.5">
                 <p className="text-xs font-bold text-gray-400 uppercase tracking-wide">
-                  Activos sin conectar (igual se pueden asignar)
+                  Sin ubicación reciente (igual se pueden asignar)
                 </p>
-                {noConectados.map((r) => (
+                {fueraDeLinea.map((r) => (
                   <button
                     key={r.id}
                     onClick={() => asignarMutation.mutate(r.id)}

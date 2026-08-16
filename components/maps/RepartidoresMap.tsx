@@ -5,7 +5,7 @@ import { useEffect, useMemo } from 'react';
 import { MapContainer, TileLayer, Marker, Popup, useMap, useMapEvents } from 'react-leaflet';
 import L from 'leaflet';
 import { Repartidor } from '@/lib/api';
-import { distanciaKm } from '@/lib/geo';
+import { distanciaKm, estaEnLinea } from '@/lib/geo';
 
 // pines propios con divIcon (SVG inline) en vez del ícono default de Leaflet - el default
 // rompe con bundlers modernos porque referencia imágenes por una ruta relativa que no existe
@@ -25,10 +25,6 @@ const ICON_LOCAL = pinIcon('#f97316', 32); // naranja - el local
 const ICON_REPARTIDOR = pinIcon('#16a34a', 28); // verde - repartidor conectado
 const ICON_REPARTIDOR_SELECCIONADO = pinIcon('#2563eb', 32); // azul - seleccionado
 const ICON_DESTINO = pinIcon('#9333ea', 30); // morado - destino del pedido
-
-// más viejo que esto se trata como stale (la app pudo haber crasheado sin llamar a
-// /desconectar) - no se muestra en el mapa aunque conectado siga en true en la base
-const STALE_MS = 3 * 60 * 1000;
 
 const MapClickHandler = ({ onClick }: { onClick: (lat: number, lng: number) => void }) => {
   useMapEvents({ click: (e) => onClick(e.latlng.lat, e.latlng.lng) });
@@ -69,17 +65,7 @@ export default function RepartidoresMap({
   onMapClick,
   size = 480,
 }: Props) {
-  const conectados = useMemo(() => {
-    const now = Date.now();
-    return repartidores.filter(
-      (r) =>
-        r.conectado &&
-        r.lat !== null &&
-        r.lng !== null &&
-        r.ubicacionAt &&
-        now - new Date(r.ubicacionAt).getTime() < STALE_MS
-    );
-  }, [repartidores]);
+  const conectados = useMemo(() => repartidores.filter(estaEnLinea), [repartidores]);
 
   const center: [number, number] =
     storeLat !== null && storeLng !== null
