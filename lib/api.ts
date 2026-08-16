@@ -573,6 +573,16 @@ export interface Repartidor {
   updatedAt: string;
 }
 
+export interface PedidoAsignacion {
+  id: string;
+  repartidorId: string;
+  // solo viene en el detalle (getById) - el listado (getAll) no trae este include
+  repartidor?: { nombre: string };
+  respuesta: 'PENDIENTE' | 'ACEPTADO' | 'RECHAZADO';
+  asignadoAt: string;
+  respondidoAt: string | null;
+}
+
 export interface Pedido {
   id: string;
   negocioId: string;
@@ -591,6 +601,10 @@ export interface Pedido {
   items: PedidoItem[];
   repartidorId: string | null;
   repartidor: { id: string; nombre: string; telefono: string } | null;
+  // en el listado (getAll) trae solo la asignación pendiente (0 o 1); en el detalle (getById)
+  // trae el historial completo de a quién se le ofreció este pedido
+  asignaciones: PedidoAsignacion[];
+  pendienteConfirmacion: boolean;
   saleId: string | null;
   trackingToken: string;
   createdAt: string;

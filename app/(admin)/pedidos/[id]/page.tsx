@@ -41,6 +41,12 @@ const STATUS_LABEL: Record<PedidoStatus, string> = {
 
 const PAYMENT_LABEL: Record<string, string> = { CASH: 'Efectivo', TRANSFER: 'Transferencia' };
 
+const ASIGNACION_LABEL: Record<string, string> = {
+  PENDIENTE: 'Esperando respuesta',
+  ACEPTADO: 'Aceptó',
+  RECHAZADO: 'Rechazó',
+};
+
 export default function PedidoDetallePage() {
   const { id } = useParams() as { id: string };
   const qc = useQueryClient();
@@ -185,7 +191,14 @@ export default function PedidoDetallePage() {
       <div className="bg-white rounded-2xl shadow-sm p-5 flex flex-col gap-3">
         <p className="text-sm font-bold text-gray-700">Repartidor</p>
         {pedido.repartidor ? (
-          <p className="text-sm text-gray-600">{pedido.repartidor.nombre} · {pedido.repartidor.telefono}</p>
+          <div>
+            <p className="text-sm text-gray-600">{pedido.repartidor.nombre} · {pedido.repartidor.telefono}</p>
+            {pedido.pendienteConfirmacion && (
+              <p className="text-xs font-bold text-amber-600 mt-1">
+                Esperando que confirme el pedido en la app...
+              </p>
+            )}
+          </div>
         ) : esFinal ? (
           <p className="text-sm text-gray-400">Sin asignar.</p>
         ) : (
@@ -234,6 +247,28 @@ export default function PedidoDetallePage() {
               })}
             </div>
           </>
+        )}
+
+        {pedido.asignaciones.length > 0 && (
+          <div className="flex flex-col gap-1 border-t border-gray-100 pt-3 mt-1">
+            <p className="text-xs font-bold text-gray-400 uppercase tracking-wide">Historial de asignación</p>
+            {pedido.asignaciones.map((a) => (
+              <div key={a.id} className="flex items-center justify-between text-xs">
+                <span className="text-gray-500">{a.repartidor?.nombre ?? '—'}</span>
+                <span
+                  className={`font-bold ${
+                    a.respuesta === 'ACEPTADO'
+                      ? 'text-green-600'
+                      : a.respuesta === 'RECHAZADO'
+                        ? 'text-red-500'
+                        : 'text-amber-500'
+                  }`}
+                >
+                  {ASIGNACION_LABEL[a.respuesta]} · {formatDateTime(a.respondidoAt ?? a.asignadoAt)}
+                </span>
+              </div>
+            ))}
+          </div>
         )}
       </div>
 
