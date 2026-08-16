@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import Link from 'next/link';
-import { CaretLeft, CaretRight } from '@phosphor-icons/react';
+import { CaretLeft, CaretRight, WarningCircle } from '@phosphor-icons/react';
 import { pedidos, PedidoStatus } from '@/lib/api';
 
 const money = (value: number | string) =>
@@ -134,7 +134,16 @@ export default function PedidosPage() {
                     </Link>
                   </td>
                   <td className="px-4 py-3 text-gray-600">{p.nombreCliente}</td>
-                  <td className="px-4 py-3 font-bold text-orange-500">{money(p.total)}</td>
+                  <td className="px-4 py-3 font-bold text-orange-500">
+                    <div className="flex items-center gap-1.5">
+                      {money(p.total)}
+                      {p.distanciaKm === null && (
+                        <span title="Envío estimado - no se pudo geolocalizar la dirección, confirmar con el cliente">
+                          <WarningCircle size={15} weight="fill" className="text-amber-500" />
+                        </span>
+                      )}
+                    </div>
+                  </td>
                   <td className="px-4 py-3 text-gray-500">{p.repartidor?.nombre ?? '—'}</td>
                   <td className="px-4 py-3">
                     <span className={`text-[11px] font-bold px-2 py-1 rounded-full ${STATUS_BADGE[p.status]}`}>

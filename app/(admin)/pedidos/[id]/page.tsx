@@ -6,7 +6,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import Link from 'next/link';
 import dynamic from 'next/dynamic';
 import { pedidos, repartidores as repartidoresApi, config, PedidoStatus } from '@/lib/api';
-import { CaretLeft, WhatsappLogo } from '@phosphor-icons/react';
+import { CaretLeft, WhatsappLogo, WarningCircle } from '@phosphor-icons/react';
 import ConfirmModal from '@/components/ui/ConfirmModal';
 
 // Leaflet necesita `window` - no puede renderizarse en el servidor
@@ -122,6 +122,22 @@ export default function PedidoDetallePage() {
           {STATUS_LABEL[pedido.status]}
         </span>
       </div>
+
+      {pedido.distanciaKm === null && (
+        <div className="flex items-start gap-3 bg-amber-50 border border-amber-200 rounded-2xl px-4 py-3.5">
+          <WarningCircle size={20} weight="fill" className="text-amber-500 flex-shrink-0 mt-0.5" />
+          <div>
+            <p className="text-sm font-bold text-amber-800">Envío estimado, no confirmado</p>
+            <p className="text-xs text-amber-700 mt-0.5">
+              No se pudo geolocalizar "{pedido.direccion}", así que se cobró la tarifa base de envío
+              {pedido.items.find((i) => i.name === 'Envío') && (
+                <> ({money(pedido.items.find((i) => i.name === 'Envío')!.subtotal)})</>
+              )}
+              , sin distancia real ni recargo por cruzar las vías. Confirmá con el cliente y corregí el cobro si hace falta.
+            </p>
+          </div>
+        </div>
+      )}
 
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
         <div className="bg-white rounded-2xl shadow-sm p-5">
