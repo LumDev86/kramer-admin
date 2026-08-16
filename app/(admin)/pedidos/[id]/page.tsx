@@ -8,7 +8,7 @@ import dynamic from 'next/dynamic';
 import { pedidos, repartidores as repartidoresApi, config, PedidoStatus } from '@/lib/api';
 import { CaretLeft, WhatsappLogo, WarningCircle } from '@phosphor-icons/react';
 import ConfirmModal from '@/components/ui/ConfirmModal';
-import { estaEnLinea } from '@/lib/geo';
+import { estaEnLinea, distanciaKm } from '@/lib/geo';
 
 // Leaflet necesita `window` - no puede renderizarse en el servidor
 const RepartidoresMap = dynamic(() => import('@/components/maps/RepartidoresMap'), { ssr: false });
@@ -97,11 +97,15 @@ export default function PedidoDetallePage() {
   };
 
   const activos = listaRepartidores?.filter((r) => r.isActive) ?? [];
-  // mismo criterio que el mapa (estaEnLinea) para decidir quién sale ahí arriba - antes acá se
-  // filtraba por el booleano `conectado` crudo de la base, así que un repartidor con
-  // `conectado: true` pero ubicación vieja (app cerrada de golpe) quedaba invisible en las dos
-  // listas a la vez: no salía en el mapa (por vieja) ni acá (porque en la base seguía "conectado")
-  const fueraDeLinea = activos.filter((r) => !estaEnLinea(r));
+  const destinoPedido =
+    pedido.destinoLat != null && pedido.destinoLng != null
+      ? { lat: pedido.destinoLat, lng: pedido.destinoLng }
+      : null;
+  // en línea primero (mismo criterio que el mapa, ver lib/geo.ts), y dentro de cada grupo el
+  // orden alfabético que ya trae el server (orderBy nombre) se mantiene porque sort es estable
+  const repartidoresOrdenados = [...activos].sort(
+    (a, b) => Number(estaEnLinea(b)) - Number(estaEnLinea(a))
+  );
   const esFinal = pedido.status === 'ENTREGADO' || pedido.status === 'CANCELADO';
 
   const siguienteAccion: { label: string; status: PedidoStatus }[] =
@@ -187,36 +191,48 @@ export default function PedidoDetallePage() {
         ) : (
           <>
             <p className="text-xs text-gray-400">
-              Asigná el pedido tocando al repartidor más cercano en el mapa.
+              Asigná el pedido tocando al repartidor en el mapa o eligiéndolo de la lista.
             </p>
             <RepartidoresMap
               repartidores={listaRepartidores ?? []}
               storeLat={storeConfig?.lat ?? null}
               storeLng={storeConfig?.lng ?? null}
-              destino={
-                pedido.destinoLat !== null && pedido.destinoLng !== null
-                  ? { lat: pedido.destinoLat, lng: pedido.destinoLng }
-                  : null
-              }
+              destino={destinoPedido}
               onSelect={(repartidorId) => asignarMutation.mutate(repartidorId)}
             />
-            {fueraDeLinea.length > 0 && (
-              <div className="flex flex-col gap-1.5">
-                <p className="text-xs font-bold text-gray-400 uppercase tracking-wide">
-                  Sin ubicación reciente (igual se pueden asignar)
-                </p>
-                {fueraDeLinea.map((r) => (
+            <div className="flex flex-col gap-1.5">
+              {repartidoresOrdenados.length === 0 && (
+                <p className="text-sm text-gray-400">No hay repartidores activos.</p>
+              )}
+              {repartidoresOrdenados.map((r) => {
+                const enLinea = estaEnLinea(r);
+                const dist = enLinea && destinoPedido ? distanciaKm(destinoPedido.lat, destinoPedido.lng, r.lat!, r.lng!) : null;
+                return (
                   <button
                     key={r.id}
                     onClick={() => asignarMutation.mutate(r.id)}
                     disabled={asignarMutation.isPending}
-                    className="text-left text-sm px-3 py-2 rounded-xl border border-gray-200 text-gray-600 hover:bg-gray-50 transition-colors disabled:opacity-50"
+                    className="flex items-center justify-between gap-3 text-left px-3.5 py-2.5 rounded-xl border border-gray-200 hover:bg-gray-50 transition-colors disabled:opacity-50"
                   >
-                    {r.nombre} · {r.telefono}
+                    <div className="flex items-center gap-2.5 min-w-0">
+                      <span
+                        className={`w-2.5 h-2.5 rounded-full flex-shrink-0 ${enLinea ? 'bg-green-500' : 'bg-gray-300'}`}
+                      />
+                      <div className="min-w-0">
+                        <p className="text-sm font-bold text-gray-700 truncate">{r.nombre}</p>
+                        <p className="text-xs text-gray-400">{r.telefono}</p>
+                      </div>
+                    </div>
+                    <div className="text-right flex-shrink-0">
+                      <p className={`text-xs font-bold ${enLinea ? 'text-green-600' : 'text-gray-400'}`}>
+                        {enLinea ? 'En línea' : 'Sin conexión'}
+                      </p>
+                      {dist !== null && <p className="text-xs text-gray-400">{dist.toFixed(1)} km</p>}
+                    </div>
                   </button>
-                ))}
-              </div>
-            )}
+                );
+              })}
+            </div>
           </>
         )}
       </div>
