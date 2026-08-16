@@ -7,6 +7,7 @@ import { getToken } from '@/lib/auth';
 import { requestNotificationPermission } from '@/lib/notificationSound';
 import { setupPushSubscription } from '@/lib/push';
 import Sidebar from '@/components/layout/Sidebar';
+import PedidoNuevoAlerta from '@/components/pedidos/PedidoNuevoAlerta';
 
 export default function AdminLayout({ children }: { children: React.ReactNode }) {
   const router = useRouter();
@@ -26,12 +27,13 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // el aviso de "pedido nuevo" es 100% Web Push (notificación nativa del sistema operativo,
-  // con su propio sonido) - llega aunque esta pestaña esté en segundo plano o el navegador
-  // minimizado. Pedir el permiso necesita un gesto real del usuario; el login ya cuenta, pero
-  // si la sesión venía guardada (pestaña reabierta sin loguearse de nuevo) puede no haber
-  // habido ningún click todavía, así que lo pedimos también en el primer click/touch de la
-  // sesión, sin mostrar nada visible.
+  // el aviso principal de "pedido nuevo" es el modal + sonido propio de PedidoNuevoAlerta (ver
+  // ese componente) - Web Push queda como respaldo silencioso para cuando esta pestaña está en
+  // segundo plano o el navegador minimizado, caso en el que un audio propio de la página no
+  // suena (ver lib/notificationSound.ts). Pedir el permiso necesita un gesto real del usuario;
+  // el login ya cuenta, pero si la sesión venía guardada (pestaña reabierta sin loguearse de
+  // nuevo) puede no haber habido ningún click todavía, así que lo pedimos también en el primer
+  // click/touch de la sesión, sin mostrar nada visible.
   useEffect(() => {
     const handler = () => {
       requestNotificationPermission().then(() => setupPushSubscription());
@@ -54,6 +56,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
       <main className="md:ml-60 flex-1 p-4 pt-20 sm:p-6 md:p-8 md:pt-8 animate-fadeIn min-w-0 print:ml-0 print:p-0">
         {children}
       </main>
+      <PedidoNuevoAlerta />
     </div>
   );
 }
