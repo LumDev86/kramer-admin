@@ -204,8 +204,23 @@ export default function PedidoDetallePage() {
         ) : (
           <>
             <p className="text-xs text-gray-400">
-              Asigná el pedido tocando al repartidor en el mapa o eligiéndolo de la lista.
+              Asigná el pedido eligiéndolo de la lista desplegable, tocándolo en el mapa, o en la lista de abajo.
             </p>
+            <select
+              value=""
+              onChange={(e) => e.target.value && asignarMutation.mutate(e.target.value)}
+              disabled={asignarMutation.isPending || repartidoresOrdenados.length === 0}
+              className="border border-gray-200 rounded-xl px-3 py-2.5 text-sm font-medium text-gray-700 outline-none focus:border-orange-400 disabled:opacity-50"
+            >
+              <option value="" disabled>
+                {repartidoresOrdenados.length === 0 ? 'No hay repartidores activos' : 'Elegir repartidor...'}
+              </option>
+              {repartidoresOrdenados.map((r) => (
+                <option key={r.id} value={r.id}>
+                  {r.nombre} — {estaEnLinea(r) ? 'En línea' : 'Sin conexión'}
+                </option>
+              ))}
+            </select>
             <RepartidoresMap
               repartidores={listaRepartidores ?? []}
               storeLat={storeConfig?.lat ?? null}
