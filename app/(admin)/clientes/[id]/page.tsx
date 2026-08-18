@@ -7,19 +7,7 @@ import Link from 'next/link';
 import { clientes } from '@/lib/api';
 import { CaretLeft, PencilSimple, Bell, Copy, Check, WhatsappLogo } from '@phosphor-icons/react';
 import ConfirmModal from '@/components/ui/ConfirmModal';
-
-const money = (value: number | string) =>
-  `$${Number(value).toLocaleString('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
-
-const formatDateTime = (value: string) =>
-  new Date(value).toLocaleString('es-AR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' });
-
-// wa.me necesita el número con código de país sin signos; si ya viene con 54 lo dejamos,
-// si no, asumimos Argentina (mercado de esta tienda) y se lo agregamos como mejor esfuerzo
-const toWhatsappNumber = (telefono: string): string => {
-  const digits = telefono.replace(/\D/g, '');
-  return digits.startsWith('54') ? digits : `549${digits}`;
-};
+import { money, formatDateTime, waLink } from '@/lib/format';
 
 export default function ClienteDetallePage() {
   const { id } = useParams() as { id: string };
@@ -156,9 +144,10 @@ export default function ClienteDetallePage() {
             </button>
             {cliente.telefono && (
               <a
-                href={`https://wa.me/${toWhatsappNumber(cliente.telefono)}?text=${encodeURIComponent(
+                href={waLink(
+                  cliente.telefono,
                   `Hola ${cliente.nombre}! Para restablecer tu contraseña de Kiosco Kramer entrá a este link: ${recuperoUrl}`
-                )}`}
+                )}
                 target="_blank"
                 rel="noopener noreferrer"
                 className="flex items-center justify-center gap-1.5 px-4 py-2.5 rounded-xl bg-[#25D366] hover:opacity-90 text-white text-sm font-bold transition-opacity flex-shrink-0"

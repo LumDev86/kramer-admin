@@ -5,15 +5,11 @@ import { useRouter } from 'next/navigation';
 import { useQuery } from '@tanstack/react-query';
 import { Bell } from '@phosphor-icons/react';
 import { pedidos, Pedido } from '@/lib/api';
+import { money, PAYMENT_LABEL } from '@/lib/format';
 
 // más rápido que el refetchInterval de la pantalla de Pedidos (15000) - el aviso sonoro tiene
 // que notarse apenas entra el pedido, no en cualquier momento dentro de una ventana de 15s
 const POLL_INTERVAL_MS = 8000;
-
-const money = (value: number | string) =>
-  `$${Number(value).toLocaleString('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
-
-const PAYMENT_LABEL: Record<string, string> = { CASH: 'Efectivo', TRANSFER: 'Transferencia' };
 
 // Montado una sola vez en el layout del admin (no en la pantalla de Pedidos) para que la alerta
 // suene y el modal aparezca sin importar qué sección del panel se esté mirando. Reemplaza al

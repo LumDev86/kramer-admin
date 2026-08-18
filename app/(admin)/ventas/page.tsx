@@ -9,18 +9,7 @@ import ConfirmModal from '@/components/ui/ConfirmModal';
 import ProductSearchModal from '@/components/ui/ProductSearchModal';
 import ClienteSearchModal from '@/components/ui/ClienteSearchModal';
 import VentasDelDiaModal from '@/components/ui/VentasDelDiaModal';
-
-const money = (value: number | string) =>
-  `$${Number(value).toLocaleString('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
-
-// mismo criterio que toWhatsappNumber/waLink en pedidos/[id]/page.tsx
-const toWhatsappNumber = (telefono: string): string => {
-  const digits = telefono.replace(/\D/g, '');
-  return digits.startsWith('54') ? digits : `549${digits}`;
-};
-
-const waLink = (telefono: string, mensaje: string) =>
-  `https://wa.me/${toWhatsappNumber(telefono)}?text=${encodeURIComponent(mensaje)}`;
+import { money, waLink } from '@/lib/format';
 
 // orden en el que Tab recorre la pantalla de ventas cuando hay un ticket activo
 type Section = 'scan' | 'cart' | 'payment' | 'confirm';

@@ -5,9 +5,7 @@ import { useQuery } from '@tanstack/react-query';
 import Link from 'next/link';
 import { CaretLeft, CaretRight, WarningCircle } from '@phosphor-icons/react';
 import { pedidos, PedidoStatus } from '@/lib/api';
-
-const money = (value: number | string) =>
-  `$${Number(value).toLocaleString('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+import { money, PEDIDO_STATUS_LABEL } from '@/lib/format';
 
 // mismo criterio que VentasDelDiaModal.tsx (toISODate) - la fecha local, no UTC
 const toISODate = (d: Date): string => {
@@ -32,14 +30,6 @@ const STATUS_BADGE: Record<PedidoStatus, string> = {
   EN_CAMINO: 'bg-blue-100 text-blue-700',
   ENTREGADO: 'bg-green-100 text-green-700',
   CANCELADO: 'bg-gray-100 text-gray-500',
-};
-
-const STATUS_LABEL: Record<PedidoStatus, string> = {
-  NUEVO: 'Nuevo',
-  EN_PREPARACION: 'En preparación',
-  EN_CAMINO: 'En camino',
-  ENTREGADO: 'Entregado',
-  CANCELADO: 'Cancelado',
 };
 
 export default function PedidosPage() {
@@ -147,7 +137,7 @@ export default function PedidosPage() {
                   <td className="px-4 py-3 text-gray-500">{p.repartidor?.nombre ?? '—'}</td>
                   <td className="px-4 py-3">
                     <span className={`text-[11px] font-bold px-2 py-1 rounded-full ${STATUS_BADGE[p.status]}`}>
-                      {STATUS_LABEL[p.status]}
+                      {PEDIDO_STATUS_LABEL[p.status]}
                     </span>
                   </td>
                   <td className="px-4 py-3 text-gray-400 text-xs">

@@ -5,9 +5,7 @@ import { useQuery } from '@tanstack/react-query';
 import Image from 'next/image';
 import { reportes, cashSessions, TipoPeriodo } from '@/lib/api';
 import { CaretDown, CaretLeft, CaretRight, Printer, TrendUp, TrendDown } from '@phosphor-icons/react';
-
-const money = (value: number | string) =>
-  `$${Number(value).toLocaleString('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+import { money, formatDateTime } from '@/lib/format';
 
 const toISODate = (d: Date): string => {
   const y = d.getFullYear();
@@ -15,9 +13,6 @@ const toISODate = (d: Date): string => {
   const day = String(d.getDate()).padStart(2, '0');
   return `${y}-${m}-${day}`;
 };
-
-const formatDateTime = (value: string) =>
-  new Date(value).toLocaleString('es-AR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' });
 
 const diffColor = (diff: string | null) => {
   if (diff === null) return 'text-gray-400';

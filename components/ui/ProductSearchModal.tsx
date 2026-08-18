@@ -5,9 +5,7 @@ import { useQuery } from '@tanstack/react-query';
 import Image from 'next/image';
 import { products, Product } from '@/lib/api';
 import { MagnifyingGlass, X } from '@phosphor-icons/react';
-
-const money = (value: number | string) =>
-  `$${Number(value).toLocaleString('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+import { money } from '@/lib/format';
 
 interface Props {
   onSelect: (product: Product) => void;

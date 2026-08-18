@@ -6,9 +6,7 @@ import Link from 'next/link';
 import { distribuidores, Distribuidor } from '@/lib/api';
 import { Plus, PencilSimple, Trash } from '@phosphor-icons/react';
 import ConfirmModal from '@/components/ui/ConfirmModal';
-
-const money = (value: number | string) =>
-  `$${Number(value).toLocaleString('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+import { money } from '@/lib/format';
 
 export default function DistribuidorasPage() {
   const qc = useQueryClient();

@@ -13,10 +13,10 @@ import UnitSelector from '@/components/ui/UnitSelector';
 import CategorySelector from '@/components/ui/CategorySelector';
 import ImageLightbox from '@/components/ui/ImageLightbox';
 import AplicarAumentoModal from '@/components/ui/AplicarAumentoModal';
+import { money } from '@/lib/format';
 
-const money = (value: number | string) =>
-  `$${Number(value).toLocaleString('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
-
+// FACTURA_STATUS_LABEL, no confundir con PEDIDO_STATUS_LABEL de lib/format.ts - dominio
+// distinto (estado de factura vs estado de pedido), se queda local a propósito
 const STATUS_LABEL: Record<Factura['status'], string> = {
   PENDING_REVIEW: 'En revisión',
   CONFIRMED: 'Confirmada',

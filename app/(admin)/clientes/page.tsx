@@ -6,11 +6,9 @@ import Link from 'next/link';
 import { clientes, Cliente } from '@/lib/api';
 import { Plus, PencilSimple, MagnifyingGlass } from '@phosphor-icons/react';
 import ToggleSwitch from '@/components/ui/ToggleSwitch';
+import { money } from '@/lib/format';
 
 const LIMIT = 20;
-
-const money = (value: number | string) =>
-  `$${Number(value).toLocaleString('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 
 export default function ClientesPage() {
   const qc = useQueryClient();

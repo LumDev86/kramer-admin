@@ -5,9 +5,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { sales, SaleWithCliente, PaymentMethod } from '@/lib/api';
 import { CaretLeft, CaretRight, X, Trash } from '@phosphor-icons/react';
 import ConfirmModal from './ConfirmModal';
-
-const money = (value: number | string) =>
-  `$${Number(value).toLocaleString('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+import { money } from '@/lib/format';
 
 const PAYMENT_METHOD_LABELS: Record<PaymentMethod, string> = {
   CASH: 'Efectivo',

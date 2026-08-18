@@ -4,9 +4,7 @@ import { useEffect, useRef, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { clientes, Cliente } from '@/lib/api';
 import { MagnifyingGlass, X } from '@phosphor-icons/react';
-
-const money = (value: number | string) =>
-  `$${Number(value).toLocaleString('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+import { money } from '@/lib/format';
 
 interface Props {
   onSelect: (cliente: Cliente) => void;

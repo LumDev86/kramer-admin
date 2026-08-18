@@ -9,37 +9,12 @@ import { pedidos, repartidores as repartidoresApi, config, PedidoStatus } from '
 import { CaretLeft, WhatsappLogo, WarningCircle } from '@phosphor-icons/react';
 import ConfirmModal from '@/components/ui/ConfirmModal';
 import { estaEnLinea, distanciaKm } from '@/lib/geo';
+import { money, formatDateTime, waLink, PEDIDO_STATUS_LABEL, PAYMENT_LABEL } from '@/lib/format';
 
 // Leaflet necesita `window` - no puede renderizarse en el servidor
 const RepartidoresMap = dynamic(() => import('@/components/maps/RepartidoresMap'), { ssr: false });
 
 const CLIENT_URL = 'https://kramer-client.vercel.app';
-
-const money = (value: number | string) =>
-  `$${Number(value).toLocaleString('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
-
-const formatDateTime = (value: string) =>
-  new Date(value).toLocaleString('es-AR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' });
-
-// wa.me necesita el número con código de país sin signos; si ya viene con 54 lo dejamos,
-// si no, asumimos Argentina (mercado de esta tienda) - mismo criterio que ClienteDetallePage
-const toWhatsappNumber = (telefono: string): string => {
-  const digits = telefono.replace(/\D/g, '');
-  return digits.startsWith('54') ? digits : `549${digits}`;
-};
-
-const waLink = (telefono: string, mensaje: string) =>
-  `https://wa.me/${toWhatsappNumber(telefono)}?text=${encodeURIComponent(mensaje)}`;
-
-const STATUS_LABEL: Record<PedidoStatus, string> = {
-  NUEVO: 'Nuevo',
-  EN_PREPARACION: 'En preparación',
-  EN_CAMINO: 'En camino',
-  ENTREGADO: 'Entregado',
-  CANCELADO: 'Cancelado',
-};
-
-const PAYMENT_LABEL: Record<string, string> = { CASH: 'Efectivo', TRANSFER: 'Transferencia' };
 
 const ASIGNACION_LABEL: Record<string, string> = {
   PENDIENTE: 'Esperando respuesta',
@@ -134,7 +109,7 @@ export default function PedidoDetallePage() {
           <p className="text-sm text-gray-400 font-medium mt-0.5">{formatDateTime(pedido.createdAt)}</p>
         </div>
         <span className="text-xs font-bold px-3 py-1.5 rounded-full bg-orange-50 text-orange-600">
-          {STATUS_LABEL[pedido.status]}
+          {PEDIDO_STATUS_LABEL[pedido.status]}
         </span>
       </div>
 
@@ -308,7 +283,7 @@ export default function PedidoDetallePage() {
               className="flex items-center gap-1.5 px-4 py-2.5 rounded-xl bg-[#25D366] hover:opacity-90 text-white text-sm font-bold transition-opacity"
             >
               <WhatsappLogo size={16} weight="fill" />
-              Avisar por WhatsApp ({STATUS_LABEL[pedido.status]})
+              Avisar por WhatsApp ({PEDIDO_STATUS_LABEL[pedido.status]})
             </a>
             <button
               onClick={() => setToCancel(true)}
@@ -329,7 +304,7 @@ export default function PedidoDetallePage() {
             className="flex items-center gap-1.5 w-fit px-4 py-2.5 rounded-xl bg-[#25D366] hover:opacity-90 text-white text-sm font-bold transition-opacity"
           >
             <WhatsappLogo size={16} weight="fill" />
-            Avisar por WhatsApp ({STATUS_LABEL[pedido.status]})
+            Avisar por WhatsApp ({PEDIDO_STATUS_LABEL[pedido.status]})
           </a>
         </div>
       )}

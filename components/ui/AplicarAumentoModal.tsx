@@ -5,9 +5,7 @@ import { useQuery, useMutation } from '@tanstack/react-query';
 import Image from 'next/image';
 import { distribuidores, ProductoDistribuidor, ProductoAjustado } from '@/lib/api';
 import { X, Check } from '@phosphor-icons/react';
-
-const money = (value: number | string) =>
-  `$${Number(value).toLocaleString('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+import { money } from '@/lib/format';
 
 interface Props {
   distribuidorId: string;

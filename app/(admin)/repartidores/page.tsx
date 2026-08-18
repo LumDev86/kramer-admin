@@ -4,13 +4,11 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import dynamic from 'next/dynamic';
 import { repartidores, config } from '@/lib/api';
 import ToggleSwitch from '@/components/ui/ToggleSwitch';
+import { formatDateTime } from '@/lib/format';
 
 const RepartidoresMap = dynamic(() => import('@/components/maps/RepartidoresMap'), { ssr: false });
 
 const PANEL_SIZE = 440;
-
-const formatDateTime = (value: string) =>
-  new Date(value).toLocaleString('es-AR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' });
 
 export default function RepartidoresPage() {
   const qc = useQueryClient();
