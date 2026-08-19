@@ -3,16 +3,21 @@
 import { useEffect, useRef, useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import Link from 'next/link';
-import { sales, products, cashSessions, Sale, SaleItem, Product, Cliente, PaymentMethod, CashSession } from '@/lib/api';
-import { Plus, Trash, X, Receipt, Wallet, ChartBar, Check, MagnifyingGlass, CalendarBlank, WhatsappLogo } from '@phosphor-icons/react';
+import { sales, products, cashSessions, Sale, Cliente, PaymentMethod, CashSession, Product } from '@/lib/api';
+import { Wallet, ChartBar, CalendarBlank } from '@phosphor-icons/react';
 import ConfirmModal from '@/components/ui/ConfirmModal';
 import ProductSearchModal from '@/components/ui/ProductSearchModal';
 import ClienteSearchModal from '@/components/ui/ClienteSearchModal';
 import VentasDelDiaModal from '@/components/ui/VentasDelDiaModal';
-import { money, waLink } from '@/lib/format';
-
-// orden en el que Tab recorre la pantalla de ventas cuando hay un ticket activo
-type Section = 'scan' | 'cart' | 'payment' | 'confirm';
+import { money } from '@/lib/format';
+import { Section } from '@/components/ventas/types';
+import AbrirCajaScreen from '@/components/ventas/AbrirCajaScreen';
+import CerrarCajaModal from '@/components/ventas/CerrarCajaModal';
+import TicketsTabs from '@/components/ventas/TicketsTabs';
+import EscaneoYManualCard from '@/components/ventas/EscaneoYManualCard';
+import CarritoTable from '@/components/ventas/CarritoTable';
+import CobroCard from '@/components/ventas/CobroCard';
+import VentaCobradaCard from '@/components/ventas/VentaCobradaCard';
 
 export default function VentasPage() {
   const qc = useQueryClient();
@@ -402,127 +407,17 @@ export default function VentasPage() {
 
   if (!currentSession) {
     return (
-      <>
-        <div className="flex flex-col gap-6 max-w-md">
-          <div>
-            <h1 className="text-2xl font-extrabold text-gray-800">Ventas</h1>
-            <p className="text-sm text-gray-400 font-medium mt-0.5">Abrí la caja para empezar a vender</p>
-          </div>
-          <div className="bg-white rounded-2xl shadow-sm p-6 flex flex-col gap-4">
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-xl bg-orange-50 flex items-center justify-center flex-shrink-0">
-                <Wallet size={20} weight="fill" className="text-orange-500" />
-              </div>
-              <div>
-                <p className="text-sm font-bold text-gray-700">Abrir caja</p>
-                <p className="text-xs text-gray-400">Ingresá el efectivo con el que arrancás el turno</p>
-              </div>
-            </div>
-            <input
-              type="number"
-              min="0"
-              step="0.01"
-              value={openingAmount}
-              onChange={(e) => setOpeningAmount(e.target.value)}
-              placeholder="Monto inicial en efectivo"
-              className="border border-gray-200 rounded-xl px-4 py-3 text-sm outline-none focus:border-orange-400 font-semibold"
-            />
-            {openSessionError && (
-              <p className="text-xs text-red-500 font-semibold bg-red-50 rounded-lg px-3 py-2">{openSessionError}</p>
-            )}
-            <button
-              onClick={() => openSessionMutation.mutate(parseFloat(openingAmount))}
-              disabled={!openingAmount || openSessionMutation.isPending}
-              className="w-full py-3 rounded-xl bg-orange-500 hover:bg-orange-600 text-white text-sm font-extrabold transition-colors disabled:opacity-50"
-            >
-              {openSessionMutation.isPending ? 'Abriendo...' : 'Abrir caja'}
-            </button>
-          </div>
-        </div>
-        {closeModalOpen && closeResult && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4 animate-fadeIn">
-            <div className="bg-white rounded-2xl shadow-xl p-6 w-full max-w-sm animate-slideUp flex flex-col gap-4">
-              <div className="flex flex-col items-center gap-2 text-center">
-                <div
-                  className={`w-12 h-12 rounded-full flex items-center justify-center ${
-                    Number(closeResult.difference) === 0
-                      ? 'bg-green-100'
-                      : Number(closeResult.difference) < 0
-                      ? 'bg-red-100'
-                      : 'bg-amber-100'
-                  }`}
-                >
-                  <Check
-                    size={24}
-                    weight="bold"
-                    className={
-                      Number(closeResult.difference) === 0
-                        ? 'text-green-600'
-                        : Number(closeResult.difference) < 0
-                        ? 'text-red-500'
-                        : 'text-amber-500'
-                    }
-                  />
-                </div>
-                <p className="text-sm font-bold text-gray-700">Caja cerrada</p>
-              </div>
-              <div className="flex flex-col gap-1.5 text-sm">
-                <div className="flex justify-between"><span className="text-gray-500">Esperado</span><span className="font-semibold">{money(closeResult.expectedAmount!)}</span></div>
-                <div className="flex justify-between"><span className="text-gray-500">Contado</span><span className="font-semibold">{money(closeResult.closingAmount!)}</span></div>
-                <div className="flex justify-between border-t border-gray-100 pt-1.5">
-                  <span className="text-gray-500">Diferencia</span>
-                  <span
-                    className={`font-bold ${
-                      Number(closeResult.difference) === 0
-                        ? 'text-green-600'
-                        : Number(closeResult.difference) < 0
-                        ? 'text-red-500'
-                        : 'text-amber-500'
-                    }`}
-                  >
-                    {Number(closeResult.difference) > 0 ? '+' : ''}{money(closeResult.difference!)}
-                    {Number(closeResult.difference) < 0 ? ' (faltante)' : Number(closeResult.difference) > 0 ? ' (sobrante)' : ''}
-                  </span>
-                </div>
-                {closeBreakdown && (
-                  <div className="flex justify-between border-t border-gray-100 pt-1.5">
-                    <span className="text-gray-500">Ganancia del turno</span>
-                    <span className="font-bold text-gray-700">{money(closeBreakdown.profit)}</span>
-                  </div>
-                )}
-              </div>
-              {closeBreakdown && closeBreakdown.byCategory.length > 0 && (
-                <div className="flex flex-col gap-1 bg-gray-50 rounded-xl p-3">
-                  <p className="text-xs font-bold text-gray-400 uppercase tracking-wide">Ventas por categoría</p>
-                  {closeBreakdown.byCategory.map((c) => (
-                    <div key={c.name} className="flex justify-between text-xs">
-                      <span className="text-gray-500">{c.name}</span>
-                      <span className="font-semibold text-gray-600">{money(c.total)}</span>
-                    </div>
-                  ))}
-                </div>
-              )}
-              {closeBreakdown && closeBreakdown.byProduct.length > 0 && (
-                <div className="flex flex-col gap-1 bg-gray-50 rounded-xl p-3">
-                  <p className="text-xs font-bold text-gray-400 uppercase tracking-wide">Productos más vendidos</p>
-                  {closeBreakdown.byProduct.map((p) => (
-                    <div key={p.name} className="flex justify-between text-xs">
-                      <span className="text-gray-500">{p.quantity} × {p.name}</span>
-                      <span className="font-semibold text-gray-600">{money(p.total)}</span>
-                    </div>
-                  ))}
-                </div>
-              )}
-              <button
-                onClick={() => { setCloseModalOpen(false); setCloseResult(null); setClosingAmount(''); }}
-                className="w-full py-2.5 rounded-xl bg-orange-500 hover:bg-orange-600 text-white text-sm font-bold transition-colors"
-              >
-                Aceptar
-              </button>
-            </div>
-          </div>
-        )}
-      </>
+      <AbrirCajaScreen
+        openingAmount={openingAmount}
+        onOpeningAmountChange={setOpeningAmount}
+        error={openSessionError}
+        onOpen={() => openSessionMutation.mutate(parseFloat(openingAmount))}
+        opening={openSessionMutation.isPending}
+        closeModalOpen={closeModalOpen}
+        closeResult={closeResult}
+        closeBreakdown={closeBreakdown}
+        onAcceptCloseResult={() => { setCloseModalOpen(false); setCloseResult(null); setClosingAmount(''); }}
+      />
     );
   }
 
@@ -574,352 +469,87 @@ export default function VentasPage() {
       </div>
 
       <div className="flex flex-col gap-4">
-          {/* Pestañas de tickets abiertos */}
-          <div className="flex items-center gap-2 overflow-x-auto pb-1">
-            {tickets.map((sale, i) => (
-              <div key={sale.id} className="relative flex-shrink-0">
-                <button
-                  onClick={() => setActiveSaleId(sale.id)}
-                  className={`flex items-center gap-2 pl-4 pr-8 py-2.5 rounded-xl text-sm font-bold transition-colors ${
-                    activeSale?.id === sale.id
-                      ? 'bg-orange-500 text-white'
-                      : 'bg-white border border-gray-200 text-gray-600 hover:bg-gray-50'
-                  }`}
-                >
-                  <Receipt size={16} weight={activeSale?.id === sale.id ? 'fill' : 'regular'} />
-                  Ticket {i + 1}
-                </button>
-                <button
-                  onClick={() => setToCancel(sale)}
-                  className={`absolute right-2 top-1/2 -translate-y-1/2 w-4 h-4 flex items-center justify-center rounded ${
-                    activeSale?.id === sale.id ? 'text-white/70 hover:text-white' : 'text-gray-400 hover:text-red-500'
-                  }`}
-                >
-                  <X size={12} weight="bold" />
-                </button>
-              </div>
-            ))}
-            <button
-              onClick={() => createSaleMutation.mutate()}
-              disabled={createSaleMutation.isPending}
-              className="flex-shrink-0 flex items-center gap-2 px-4 py-2.5 rounded-xl border border-dashed border-gray-300 text-sm font-bold text-gray-500 hover:bg-gray-50 transition-colors disabled:opacity-60"
-            >
-              <Plus size={16} weight="bold" />
-              Nuevo ticket
-            </button>
-          </div>
+        <TicketsTabs
+          tickets={tickets}
+          activeSaleId={activeSale?.id}
+          onSelect={setActiveSaleId}
+          onCancel={setToCancel}
+          onNew={() => createSaleMutation.mutate()}
+          creating={createSaleMutation.isPending}
+        />
 
-          {/* Escaneo */}
-          <div className="bg-white rounded-2xl shadow-sm p-4 flex flex-col gap-3">
-            <div className="flex gap-2">
-              <input
-                ref={scanInputRef}
-                type="text"
-                value={query}
-                onChange={(e) => setQuery(e.target.value)}
-                onKeyDown={handleScanKeyDown}
-                onFocus={() => setSection('scan')}
-                placeholder="Escaneá o tipeá el código y presioná Enter"
-                className="flex-1 border border-gray-200 rounded-xl px-4 py-3 text-sm outline-none focus:border-orange-400 font-semibold"
-              />
-              <button
-                onClick={() => setProductSearchOpen(true)}
-                title="Buscar producto (F10)"
-                className="flex-shrink-0 flex items-center gap-2 px-4 rounded-xl border border-gray-200 text-sm font-semibold text-gray-600 hover:bg-gray-50 transition-colors"
-              >
-                <MagnifyingGlass size={16} weight="bold" />
-                <span className="hidden sm:inline">Buscar</span>
-                <span className="hidden md:inline text-xs text-gray-400 font-medium">F10</span>
-              </button>
-              <button
-                onClick={() => setManualOpen(true)}
-                className="flex-shrink-0 px-4 rounded-xl border border-gray-200 text-sm font-semibold text-gray-600 hover:bg-gray-50 transition-colors"
-              >
-                Manual
-              </button>
-            </div>
+        <EscaneoYManualCard
+          scanInputRef={scanInputRef}
+          query={query}
+          onQueryChange={setQuery}
+          onScanKeyDown={handleScanKeyDown}
+          onFocusScan={() => setSection('scan')}
+          onOpenProductSearch={() => setProductSearchOpen(true)}
+          scanError={scanError}
+          manualOpen={manualOpen}
+          onOpenManual={() => setManualOpen(true)}
+          manualName={manualName}
+          onManualNameChange={setManualName}
+          manualPrice={manualPrice}
+          onManualPriceChange={setManualPrice}
+          onCancelManual={() => { setManualOpen(false); setManualName(''); setManualPrice(''); }}
+          onAddManual={handleAddManual}
+        />
 
-            {scanError && (
-              <p className="text-xs text-red-500 font-semibold bg-red-50 rounded-lg px-3 py-2">{scanError}</p>
-            )}
+        <CarritoTable
+          cartContainerRef={cartContainerRef}
+          section={section}
+          onFocusCart={() => setSection('cart')}
+          activeSale={activeSale}
+          cartIndex={cartIndex}
+          onHoverItem={setCartIndex}
+          onIncrement={(item) =>
+            activeSale &&
+            updateItemMutation.mutate({ saleId: activeSale.id, itemId: item.id, quantity: item.quantity + 1 })
+          }
+          onDecrement={(item) =>
+            activeSale &&
+            updateItemMutation.mutate({ saleId: activeSale.id, itemId: item.id, quantity: Math.max(1, item.quantity - 1) })
+          }
+          onRemove={(item) => activeSale && removeItemMutation.mutate({ saleId: activeSale.id, itemId: item.id })}
+        />
 
-            {manualOpen && (
-              <div className="flex flex-col gap-2 bg-gray-50 rounded-xl p-3">
-                <p className="text-xs font-bold text-gray-500 uppercase tracking-wide">Producto manual</p>
-                <div className="flex gap-2">
-                  <input
-                    type="text"
-                    value={manualName}
-                    onChange={(e) => setManualName(e.target.value)}
-                    placeholder="Descripción"
-                    className="flex-1 border border-gray-200 rounded-xl px-3 py-2 text-sm outline-none focus:border-orange-400 font-medium"
-                  />
-                  <input
-                    type="number"
-                    min="0"
-                    step="0.01"
-                    value={manualPrice}
-                    onChange={(e) => setManualPrice(e.target.value)}
-                    placeholder="Precio"
-                    className="w-28 border border-gray-200 rounded-xl px-3 py-2 text-sm outline-none focus:border-orange-400 font-medium"
-                  />
-                </div>
-                <div className="flex gap-2">
-                  <button
-                    onClick={() => { setManualOpen(false); setManualName(''); setManualPrice(''); }}
-                    className="flex-1 py-2 rounded-xl border border-gray-200 text-xs font-semibold text-gray-600 hover:bg-white transition-colors"
-                  >
-                    Cancelar
-                  </button>
-                  <button
-                    onClick={handleAddManual}
-                    disabled={!manualName.trim() || !manualPrice}
-                    className="flex-1 py-2 rounded-xl bg-orange-500 hover:bg-orange-600 text-white text-xs font-bold transition-colors disabled:opacity-50"
-                  >
-                    Agregar
-                  </button>
-                </div>
-              </div>
-            )}
-          </div>
+        {activeSale && activeSale.items.length > 0 && (
+          <CobroCard
+            section={section}
+            total={total}
+            paymentMethod={paymentMethod}
+            onClickEfectivo={() => setPaymentMethod('CASH')}
+            onClickCredito={() => { setPaymentMethod('CREDIT'); if (!selectedCliente) setClienteSearchOpen(true); }}
+            onFocusPayment={() => setSection('payment')}
+            selectedCliente={selectedCliente}
+            onOpenClienteSearch={() => setClienteSearchOpen(true)}
+            paidAmount={paidAmount}
+            onPaidAmountChange={setPaidAmount}
+            change={change}
+            payError={payError}
+            onPay={handlePay}
+            canPay={canPay}
+            paying={payMutation.isPending}
+            onFocusConfirm={() => setSection('confirm')}
+            efectivoBtnRef={efectivoBtnRef}
+            creditoBtnRef={creditoBtnRef}
+            payButtonRef={payButtonRef}
+          />
+        )}
 
-          {/* Carrito */}
-          <div
-            ref={cartContainerRef}
-            tabIndex={-1}
-            onFocus={() => setSection('cart')}
-            className={`bg-white rounded-2xl shadow-sm overflow-hidden outline-none transition-shadow ${
-              section === 'cart' ? 'ring-2 ring-orange-400' : ''
-            }`}
-          >
-            {!!activeSale && activeSale.items.length > 0 && (
-              <p className="px-4 py-2 text-[11px] text-gray-400 font-medium border-b border-gray-50">
-                Tab cambia de sección · acá: ↑↓ elegir producto · +/− cantidad · Supr eliminar
-              </p>
-            )}
-            <table className="w-full text-sm">
-              <thead className="border-b border-gray-100">
-                <tr className="text-left">
-                  <th className="px-4 py-3 text-xs font-bold text-gray-400 uppercase tracking-wide">Producto</th>
-                  <th className="px-4 py-3 text-xs font-bold text-gray-400 uppercase tracking-wide w-32">Cantidad</th>
-                  <th className="px-4 py-3 text-xs font-bold text-gray-400 uppercase tracking-wide">Subtotal</th>
-                  <th className="px-4 py-3 w-10" />
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-gray-50">
-                {!activeSale || activeSale.items.length === 0 ? (
-                  <tr>
-                    <td colSpan={4} className="px-4 py-8 text-center text-sm text-gray-400 font-medium">
-                      Sin productos todavía. Escaneá o buscá uno para empezar.
-                    </td>
-                  </tr>
-                ) : (
-                  activeSale.items.map((item, i) => (
-                    <tr
-                      key={item.id}
-                      onMouseEnter={() => setCartIndex(i)}
-                      className={`transition-colors ${
-                        section === 'cart' && i === cartIndex ? 'bg-orange-50' : 'hover:bg-gray-50'
-                      }`}
-                    >
-                      <td className="px-4 py-3">
-                        <p className="font-semibold text-gray-700">{item.name}</p>
-                        <p className="text-xs text-gray-400">{money(item.unitPrice)} c/u</p>
-                      </td>
-                      <td className="px-4 py-3">
-                        <div className="flex items-center gap-1">
-                          <button
-                            onClick={() =>
-                              updateItemMutation.mutate({
-                                saleId: activeSale.id,
-                                itemId: item.id,
-                                quantity: Math.max(1, item.quantity - 1),
-                              })
-                            }
-                            className="w-6 h-6 rounded-lg border border-gray-200 text-gray-500 hover:bg-gray-100 flex items-center justify-center font-bold"
-                          >
-                            −
-                          </button>
-                          <span className="w-8 text-center font-semibold">{item.quantity}</span>
-                          <button
-                            onClick={() =>
-                              updateItemMutation.mutate({
-                                saleId: activeSale.id,
-                                itemId: item.id,
-                                quantity: item.quantity + 1,
-                              })
-                            }
-                            className="w-6 h-6 rounded-lg border border-gray-200 text-gray-500 hover:bg-gray-100 flex items-center justify-center font-bold"
-                          >
-                            +
-                          </button>
-                        </div>
-                      </td>
-                      <td className="px-4 py-3 font-bold text-orange-500">{money(item.subtotal)}</td>
-                      <td className="px-4 py-3">
-                        <button
-                          onClick={() => removeItemMutation.mutate({ saleId: activeSale.id, itemId: item.id })}
-                          className="w-7 h-7 rounded-lg flex items-center justify-center text-gray-400 hover:bg-red-50 hover:text-red-500 transition-colors"
-                        >
-                          <Trash size={14} weight="bold" />
-                        </button>
-                      </td>
-                    </tr>
-                  ))
-                )}
-              </tbody>
-            </table>
-          </div>
-
-          {/* Cobro */}
-          {activeSale && activeSale.items.length > 0 && (
-            <div
-              className={`bg-white rounded-2xl shadow-sm p-5 flex flex-col gap-4 transition-shadow ${
-                section === 'payment' ? 'ring-2 ring-orange-400' : ''
-              }`}
-            >
-              <div className="flex items-center justify-between">
-                <p className="text-sm font-bold text-gray-500 uppercase tracking-wide">Total</p>
-                <p className="text-2xl font-extrabold text-gray-800">{money(total)}</p>
-              </div>
-
-              <div className="flex gap-2">
-                <button
-                  ref={efectivoBtnRef}
-                  onClick={() => setPaymentMethod('CASH')}
-                  onFocus={() => setSection('payment')}
-                  className={`flex-1 py-2.5 rounded-xl text-sm font-bold transition-colors outline-none focus:ring-2 focus:ring-orange-300 ${
-                    paymentMethod === 'CASH' ? 'bg-orange-500 text-white' : 'bg-gray-50 text-gray-500 hover:bg-gray-100'
-                  }`}
-                >
-                  Efectivo <span className="opacity-60 font-medium">· F2</span>
-                </button>
-                <button
-                  ref={creditoBtnRef}
-                  onClick={() => { setPaymentMethod('CREDIT'); if (!selectedCliente) setClienteSearchOpen(true); }}
-                  onFocus={() => setSection('payment')}
-                  className={`flex-1 py-2.5 rounded-xl text-sm font-bold transition-colors outline-none focus:ring-2 focus:ring-orange-300 ${
-                    paymentMethod === 'CREDIT' ? 'bg-orange-500 text-white' : 'bg-gray-50 text-gray-500 hover:bg-gray-100'
-                  }`}
-                >
-                  Crédito <span className="opacity-60 font-medium">· F1</span>
-                </button>
-              </div>
-
-              {paymentMethod === 'CREDIT' && (
-                <div className="flex items-center justify-between gap-3 bg-gray-50 rounded-xl px-3 py-2.5">
-                  <p className="text-sm font-semibold text-gray-700 truncate">
-                    {selectedCliente
-                      ? `${selectedCliente.nombre} ${selectedCliente.apellido}`
-                      : 'Sin cliente seleccionado'}
-                  </p>
-                  <button
-                    onClick={() => setClienteSearchOpen(true)}
-                    className="flex-shrink-0 text-xs font-bold text-orange-500 hover:text-orange-600 transition-colors"
-                  >
-                    {selectedCliente ? 'Cambiar' : 'Elegir cliente'}
-                  </button>
-                </div>
-              )}
-
-              {paymentMethod === 'CASH' && (
-                <div className="flex items-center gap-3">
-                  <input
-                    type="number"
-                    min="0"
-                    step="0.01"
-                    value={paidAmount}
-                    onChange={(e) => setPaidAmount(e.target.value)}
-                    placeholder="Paga con... (opcional)"
-                    className="flex-1 border border-gray-200 rounded-xl px-3 py-2.5 text-sm outline-none focus:border-orange-400 font-medium"
-                  />
-                  <p className={`text-sm font-bold ${change >= 0 ? 'text-green-600' : 'text-gray-300'}`}>
-                    Vuelto: {paidAmount !== '' && change >= 0 ? money(change) : '—'}
-                  </p>
-                </div>
-              )}
-
-              {payError && (
-                <p className="text-xs text-red-500 font-semibold bg-red-50 rounded-lg px-3 py-2">{payError}</p>
-              )}
-
-              <button
-                ref={payButtonRef}
-                onClick={handlePay}
-                onFocus={() => setSection('confirm')}
-                disabled={!canPay || payMutation.isPending}
-                className="w-full py-3 rounded-xl bg-green-600 hover:bg-green-700 text-white text-sm font-extrabold transition-colors disabled:opacity-50 outline-none focus:ring-2 focus:ring-green-300"
-              >
-                {payMutation.isPending
-                  ? 'Cobrando...'
-                  : paymentMethod === 'CREDIT' && !selectedCliente
-                  ? 'F1 · Elegir cliente'
-                  : paymentMethod === 'CREDIT'
-                  ? `F2 · Cobrar ${money(total)} a crédito`
-                  : `F2 · Cobrar ${money(total)} en efectivo`}
-              </button>
-            </div>
-          )}
-
-          {/* Cartel post-cobro: opcional, no bloquea la próxima venta (se limpia solo
-              apenas se arranca otra en ensureActiveSale) */}
-          {!activeSale && lastPaidSale && (
-            <div className="bg-white rounded-2xl shadow-sm p-5 flex flex-col gap-3 animate-fadeIn">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <div className="w-8 h-8 rounded-full bg-green-100 flex items-center justify-center flex-shrink-0">
-                    <Check size={16} weight="bold" className="text-green-600" />
-                  </div>
-                  <div>
-                    <p className="text-sm font-bold text-gray-800">Venta cobrada</p>
-                    <p className="text-xs text-gray-400">{money(lastPaidSale.total)}</p>
-                  </div>
-                </div>
-                <button
-                  onClick={() => { setLastPaidSale(null); setSendWaOpen(false); }}
-                  className="text-gray-400 hover:text-gray-600 transition-colors"
-                >
-                  <X size={16} weight="bold" />
-                </button>
-              </div>
-
-              {!sendWaOpen ? (
-                <button
-                  onClick={() => { setWaPhone(lastPaidSale.telefonoSugerido); setSendWaOpen(true); }}
-                  className="flex items-center justify-center gap-2 py-2.5 rounded-xl bg-[#25D366] hover:opacity-90 text-white text-sm font-bold transition-opacity"
-                >
-                  <WhatsappLogo size={16} weight="fill" />
-                  Enviar ticket por WhatsApp
-                </button>
-              ) : (
-                <div className="flex items-center gap-2">
-                  <input
-                    type="tel"
-                    autoFocus
-                    value={waPhone}
-                    onChange={(e) => setWaPhone(e.target.value)}
-                    placeholder="+54 9 11 1234-5678"
-                    className="flex-1 border border-gray-200 rounded-xl px-3 py-2.5 text-sm outline-none focus:border-orange-400 font-medium"
-                  />
-                  <a
-                    href={
-                      waPhone.trim()
-                        ? waLink(waPhone, `¡Hola! Acá tenés tu ticket de compra: ${sales.ticketPdfUrl(lastPaidSale.id)}`)
-                        : undefined
-                    }
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    onClick={() => { setLastPaidSale(null); setSendWaOpen(false); }}
-                    className={`flex-shrink-0 px-4 py-2.5 rounded-xl text-sm font-bold transition-colors ${
-                      waPhone.trim() ? 'bg-[#25D366] hover:opacity-90 text-white' : 'bg-gray-100 text-gray-300 pointer-events-none'
-                    }`}
-                  >
-                    Enviar
-                  </a>
-                </div>
-              )}
-            </div>
-          )}
+        {/* Cartel post-cobro: opcional, no bloquea la próxima venta (se limpia solo
+            apenas se arranca otra en ensureActiveSale) */}
+        {!activeSale && lastPaidSale && (
+          <VentaCobradaCard
+            lastPaidSale={lastPaidSale}
+            sendWaOpen={sendWaOpen}
+            waPhone={waPhone}
+            onWaPhoneChange={setWaPhone}
+            onOpenSendWa={() => { setWaPhone(lastPaidSale.telefonoSugerido); setSendWaOpen(true); }}
+            onDismiss={() => { setLastPaidSale(null); setSendWaOpen(false); }}
+          />
+        )}
       </div>
 
       {productSearchOpen && (
@@ -946,53 +576,19 @@ export default function VentasPage() {
       )}
 
       {ventasDelDiaOpen && (
-        <VentasDelDiaModal
-          currentSessionId={currentSession.id}
-          onClose={() => setVentasDelDiaOpen(false)}
-        />
+        <VentasDelDiaModal currentSessionId={currentSession.id} onClose={() => setVentasDelDiaOpen(false)} />
       )}
 
       {closeModalOpen && !closeResult && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4 animate-fadeIn">
-          <div className="bg-white rounded-2xl shadow-xl p-6 w-full max-w-sm animate-slideUp flex flex-col gap-4">
-            <p className="text-sm font-bold text-gray-700">Cerrar caja</p>
-            <div className="flex flex-col gap-1.5 text-sm bg-gray-50 rounded-xl p-3">
-              <div className="flex justify-between"><span className="text-gray-500">Inicial</span><span className="font-semibold">{money(currentSession.openingAmount)}</span></div>
-              <div className="flex justify-between"><span className="text-gray-500">Ventas efectivo</span><span className="font-semibold">{money(currentSession.salesCash)}</span></div>
-              <div className="flex justify-between"><span className="text-gray-500">Ventas a crédito</span><span className="font-semibold">{money(currentSession.salesCredit)}</span></div>
-              <div className="flex justify-between border-t border-gray-200 pt-1.5"><span className="text-gray-500">Esperado</span><span className="font-bold">{money(Number(currentSession.openingAmount) + currentSession.salesCash)}</span></div>
-            </div>
-            <input
-              type="number"
-              min="0"
-              step="0.01"
-              value={closingAmount}
-              onChange={(e) => setClosingAmount(e.target.value)}
-              placeholder="Monto contado"
-              className="border border-gray-200 rounded-xl px-3 py-2.5 text-sm outline-none focus:border-orange-400 font-semibold"
-            />
-            {closeError && (
-              <p className="text-xs text-red-500 font-semibold bg-red-50 rounded-lg px-3 py-2">{closeError}</p>
-            )}
-            <div className="flex gap-3">
-              <button
-                onClick={() => { setCloseModalOpen(false); setClosingAmount(''); setCloseError(''); }}
-                className="flex-1 py-2.5 rounded-xl border border-gray-200 text-sm font-semibold text-gray-600 hover:bg-gray-50 transition-colors"
-              >
-                Cancelar
-              </button>
-              <button
-                onClick={() =>
-                  closeSessionMutation.mutate({ id: currentSession.id, amount: parseFloat(closingAmount) })
-                }
-                disabled={!closingAmount || closeSessionMutation.isPending}
-                className="flex-1 py-2.5 rounded-xl bg-orange-500 hover:bg-orange-600 text-white text-sm font-bold transition-colors disabled:opacity-60"
-              >
-                {closeSessionMutation.isPending ? 'Cerrando...' : 'Confirmar cierre'}
-              </button>
-            </div>
-          </div>
-        </div>
+        <CerrarCajaModal
+          session={currentSession}
+          closingAmount={closingAmount}
+          onClosingAmountChange={setClosingAmount}
+          error={closeError}
+          onConfirm={() => closeSessionMutation.mutate({ id: currentSession.id, amount: parseFloat(closingAmount) })}
+          closing={closeSessionMutation.isPending}
+          onCancel={() => { setCloseModalOpen(false); setClosingAmount(''); setCloseError(''); }}
+        />
       )}
     </div>
   );
