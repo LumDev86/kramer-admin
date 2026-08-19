@@ -1,41 +1,24 @@
 'use client';
 
-import { Fragment, useEffect, useRef, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useParams } from 'next/navigation';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import Link from 'next/link';
 import Image from 'next/image';
-import { distribuidores, facturas, products, categories, Factura, FacturaItem, Product, ImageSearchResult } from '@/lib/api';
-import { CaretLeft, UploadSimple, Trash, Warning, Check, X, MagnifyingGlass, Camera, TrendUp } from '@phosphor-icons/react';
+import { distribuidores, facturas, products, categories, Factura } from '@/lib/api';
+import { CaretLeft, Warning, TrendUp } from '@phosphor-icons/react';
 import ConfirmModal from '@/components/ui/ConfirmModal';
-import ImageUpload from '@/components/ui/ImageUpload';
-import UnitSelector from '@/components/ui/UnitSelector';
-import CategorySelector from '@/components/ui/CategorySelector';
 import ImageLightbox from '@/components/ui/ImageLightbox';
 import AplicarAumentoModal from '@/components/ui/AplicarAumentoModal';
 import { money } from '@/lib/format';
-
-// FACTURA_STATUS_LABEL, no confundir con PEDIDO_STATUS_LABEL de lib/format.ts - dominio
-// distinto (estado de factura vs estado de pedido), se queda local a propósito
-const STATUS_LABEL: Record<Factura['status'], string> = {
-  PENDING_REVIEW: 'En revisión',
-  CONFIRMED: 'Confirmada',
-  CANCELLED: 'Cancelada',
-};
-
-const getPriceChange = (item: FacturaItem): { pct: number; oldCost: number; newCost: number } | null => {
-  if (!item.product?.cost) return null;
-  const oldCost = Number(item.product.cost);
-  const newCost = Number(item.precioUnitario);
-  if (!(oldCost > 0) || Math.abs(newCost - oldCost) < 0.01) return null;
-  return { pct: ((newCost - oldCost) / oldCost) * 100, oldCost, newCost };
-};
+import SubirFacturaCard from '@/components/distribuidoras/SubirFacturaCard';
+import FacturaItemRow from '@/components/distribuidoras/FacturaItemRow';
+import AgregarLineaManual from '@/components/distribuidoras/AgregarLineaManual';
+import HistorialFacturas from '@/components/distribuidoras/HistorialFacturas';
 
 export default function DistribuidoraDetallePage() {
   const { id } = useParams() as { id: string };
   const qc = useQueryClient();
-  const cameraInputRef = useRef<HTMLInputElement>(null);
-  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const [activeFacturaId, setActiveFacturaId] = useState<string | null>(null);
   const [uploadError, setUploadError] = useState('');
@@ -43,36 +26,6 @@ export default function DistribuidoraDetallePage() {
   const [revealCount, setRevealCount] = useState(Infinity);
   const [toCancel, setToCancel] = useState<Factura | null>(null);
   const [showAumentoModal, setShowAumentoModal] = useState(false);
-  const [linkingItemId, setLinkingItemId] = useState<string | null>(null);
-  const [linkQuery, setLinkQuery] = useState('');
-  const [linkResults, setLinkResults] = useState<Product[] | null>(null);
-  const [manualOpen, setManualOpen] = useState(false);
-  const [manualNombre, setManualNombre] = useState('');
-  const [manualPrecio, setManualPrecio] = useState('');
-  const [manualCantidad, setManualCantidad] = useState('1');
-  const [creatingItemId, setCreatingItemId] = useState<string | null>(null);
-  const [newProductForm, setNewProductForm] = useState({
-    title: '',
-    price: '',
-    quantity: '',
-    unit: '',
-    categoryId: '',
-    barcode: '',
-  });
-  const [newProductImage, setNewProductImage] = useState<File | null>(null);
-  const [newProductError, setNewProductError] = useState('');
-  const [generatingBarcode, setGeneratingBarcode] = useState(false);
-  const [gananciaDeseadaPct, setGananciaDeseadaPct] = useState('');
-  const [aiImageUrl, setAiImageUrl] = useState<string | null>(null);
-  const [imageSearchResults, setImageSearchResults] = useState<ImageSearchResult[] | null>(null);
-  const [imageSearchLoading, setImageSearchLoading] = useState(false);
-  const [priceDrafts, setPriceDrafts] = useState<Record<string, string>>({});
-  const [linkingProduct, setLinkingProduct] = useState<{
-    item: FacturaItem;
-    product: { id: string; title: string; price: string };
-  } | null>(null);
-  const [linkPrice, setLinkPrice] = useState('');
-  const [linkGananciaPct, setLinkGananciaPct] = useState('');
 
   const { data, isLoading } = useQuery({
     queryKey: ['distribuidor', id],
@@ -123,18 +76,6 @@ export default function DistribuidoraDetallePage() {
     },
   });
 
-  const addItemMutation = useMutation({
-    mutationFn: ({ facturaId, data: itemData }: { facturaId: string; data: any }) =>
-      facturas.addItem(facturaId, itemData),
-    onSuccess: () => {
-      invalidate();
-      setManualOpen(false);
-      setManualNombre('');
-      setManualPrecio('');
-      setManualCantidad('1');
-    },
-  });
-
   const confirmMutation = useMutation({
     mutationFn: (facturaId: string) => facturas.confirm(facturaId),
     onSuccess: () => {
@@ -162,127 +103,6 @@ export default function DistribuidoraDetallePage() {
     queryKey: ['categories', { parentId: 'null', limit: 100 }],
     queryFn: () => categories.getAll({ parentId: 'null', limit: 100 }),
   });
-
-  const createProductMutation = useMutation({
-    mutationFn: ({ facturaId, itemId, form }: { facturaId: string; itemId: string; form: FormData }) =>
-      facturas.createProductFromItem(facturaId, itemId, form),
-    onSuccess: () => {
-      invalidate();
-      setCreatingItemId(null);
-      setNewProductForm({ title: '', price: '', quantity: '', unit: '', categoryId: '', barcode: '' });
-      setNewProductImage(null);
-      setNewProductError('');
-      setGananciaDeseadaPct('');
-      setAiImageUrl(null);
-      setImageSearchResults(null);
-    },
-    onError: (err: any) => setNewProductError(err.message ?? 'Error al crear el producto'),
-  });
-
-  const handleImageSearch = async (query: string) => {
-    const q = query.trim();
-    if (!q) {
-      setNewProductError('Escribí el nombre del producto antes de buscar la imagen');
-      return;
-    }
-    setImageSearchLoading(true);
-    setNewProductError('');
-    try {
-      const results = await products.imageSearch(q);
-      setImageSearchResults(results);
-    } catch (err: any) {
-      setNewProductError(err.message ?? 'Error al buscar imágenes');
-    } finally {
-      setImageSearchLoading(false);
-    }
-  };
-
-  const handleGenerateBarcode = async () => {
-    setGeneratingBarcode(true);
-    try {
-      const code = await products.generateUniqueBarcode();
-      setNewProductForm((f) => ({ ...f, barcode: code }));
-    } catch (err: any) {
-      setNewProductError(err.message ?? 'Error al generar el código');
-    } finally {
-      setGeneratingBarcode(false);
-    }
-  };
-
-  const openCreateForm = (item: FacturaItem) => {
-    setCreatingItemId(item.id);
-    setLinkingItemId(null);
-    setNewProductForm({
-      title: item.nombreDetectado,
-      price: '',
-      quantity: item.medidaDetectada != null ? String(item.medidaDetectada) : '',
-      unit: item.medidaUnidadDetectada ?? '',
-      categoryId: '',
-      barcode: item.codigoDetectado ?? '',
-    });
-    setNewProductImage(null);
-    setNewProductError('');
-    setGananciaDeseadaPct('');
-    setAiImageUrl(null);
-    setImageSearchResults(null);
-  };
-
-  const submitCreateProduct = (facturaId: string) => {
-    if (!creatingItemId) return;
-    if (!newProductImage && !aiImageUrl) { setNewProductError('La imagen es obligatoria'); return; }
-    if (!newProductForm.title.trim() || !newProductForm.price) {
-      setNewProductError('Falta el nombre o el precio de venta');
-      return;
-    }
-    const fd = new FormData();
-    fd.append('title', newProductForm.title.trim());
-    fd.append('price', newProductForm.price);
-    if (newProductForm.quantity) fd.append('quantity', newProductForm.quantity);
-    if (newProductForm.unit) fd.append('unit', newProductForm.unit);
-    if (newProductForm.categoryId) fd.append('categoryId', newProductForm.categoryId);
-    if (newProductForm.barcode) fd.append('barcode', newProductForm.barcode);
-    if (newProductImage) fd.append('image', newProductImage);
-    else if (aiImageUrl) fd.append('imageSourceUrl', aiImageUrl);
-    createProductMutation.mutate({ facturaId, itemId: creatingItemId, form: fd });
-  };
-
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (file) uploadMutation.mutate(file);
-    e.target.value = '';
-  };
-
-  const handleSearchProduct = async (item: FacturaItem, query: string) => {
-    setLinkQuery(query);
-    if (!query.trim()) {
-      setLinkResults(null);
-      return;
-    }
-    const result = await products.getAll({ search: query, limit: 6 });
-    setLinkResults(result.data);
-  };
-
-  // vincular no cierra el trámite solo: primero se confirma/ajusta el precio de venta,
-  // igual que al dar de alta un producto nuevo (precio + % de ganancia sobre el costo)
-  const openLinkConfirm = (item: FacturaItem, product: { id: string; title: string; price: string }) => {
-    setLinkingProduct({ item, product });
-    setLinkPrice(product.price);
-    setLinkGananciaPct('');
-    setLinkingItemId(null);
-    setLinkQuery('');
-    setLinkResults(null);
-  };
-
-  const confirmLinkProduct = (facturaId: string) => {
-    if (!linkingProduct) return;
-    const { item, product } = linkingProduct;
-    updateItemMutation.mutate({ facturaId, itemId: item.id, data: { productId: product.id } });
-    const newPrice = parseFloat(linkPrice);
-    if (!isNaN(newPrice) && newPrice > 0 && newPrice !== Number(product.price)) {
-      updateProductPriceMutation.mutate({ productId: product.id, price: newPrice });
-    }
-    setLinkingProduct(null);
-  };
 
   const activeFacturaItemCount = data?.facturas.find((f) => f.id === activeFacturaId)?.items.length ?? 0;
 
@@ -330,53 +150,11 @@ export default function DistribuidoraDetallePage() {
         </button>
       </div>
 
-      <div className="bg-white rounded-2xl shadow-sm p-5 flex flex-col sm:flex-row sm:items-center gap-4 sm:justify-between">
-        <div>
-          <p className="text-sm font-bold text-gray-700">Cargar una factura nueva</p>
-          <p className="text-xs text-gray-400 mt-0.5">Sacale una foto y la IA va a leer los productos automáticamente</p>
-          <p className="text-[11px] text-gray-400 mt-1">
-            💡 Para que salga mejor: buena luz, la hoja derecha (no en ángulo) y acercate para que el texto se lea grande
-          </p>
-        </div>
-        <div className="flex flex-col sm:flex-row gap-2">
-          <input
-            ref={cameraInputRef}
-            type="file"
-            accept="image/*"
-            capture="environment"
-            className="hidden"
-            onChange={handleFileChange}
-          />
-          <input ref={fileInputRef} type="file" accept="image/*" className="hidden" onChange={handleFileChange} />
-          <button
-            onClick={() => cameraInputRef.current?.click()}
-            disabled={uploadMutation.isPending}
-            className="flex items-center justify-center gap-2 bg-orange-500 hover:bg-orange-600 text-white font-bold px-4 py-2.5 rounded-xl text-sm transition-colors disabled:opacity-60"
-          >
-            <Camera size={16} weight="bold" />
-            {uploadMutation.isPending ? 'Leyendo factura...' : 'Sacar foto'}
-          </button>
-          <button
-            onClick={() => fileInputRef.current?.click()}
-            disabled={uploadMutation.isPending}
-            className="flex items-center justify-center gap-2 border border-gray-200 text-gray-600 hover:bg-gray-50 font-bold px-4 py-2.5 rounded-xl text-sm transition-colors disabled:opacity-60"
-          >
-            <UploadSimple size={16} weight="bold" />
-            Elegir archivo
-          </button>
-        </div>
-      </div>
-      {uploadMutation.isPending && (
-        <div className="flex items-center gap-3 bg-orange-50 border border-orange-200 rounded-xl px-4 py-3 animate-fadeIn">
-          <div className="w-5 h-5 border-2 border-orange-400 border-t-transparent rounded-full animate-spin flex-shrink-0" />
-          <p className="text-xs text-orange-600 font-semibold">
-            La IA está leyendo la factura, esto puede tardar unos segundos...
-          </p>
-        </div>
-      )}
-      {uploadError && (
-        <p className="text-xs text-red-500 font-semibold bg-red-50 rounded-lg px-3 py-2">{uploadError}</p>
-      )}
+      <SubirFacturaCard
+        onUpload={(file) => uploadMutation.mutate(file)}
+        uploading={uploadMutation.isPending}
+        error={uploadError}
+      />
 
       {pendientes.length > 0 && !activeFactura && (
         <div className="bg-white rounded-2xl shadow-sm p-5 flex flex-col gap-2">
@@ -445,462 +223,34 @@ export default function DistribuidoraDetallePage() {
                     </tr>
                   ) : (
                     activeFactura.items.slice(0, revealCount).map((item) => (
-                      <Fragment key={item.id}>
-                      <tr className="align-top animate-slideUp">
-                        <td className="px-4 py-3">
-                          <input
-                            defaultValue={item.nombreDetectado}
-                            onBlur={(e) =>
-                              e.target.value !== item.nombreDetectado &&
-                              updateItemMutation.mutate({
-                                facturaId: activeFactura.id,
-                                itemId: item.id,
-                                data: { nombreDetectado: e.target.value },
-                              })
-                            }
-                            className="w-full text-sm font-semibold text-gray-700 outline-none border-b border-transparent focus:border-orange-300"
-                          />
-                          {item.unidadesPorBultoDetectada != null && (
-                            <p className="text-[11px] text-gray-400 font-medium mt-0.5">
-                              📦 Detectado por bulto de {item.unidadesPorBultoDetectada} un. · cant./precio ya normalizados por unidad
-                            </p>
-                          )}
-                          {item.alicuotaIvaDetectada != null && (
-                            <p className="text-[11px] text-gray-400 font-medium mt-0.5">
-                              🧾 IVA {item.alicuotaIvaDetectada}% ya incluido en el costo
-                            </p>
-                          )}
-                          {item.codigoArticuloDetectado && (
-                            <p className="text-[11px] text-gray-400 font-medium mt-0.5">
-                              🏷️ Cód. artículo de esta distribuidora: {item.codigoArticuloDetectado}
-                              {item.productId && ' · guardado para reconocerlo solo la próxima vez'}
-                            </p>
-                          )}
-                          {item.product ? (
-                            <div className="flex flex-col gap-1 mt-1">
-                              <div className="flex items-center gap-1.5">
-                                <Check size={12} weight="bold" className="text-green-500" />
-                                <span className="text-xs text-green-600 font-semibold">{item.product.title}</span>
-                                <button
-                                  onClick={() =>
-                                    updateItemMutation.mutate({
-                                      facturaId: activeFactura.id,
-                                      itemId: item.id,
-                                      data: { productId: null },
-                                    })
-                                  }
-                                  className="text-gray-300 hover:text-red-500"
-                                >
-                                  <X size={12} weight="bold" />
-                                </button>
-                              </div>
-                              {(() => {
-                                const change = getPriceChange(item);
-                                if (!change) return null;
-                                const subiendo = change.pct > 0;
-                                return (
-                                  <div className="flex flex-col gap-1">
-                                    <p className={`text-[11px] font-bold ${subiendo ? 'text-red-500' : 'text-green-600'}`}>
-                                      {subiendo ? '⬆' : '⬇'} {subiendo ? 'Aumentó' : 'Bajó'} {Math.abs(change.pct).toFixed(1)}%
-                                      {' '}respecto a la última factura ({money(change.oldCost)} → {money(change.newCost)})
-                                    </p>
-                                    {subiendo && item.product && (
-                                      <div className="flex items-center gap-1.5 flex-wrap">
-                                        <span className="text-[11px] text-gray-400 font-medium whitespace-nowrap">
-                                          Precio de venta actual: {money(item.product.price)}
-                                        </span>
-                                        <input
-                                          type="number"
-                                          step="0.01"
-                                          value={priceDrafts[item.id] ?? item.product.price}
-                                          onChange={(e) =>
-                                            setPriceDrafts((d) => ({ ...d, [item.id]: e.target.value }))
-                                          }
-                                          className="w-20 text-[11px] font-semibold border border-gray-200 rounded-lg px-1.5 py-0.5 outline-none focus:border-orange-400"
-                                        />
-                                        <button
-                                          onClick={() => {
-                                            const raw = priceDrafts[item.id] ?? item.product!.price;
-                                            const newPrice = parseFloat(raw);
-                                            if (!isNaN(newPrice) && newPrice > 0) {
-                                              updateProductPriceMutation.mutate({ productId: item.product!.id, price: newPrice });
-                                            }
-                                          }}
-                                          disabled={updateProductPriceMutation.isPending}
-                                          className="text-[11px] font-bold text-orange-500 hover:text-orange-600 whitespace-nowrap disabled:opacity-50"
-                                        >
-                                          Actualizar precio
-                                        </button>
-                                      </div>
-                                    )}
-                                  </div>
-                                );
-                              })()}
-                            </div>
-                          ) : linkingProduct?.item.id === item.id ? (
-                            <div className="flex flex-col gap-1.5 mt-1 bg-orange-50/50 border border-orange-100 rounded-lg p-2 w-full max-w-xs">
-                              <p className="text-[11px] font-semibold text-gray-600 truncate">
-                                Vincular con: {linkingProduct.product.title}
-                              </p>
-                              <div className="flex items-center gap-1.5">
-                                <div className="flex-1">
-                                  <input
-                                    type="number"
-                                    min="0"
-                                    step="0.01"
-                                    value={linkPrice}
-                                    onChange={(e) => setLinkPrice(e.target.value)}
-                                    placeholder="Precio al público"
-                                    className="w-full border border-gray-200 rounded-lg px-2 py-1 text-xs outline-none focus:border-orange-400"
-                                  />
-                                </div>
-                                <div className="w-20 flex items-center gap-1">
-                                  <input
-                                    type="number"
-                                    min="0"
-                                    step="0.1"
-                                    value={linkGananciaPct}
-                                    onChange={(e) => {
-                                      setLinkGananciaPct(e.target.value);
-                                      const pct = parseFloat(e.target.value);
-                                      const cost = Number(item.precioUnitario);
-                                      if (cost > 0 && !isNaN(pct)) setLinkPrice((cost * (1 + pct / 100)).toFixed(2));
-                                    }}
-                                    placeholder="% gcia"
-                                    className="w-full border border-gray-200 rounded-lg px-1.5 py-1 text-xs outline-none focus:border-orange-400"
-                                  />
-                                </div>
-                              </div>
-                              {(() => {
-                                const cost = Number(item.precioUnitario);
-                                const priceNum = parseFloat(linkPrice);
-                                if (!(cost > 0) || isNaN(priceNum)) return null;
-                                const pct = ((priceNum - cost) / cost) * 100;
-                                return (
-                                  <p className={`text-[11px] font-semibold ${pct >= 0 ? 'text-green-600' : 'text-red-500'}`}>
-                                    Ganancia: {pct >= 0 ? '+' : ''}{pct.toFixed(1)}% sobre costo ({money(cost)})
-                                  </p>
-                                );
-                              })()}
-                              <div className="flex gap-2 mt-0.5">
-                                <button
-                                  onClick={() => setLinkingProduct(null)}
-                                  className="flex-1 py-1.5 rounded-lg border border-gray-200 text-[11px] font-semibold text-gray-600"
-                                >
-                                  Cancelar
-                                </button>
-                                <button
-                                  onClick={() => confirmLinkProduct(activeFactura.id)}
-                                  disabled={!linkPrice || updateProductPriceMutation.isPending}
-                                  className="flex-1 py-1.5 rounded-lg bg-orange-500 hover:bg-orange-600 text-white text-[11px] font-bold transition-colors disabled:opacity-50"
-                                >
-                                  Vincular
-                                </button>
-                              </div>
-                            </div>
-                          ) : (
-                            <div className="flex flex-col gap-1.5 mt-1">
-                              {suggestions?.[item.id] && suggestions[item.id].length > 0 && (
-                                <div className="flex flex-wrap gap-1">
-                                  {suggestions[item.id].map((s) => (
-                                    <button
-                                      key={s.id}
-                                      onClick={() => openLinkConfirm(item, s)}
-                                      title={[s.quantity, s.unit].filter(Boolean).join(' ')}
-                                      className="px-2 py-1 rounded-lg border border-orange-200 bg-orange-50 text-orange-600 text-[11px] font-semibold hover:bg-orange-100 transition-colors"
-                                    >
-                                      ¿{s.title}?
-                                    </button>
-                                  ))}
-                                </div>
-                              )}
-                              {linkingItemId === item.id ? (
-                                <div className="flex flex-col gap-1 w-full max-w-xs">
-                                  <input
-                                    autoFocus
-                                    value={linkQuery}
-                                    onChange={(e) => handleSearchProduct(item, e.target.value)}
-                                    onBlur={() => setTimeout(() => setLinkingItemId(null), 150)}
-                                    placeholder="Buscar producto..."
-                                    className="w-full text-xs border border-gray-200 rounded-lg px-2 py-1 outline-none focus:border-orange-400"
-                                  />
-                                  {linkResults && linkResults.length > 0 && (
-                                    <div className="w-full max-h-64 overflow-y-auto bg-white border border-gray-100 rounded-xl shadow-sm divide-y divide-gray-50">
-                                      {linkResults.map((p) => (
-                                        <button
-                                          key={p.id}
-                                          onMouseDown={() => openLinkConfirm(item, p)}
-                                          className="w-full flex items-center gap-2 px-3 py-2 text-left hover:bg-orange-50 transition-colors"
-                                        >
-                                          <div className="relative w-8 h-8 flex-shrink-0 bg-gray-100 rounded-md overflow-hidden">
-                                            <Image src={p.imageUrl} alt={p.title} fill sizes="32px" className="object-contain p-0.5" />
-                                          </div>
-                                          <div className="flex-1 min-w-0">
-                                            <p className="text-xs font-semibold text-gray-700 truncate">{p.title}</p>
-                                            <p className="text-[11px] text-gray-400 truncate">{p.category?.name ?? 'Sin categoría'}</p>
-                                          </div>
-                                          <span className="text-xs font-bold text-orange-500 flex-shrink-0">{money(p.price)}</span>
-                                        </button>
-                                      ))}
-                                    </div>
-                                  )}
-                                  {linkQuery.trim() && linkResults && linkResults.length === 0 && (
-                                    <div className="w-full bg-white border border-gray-100 rounded-xl shadow-sm px-3 py-2">
-                                      <p className="text-xs text-gray-400 font-medium">No se encontraron productos.</p>
-                                    </div>
-                                  )}
-                                </div>
-                              ) : creatingItemId === item.id ? (
-                                <span className="text-xs text-orange-500 font-semibold">Completando alta abajo ↓</span>
-                              ) : (
-                                <div className="flex items-center gap-2">
-                                  <button
-                                    onClick={() => { setLinkingItemId(item.id); setLinkQuery(''); setLinkResults(null); }}
-                                    className="text-xs text-gray-400 hover:text-orange-500 font-medium"
-                                  >
-                                    Sin vincular · buscar
-                                  </button>
-                                  <span className="text-gray-200">·</span>
-                                  <button
-                                    onClick={() => openCreateForm(item)}
-                                    className="text-xs text-orange-500 hover:text-orange-600 font-bold"
-                                  >
-                                    + Crear producto nuevo
-                                  </button>
-                                </div>
-                              )}
-                            </div>
-                          )}
-                        </td>
-                        <td className="px-4 py-3">
-                          <input
-                            type="number"
-                            step="1"
-                            defaultValue={item.cantidad}
-                            onBlur={(e) => {
-                              const cantidad = Math.round(parseFloat(e.target.value));
-                              if (!isNaN(cantidad) && cantidad !== item.cantidad) {
-                                updateItemMutation.mutate({
-                                  facturaId: activeFactura.id,
-                                  itemId: item.id,
-                                  data: { cantidad },
-                                });
-                              }
-                            }}
-                            className="w-16 text-sm font-semibold outline-none border-b border-transparent focus:border-orange-300"
-                          />
-                        </td>
-                        <td className="px-4 py-3">
-                          <input
-                            type="number"
-                            step="0.01"
-                            defaultValue={item.precioUnitario}
-                            onBlur={(e) =>
-                              parseFloat(e.target.value) !== Number(item.precioUnitario) &&
-                              updateItemMutation.mutate({
-                                facturaId: activeFactura.id,
-                                itemId: item.id,
-                                data: { precioUnitario: parseFloat(e.target.value) },
-                              })
-                            }
-                            className="w-20 text-sm font-semibold outline-none border-b border-transparent focus:border-orange-300"
-                          />
-                        </td>
-                        <td className="px-4 py-3">
-                          <input
-                            type="number"
-                            step="0.01"
-                            defaultValue={item.subtotal}
-                            onBlur={(e) => {
-                              const newSubtotal = parseFloat(e.target.value);
-                              if (isNaN(newSubtotal) || newSubtotal === Number(item.subtotal)) return;
-                              if (!(item.cantidad > 0)) return;
-                              updateItemMutation.mutate({
-                                facturaId: activeFactura.id,
-                                itemId: item.id,
-                                data: { precioUnitario: newSubtotal / item.cantidad },
-                              });
-                            }}
-                            className="w-20 font-bold text-orange-500 outline-none border-b border-transparent focus:border-orange-300"
-                          />
-                        </td>
-                        <td className="px-4 py-3">
-                          <button
-                            onClick={() => removeItemMutation.mutate({ facturaId: activeFactura.id, itemId: item.id })}
-                            className="w-7 h-7 rounded-lg flex items-center justify-center text-gray-400 hover:bg-red-50 hover:text-red-500 transition-colors"
-                          >
-                            <Trash size={14} weight="bold" />
-                          </button>
-                        </td>
-                      </tr>
-                      {creatingItemId === item.id && (
-                        <tr>
-                          <td colSpan={5} className="px-4 pb-4 bg-orange-50/30">
-                            <div className="flex flex-col sm:flex-row gap-4 bg-white border border-orange-100 rounded-xl p-4">
-                              <div className="w-full sm:w-40 flex-shrink-0 flex flex-col gap-2">
-                                {aiImageUrl ? (
-                                  <div className="relative w-full h-52 border-2 border-orange-200 rounded-xl overflow-hidden bg-gray-50">
-                                    {/* eslint-disable-next-line @next/next/no-img-element */}
-                                    <img src={aiImageUrl} alt="Imagen elegida" className="w-full h-full object-contain p-2" />
-                                    <button
-                                      type="button"
-                                      onClick={() => setAiImageUrl(null)}
-                                      className="absolute top-2 right-2 w-7 h-7 bg-white rounded-full shadow flex items-center justify-center hover:bg-red-50 transition-colors"
-                                    >
-                                      <X size={14} weight="bold" className="text-gray-500" />
-                                    </button>
-                                  </div>
-                                ) : (
-                                  <>
-                                    <ImageUpload onChange={setNewProductImage} required={!aiImageUrl} />
-                                    <button
-                                      type="button"
-                                      disabled={imageSearchLoading}
-                                      onClick={() => handleImageSearch(newProductForm.title)}
-                                      className="flex items-center justify-center gap-1.5 py-2 rounded-xl border border-gray-200 text-xs font-semibold text-gray-600 hover:bg-gray-50 transition-colors disabled:opacity-50"
-                                    >
-                                      <MagnifyingGlass size={14} weight="bold" />
-                                      {imageSearchLoading ? 'Buscando...' : 'Buscar imagen con IA'}
-                                    </button>
-                                    {imageSearchResults && imageSearchResults.length > 0 && (
-                                      <div className="grid grid-cols-3 gap-1">
-                                        {imageSearchResults.map((r, i) => (
-                                          <button
-                                            key={i}
-                                            type="button"
-                                            onClick={() => { setAiImageUrl(r.imageUrl); setImageSearchResults(null); setNewProductImage(null); }}
-                                            className="relative w-full aspect-square rounded-lg overflow-hidden border border-gray-200 hover:border-orange-400 transition-colors bg-gray-50"
-                                          >
-                                            {/* eslint-disable-next-line @next/next/no-img-element */}
-                                            <img src={r.thumbnailUrl} alt="" className="w-full h-full object-cover" />
-                                          </button>
-                                        ))}
-                                      </div>
-                                    )}
-                                    {imageSearchResults && imageSearchResults.length === 0 && (
-                                      <p className="text-[11px] text-gray-400 text-center">No se encontraron imágenes.</p>
-                                    )}
-                                  </>
-                                )}
-                              </div>
-                              <div className="flex-1 flex flex-col gap-2">
-                                <div className="flex flex-col sm:flex-row gap-2">
-                                  <input
-                                    value={newProductForm.title}
-                                    onChange={(e) => setNewProductForm((f) => ({ ...f, title: e.target.value }))}
-                                    placeholder="Nombre del producto"
-                                    className="flex-1 border border-gray-200 rounded-xl px-3 py-2 text-sm outline-none focus:border-orange-400"
-                                  />
-                                  <div className="w-full sm:w-44 flex flex-col gap-1">
-                                    <input
-                                      type="number"
-                                      min="0"
-                                      step="0.01"
-                                      value={newProductForm.price}
-                                      onChange={(e) => setNewProductForm((f) => ({ ...f, price: e.target.value }))}
-                                      placeholder="Precio al público"
-                                      className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm outline-none focus:border-orange-400"
-                                    />
-                                    <div className="flex items-center gap-1.5">
-                                      <span className="text-[11px] text-gray-400 whitespace-nowrap">% ganancia:</span>
-                                      <input
-                                        type="number"
-                                        min="0"
-                                        step="0.1"
-                                        value={gananciaDeseadaPct}
-                                        onChange={(e) => {
-                                          setGananciaDeseadaPct(e.target.value);
-                                          const pct = parseFloat(e.target.value);
-                                          const cost = Number(item.precioUnitario);
-                                          if (cost > 0 && !isNaN(pct)) {
-                                            setNewProductForm((f) => ({
-                                              ...f,
-                                              price: (cost * (1 + pct / 100)).toFixed(2),
-                                            }));
-                                          }
-                                        }}
-                                        placeholder="Ej: 30"
-                                        className="w-full border border-gray-200 rounded-lg px-2 py-1 text-xs outline-none focus:border-orange-400"
-                                      />
-                                    </div>
-                                    {(() => {
-                                      const cost = Number(item.precioUnitario);
-                                      const priceNum = parseFloat(newProductForm.price);
-                                      if (!(cost > 0) || isNaN(priceNum)) return null;
-                                      const pct = ((priceNum - cost) / cost) * 100;
-                                      return (
-                                        <p className={`text-[11px] font-semibold ${pct >= 0 ? 'text-green-600' : 'text-red-500'}`}>
-                                          Ganancia actual: {pct >= 0 ? '+' : ''}{pct.toFixed(1)}%
-                                        </p>
-                                      );
-                                    })()}
-                                  </div>
-                                </div>
-                                <div className="flex flex-wrap gap-2">
-                                  <input
-                                    type="number"
-                                    min="0"
-                                    step="any"
-                                    value={newProductForm.quantity}
-                                    onChange={(e) => setNewProductForm((f) => ({ ...f, quantity: e.target.value }))}
-                                    placeholder="Medida"
-                                    className="w-28 border border-gray-200 rounded-xl px-3 py-2 text-sm outline-none focus:border-orange-400"
-                                  />
-                                  <UnitSelector
-                                    value={newProductForm.unit}
-                                    onChange={(v) => setNewProductForm((f) => ({ ...f, unit: v }))}
-                                  />
-                                  <CategorySelector
-                                    value={newProductForm.categoryId}
-                                    onChange={(v) => setNewProductForm((f) => ({ ...f, categoryId: v }))}
-                                    categories={catsData?.data ?? []}
-                                    loading={!catsData}
-                                  />
-                                </div>
-                                <div className="flex gap-2">
-                                  <input
-                                    value={newProductForm.barcode}
-                                    onChange={(e) => setNewProductForm((f) => ({ ...f, barcode: e.target.value }))}
-                                    onKeyDown={(e) => { if (e.key === 'Enter') e.preventDefault(); }}
-                                    placeholder="Código de barras (opcional, o escaneá con el lector)"
-                                    className="flex-1 border border-gray-200 rounded-xl px-3 py-2 text-sm outline-none focus:border-orange-400"
-                                  />
-                                  <button
-                                    type="button"
-                                    disabled={generatingBarcode}
-                                    onClick={handleGenerateBarcode}
-                                    className="px-3 rounded-xl border border-gray-200 text-xs font-semibold text-gray-600 hover:bg-gray-50 transition-colors disabled:opacity-50 whitespace-nowrap"
-                                  >
-                                    {generatingBarcode ? 'Generando...' : 'Generar código'}
-                                  </button>
-                                </div>
-                                <p className="text-xs text-gray-400">
-                                  Precio por mayor: {money(item.precioUnitario)} (de la factura) · Stock inicial 0, se suma al confirmar
-                                </p>
-                                {newProductError && (
-                                  <p className="text-xs text-red-500 font-semibold bg-red-50 rounded-lg px-3 py-2">{newProductError}</p>
-                                )}
-                                <div className="flex gap-2 mt-1">
-                                  <button
-                                    onClick={() => setCreatingItemId(null)}
-                                    className="flex-1 py-2 rounded-xl border border-gray-200 text-xs font-semibold text-gray-600"
-                                  >
-                                    Cancelar
-                                  </button>
-                                  <button
-                                    onClick={() => submitCreateProduct(activeFactura.id)}
-                                    disabled={createProductMutation.isPending}
-                                    className="flex-1 py-2 rounded-xl bg-orange-500 hover:bg-orange-600 text-white text-xs font-bold transition-colors disabled:opacity-50"
-                                  >
-                                    {createProductMutation.isPending ? 'Creando...' : 'Crear y vincular'}
-                                  </button>
-                                </div>
-                              </div>
-                            </div>
-                          </td>
-                        </tr>
-                      )}
-                      </Fragment>
+                      <FacturaItemRow
+                        key={item.id}
+                        item={item}
+                        facturaId={activeFactura.id}
+                        suggestions={suggestions?.[item.id] ?? []}
+                        categories={catsData?.data ?? []}
+                        categoriesLoading={!catsData}
+                        onUpdate={(itemData) =>
+                          updateItemMutation.mutate({ facturaId: activeFactura.id, itemId: item.id, data: itemData })
+                        }
+                        onRemove={() => removeItemMutation.mutate({ facturaId: activeFactura.id, itemId: item.id })}
+                        onVincular={(product, precio) => {
+                          updateItemMutation.mutate({
+                            facturaId: activeFactura.id,
+                            itemId: item.id,
+                            data: { productId: product.id },
+                          });
+                          const newPrice = parseFloat(precio);
+                          if (!isNaN(newPrice) && newPrice > 0 && newPrice !== Number(product.price)) {
+                            updateProductPriceMutation.mutate({ productId: product.id, price: newPrice });
+                          }
+                        }}
+                        onActualizarPrecioProducto={(productId, price) =>
+                          updateProductPriceMutation.mutate({ productId, price })
+                        }
+                        actualizandoPrecio={updateProductPriceMutation.isPending}
+                        onProductCreated={invalidate}
+                      />
                     ))
                   )}
                   {revealCount < activeFactura.items.length && (
@@ -920,65 +270,7 @@ export default function DistribuidoraDetallePage() {
             </div>
 
               <div className="p-4 border-t border-gray-100">
-                {manualOpen ? (
-                  <div className="flex flex-col gap-2 bg-gray-50 rounded-xl p-3">
-                    <div className="flex gap-2">
-                      <input
-                        type="text"
-                        value={manualNombre}
-                        onChange={(e) => setManualNombre(e.target.value)}
-                        placeholder="Descripción"
-                        className="flex-1 border border-gray-200 rounded-xl px-3 py-2 text-sm outline-none focus:border-orange-400"
-                      />
-                      <input
-                        type="number"
-                        value={manualCantidad}
-                        onChange={(e) => setManualCantidad(e.target.value)}
-                        placeholder="Cant."
-                        className="w-20 border border-gray-200 rounded-xl px-3 py-2 text-sm outline-none focus:border-orange-400"
-                      />
-                      <input
-                        type="number"
-                        step="0.01"
-                        value={manualPrecio}
-                        onChange={(e) => setManualPrecio(e.target.value)}
-                        placeholder="Precio"
-                        className="w-24 border border-gray-200 rounded-xl px-3 py-2 text-sm outline-none focus:border-orange-400"
-                      />
-                    </div>
-                    <div className="flex gap-2">
-                      <button
-                        onClick={() => setManualOpen(false)}
-                        className="flex-1 py-2 rounded-xl border border-gray-200 text-xs font-semibold text-gray-600"
-                      >
-                        Cancelar
-                      </button>
-                      <button
-                        onClick={() =>
-                          addItemMutation.mutate({
-                            facturaId: activeFactura.id,
-                            data: {
-                              nombreDetectado: manualNombre,
-                              cantidad: parseFloat(manualCantidad || '1'),
-                              precioUnitario: parseFloat(manualPrecio || '0'),
-                            },
-                          })
-                        }
-                        disabled={!manualNombre.trim() || !manualPrecio}
-                        className="flex-1 py-2 rounded-xl bg-orange-500 text-white text-xs font-bold disabled:opacity-50"
-                      >
-                        Agregar
-                      </button>
-                    </div>
-                  </div>
-                ) : (
-                  <button
-                    onClick={() => setManualOpen(true)}
-                    className="text-xs font-semibold text-orange-500 hover:text-orange-600"
-                  >
-                    + Agregar línea manual
-                  </button>
-                )}
+                <AgregarLineaManual facturaId={activeFactura.id} onAdded={invalidate} />
               </div>
             </div>
 
@@ -1012,50 +304,7 @@ export default function DistribuidoraDetallePage() {
         </div>
       )}
 
-      <div className="bg-white rounded-2xl shadow-sm overflow-hidden">
-        <div className="px-5 py-4 border-b border-gray-100">
-          <p className="text-sm font-bold text-gray-700">Historial de facturas</p>
-        </div>
-        {historial.length === 0 ? (
-          <p className="px-5 py-8 text-center text-sm text-gray-400 font-medium">Todavía no hay facturas confirmadas.</p>
-        ) : (
-          <div className="divide-y divide-gray-50">
-            {historial.map((f) => (
-              <div key={f.id} className="flex items-center gap-4 px-5 py-3">
-                {f.imageUrl ? (
-                  <button
-                    type="button"
-                    onClick={() => setLightboxUrl(f.imageUrl)}
-                    className="relative w-12 h-12 rounded-lg overflow-hidden bg-gray-100 flex-shrink-0 cursor-zoom-in"
-                    title="Ver imagen ampliada"
-                  >
-                    <Image src={f.imageUrl} alt="Factura" fill sizes="48px" className="object-cover" />
-                  </button>
-                ) : (
-                  <div
-                    title="La imagen se borró automáticamente (factura cancelada hace más de 2 días)"
-                    className="w-12 h-12 rounded-lg bg-gray-100 flex-shrink-0 flex items-center justify-center text-[9px] text-gray-400 font-semibold text-center leading-tight"
-                  >
-                    Sin imagen
-                  </div>
-                )}
-                <div className="flex-1">
-                  <p className="text-sm font-semibold text-gray-700">{new Date(f.createdAt).toLocaleDateString('es-AR')}</p>
-                  <p className="text-xs text-gray-400">{f.items.length} ítems</p>
-                </div>
-                <span
-                  className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${
-                    f.status === 'CONFIRMED' ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-500'
-                  }`}
-                >
-                  {STATUS_LABEL[f.status]}
-                </span>
-                <span className="font-bold text-orange-500 w-24 text-right">{money(f.total)}</span>
-              </div>
-            ))}
-          </div>
-        )}
-      </div>
+      <HistorialFacturas facturas={historial} onViewImage={setLightboxUrl} />
 
       {toCancel && (
         <ConfirmModal
