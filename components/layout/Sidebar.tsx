@@ -4,13 +4,13 @@ import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { useQuery } from '@tanstack/react-query';
-import { House, Package, Tag, Image, Receipt, Truck, ChartBar, SignOut, Users, List, X, ShoppingBag, Bicycle } from '@phosphor-icons/react';
+import { House, Package, Tag, Image, CashRegister, Truck, ChartBar, SignOut, Users, List, X, ShoppingBag, Bicycle } from '@phosphor-icons/react';
 import { removeToken, getToken } from '@/lib/auth';
 import { clientes, pedidos } from '@/lib/api';
 
 const NAV = [
-  { href: '/',              label: 'Dashboard',     icon: House    },
-  { href: '/ventas',        label: 'Ventas',        icon: Receipt  },
+  { href: '/',              label: 'Dashboard',     icon: House       },
+  { href: '/ventas',        label: 'Ventas',        icon: CashRegister },
   { href: '/pedidos',       label: 'Pedidos',       icon: ShoppingBag },
   { href: '/reportes',      label: 'Reportes',      icon: ChartBar },
   { href: '/productos',     label: 'Productos',     icon: Package  },
@@ -85,31 +85,51 @@ export default function Sidebar() {
           </button>
         </div>
 
-        <nav className="flex-1 px-3 py-4 flex flex-col gap-1">
-          {NAV.map(({ href, label, icon: Icon }) => (
-            <Link
-              key={href}
-              href={href}
-              className={`flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-semibold transition-colors ${
-                isActive(href)
-                  ? 'bg-orange-50 text-orange-600'
-                  : 'text-gray-600 hover:bg-gray-50 hover:text-gray-800'
-              }`}
-            >
-              <Icon size={18} weight={isActive(href) ? 'fill' : 'regular'} />
-              <span className="flex-1">{label}</span>
-              {href === '/clientes' && resetPendientesCount > 0 && (
-                <span className="w-5 h-5 rounded-full bg-red-500 text-white text-[10px] font-bold flex items-center justify-center flex-shrink-0">
-                  {resetPendientesCount > 9 ? '9+' : resetPendientesCount}
+        <nav className="flex-1 px-3 py-4 flex flex-col gap-1.5 overflow-y-auto">
+          {NAV.map(({ href, label, icon: Icon }) => {
+            const active = isActive(href);
+            return (
+              <Link
+                key={href}
+                href={href}
+                className={`group relative flex items-center gap-3 pl-4 pr-3 py-2.5 rounded-2xl border transition-all duration-200 active:scale-[0.97] ${
+                  active
+                    ? 'bg-orange-50 border-orange-100 shadow-sm'
+                    : 'bg-white border-transparent hover:bg-gray-50 hover:border-gray-100'
+                }`}
+              >
+                {/* barra de acento - marca de un vistazo en qué sección está parado el usuario,
+                    con transición suave al pasar de un ítem a otro */}
+                <span
+                  className={`absolute left-0 top-1/2 -translate-y-1/2 w-1 rounded-r-full bg-orange-500 transition-all duration-200 ${
+                    active ? 'h-6 opacity-100' : 'h-0 opacity-0'
+                  }`}
+                />
+                <div
+                  className={`w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0 transition-all duration-200 ${
+                    active
+                      ? 'bg-orange-500 text-white scale-105'
+                      : 'bg-gray-100 text-gray-500 group-hover:bg-orange-100 group-hover:text-orange-500 group-hover:scale-105'
+                  }`}
+                >
+                  <Icon size={18} weight={active ? 'fill' : 'regular'} />
+                </div>
+                <span className={`flex-1 text-sm font-bold transition-colors ${active ? 'text-gray-800' : 'text-gray-600 group-hover:text-gray-800'}`}>
+                  {label}
                 </span>
-              )}
-              {href === '/pedidos' && pedidosNuevosCount > 0 && (
-                <span className="w-5 h-5 rounded-full bg-red-500 text-white text-[10px] font-bold flex items-center justify-center flex-shrink-0">
-                  {pedidosNuevosCount > 9 ? '9+' : pedidosNuevosCount}
-                </span>
-              )}
-            </Link>
-          ))}
+                {href === '/clientes' && resetPendientesCount > 0 && (
+                  <span className="w-5 h-5 rounded-full bg-red-500 text-white text-[10px] font-bold flex items-center justify-center flex-shrink-0">
+                    {resetPendientesCount > 9 ? '9+' : resetPendientesCount}
+                  </span>
+                )}
+                {href === '/pedidos' && pedidosNuevosCount > 0 && (
+                  <span className="w-5 h-5 rounded-full bg-red-500 text-white text-[10px] font-bold flex items-center justify-center flex-shrink-0">
+                    {pedidosNuevosCount > 9 ? '9+' : pedidosNuevosCount}
+                  </span>
+                )}
+              </Link>
+            );
+          })}
         </nav>
 
         <div className="px-3 py-4 border-t border-gray-100">
