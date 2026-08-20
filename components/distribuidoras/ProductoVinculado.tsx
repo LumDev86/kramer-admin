@@ -20,9 +20,10 @@ interface Props {
   onDesvincular: () => void;
   onActualizarPrecio: (price: number) => void;
   actualizandoPrecio: boolean;
+  error?: string;
 }
 
-export default function ProductoVinculado({ item, onDesvincular, onActualizarPrecio, actualizandoPrecio }: Props) {
+export default function ProductoVinculado({ item, onDesvincular, onActualizarPrecio, actualizandoPrecio, error }: Props) {
   const [priceDraft, setPriceDraft] = useState<string | null>(null);
   const change = getPriceChange(item);
   const subiendo = !!change && change.pct > 0;
@@ -65,6 +66,7 @@ export default function ProductoVinculado({ item, onDesvincular, onActualizarPre
               >
                 Actualizar precio
               </button>
+              {error && <p className="w-full text-[11px] font-semibold text-red-500">{error}</p>}
             </div>
           )}
         </div>

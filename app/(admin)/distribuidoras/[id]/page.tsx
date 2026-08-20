@@ -26,6 +26,7 @@ export default function DistribuidoraDetallePage() {
   const [revealCount, setRevealCount] = useState(Infinity);
   const [toCancel, setToCancel] = useState<Factura | null>(null);
   const [showAumentoModal, setShowAumentoModal] = useState(false);
+  const [priceUpdateError, setPriceUpdateError] = useState<{ productId: string; message: string } | null>(null);
 
   const { data, isLoading } = useQuery({
     queryKey: ['distribuidor', id],
@@ -73,7 +74,12 @@ export default function DistribuidoraDetallePage() {
     onSuccess: () => {
       invalidate();
       qc.invalidateQueries({ queryKey: ['products'] });
+      setPriceUpdateError(null);
     },
+    // sin esto, un fallo (red, sesión vencida, server caído) dejaba el click sin ningún efecto
+    // visible - el botón "no hacía nada" en vez de avisar qué pasó
+    onError: (err: any, { productId }) =>
+      setPriceUpdateError({ productId, message: err.message ?? 'No se pudo actualizar el precio' }),
   });
 
   const confirmMutation = useMutation({
@@ -249,6 +255,11 @@ export default function DistribuidoraDetallePage() {
                           updateProductPriceMutation.mutate({ productId, price })
                         }
                         actualizandoPrecio={updateProductPriceMutation.isPending}
+                        errorActualizarPrecio={
+                          item.product && priceUpdateError?.productId === item.product.id
+                            ? priceUpdateError.message
+                            : undefined
+                        }
                         onProductCreated={invalidate}
                       />
                     ))
