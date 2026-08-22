@@ -110,8 +110,9 @@ export default function VentasDelDiaModal({ currentSessionId, onClose }: Props) 
         <div className="flex flex-1 min-h-0">
           {/* Lista de tickets del día */}
           <div className="w-[380px] flex-shrink-0 border-r border-gray-100 flex flex-col min-h-0">
-            <div className="grid grid-cols-[1fr_44px_64px_84px] gap-2 px-4 py-2 text-[11px] font-bold text-gray-400 uppercase tracking-wide border-b border-gray-100 flex-shrink-0">
+            <div className="grid grid-cols-[64px_1fr_36px_72px_84px] gap-2 px-4 py-2 text-[11px] font-bold text-gray-400 uppercase tracking-wide border-b border-gray-100 flex-shrink-0">
               <span>Folio</span>
+              <span />
               <span className="text-right">Arts</span>
               <span className="text-right">Hora</span>
               <span className="text-right">Total</span>
@@ -130,25 +131,25 @@ export default function VentasDelDiaModal({ currentSessionId, onClose }: Props) 
                     <button
                       key={sale.id}
                       onClick={() => { setSelectedSaleId(sale.id); setSelectedItemId(null); }}
-                      className={`w-full grid grid-cols-[1fr_44px_64px_84px] gap-2 px-4 py-2.5 text-left text-sm transition-colors ${
+                      className={`w-full grid grid-cols-[64px_1fr_36px_72px_84px] gap-2 px-4 py-2.5 text-left text-sm transition-colors ${
                         selected?.id === sale.id ? 'bg-orange-50' : 'hover:bg-gray-50'
                       }`}
                     >
-                      <span className="flex items-center gap-1.5 min-w-0">
-                        <span className={`font-mono text-[10px] ${cancelled ? 'line-through text-gray-300' : 'text-gray-400'}`}>
-                          {folioOf(sale.id)}
-                        </span>
-                        {/* fiado/crédito es la excepción (la mayoría cobra en el momento) - se
-                            destaca acá porque a diferencia del resto de las ventas, esta plata
-                            todavía no entró a la caja */}
+                      <span className={`font-mono text-[10px] truncate ${cancelled ? 'line-through text-gray-300' : 'text-gray-400'}`}>
+                        {folioOf(sale.id)}
+                      </span>
+                      {/* fiado/crédito es la excepción (la mayoría cobra en el momento) - se
+                          destaca acá porque a diferencia del resto de las ventas, esta plata
+                          todavía no entró a la caja */}
+                      <span className="min-w-0">
                         {credito && !cancelled && (
-                          <span className="text-[9px] font-bold text-amber-600 bg-amber-50 px-1.5 py-0.5 rounded flex-shrink-0">
+                          <span className="inline-block text-[9px] font-bold text-amber-600 bg-amber-50 px-1.5 py-0.5 rounded">
                             Crédito
                           </span>
                         )}
                       </span>
                       <span className={`text-right ${cancelled ? 'text-gray-300' : 'text-gray-500'}`}>{arts}</span>
-                      <span className={`text-right ${cancelled ? 'text-gray-300' : 'text-gray-500'}`}>{horaOf(sale)}</span>
+                      <span className={`text-right whitespace-nowrap ${cancelled ? 'text-gray-300' : 'text-gray-500'}`}>{horaOf(sale)}</span>
                       <span className={`text-right font-bold ${cancelled ? 'text-gray-300' : 'text-orange-500'}`}>
                         {money(sale.total)}
                       </span>
