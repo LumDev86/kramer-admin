@@ -112,7 +112,7 @@ export default function VentasDelDiaModal({ currentSessionId, onClose }: Props) 
           <div className="w-[380px] flex-shrink-0 border-r border-gray-100 flex flex-col min-h-0">
             <div className="grid grid-cols-[60px_1fr_32px_80px_84px] gap-x-3 px-4 py-2 text-[11px] font-bold text-gray-400 uppercase tracking-wide border-b border-gray-100 flex-shrink-0">
               <span>Folio</span>
-              <span className="border-l border-gray-100 pl-2" />
+              <span />
               <span className="text-center border-l border-gray-100 pl-2">Arts</span>
               <span className="border-l border-gray-100 pl-2">Hora</span>
               <span className="text-right border-l border-gray-100 pl-2">Total</span>
@@ -132,22 +132,20 @@ export default function VentasDelDiaModal({ currentSessionId, onClose }: Props) 
                       key={sale.id}
                       onClick={() => { setSelectedSaleId(sale.id); setSelectedItemId(null); }}
                       className={`w-full grid grid-cols-[60px_1fr_32px_80px_84px] gap-x-3 px-4 py-2.5 text-left text-sm transition-colors ${
-                        selected?.id === sale.id ? 'bg-orange-50' : 'hover:bg-gray-50'
+                        selected?.id === sale.id
+                          ? 'bg-orange-50'
+                          // fiado/crédito es la excepción (la mayoría cobra en el momento) - se
+                          // marca toda la fila porque, a diferencia del resto de las ventas,
+                          // esta plata todavía no entró a la caja
+                          : credito && !cancelled
+                          ? 'bg-amber-50 hover:bg-amber-100'
+                          : 'hover:bg-gray-50'
                       }`}
                     >
                       <span className={`font-mono text-[10px] truncate ${cancelled ? 'line-through text-gray-300' : 'text-gray-400'}`}>
                         {folioOf(sale.id)}
                       </span>
-                      {/* fiado/crédito es la excepción (la mayoría cobra en el momento) - se
-                          destaca acá porque a diferencia del resto de las ventas, esta plata
-                          todavía no entró a la caja */}
-                      <span className="min-w-0 border-l border-gray-100 pl-2">
-                        {credito && !cancelled && (
-                          <span className="inline-block text-[9px] font-bold text-amber-600 bg-amber-50 px-1.5 py-0.5 rounded">
-                            Crédito
-                          </span>
-                        )}
-                      </span>
+                      <span />
                       <span className={`text-center border-l border-gray-100 pl-2 ${cancelled ? 'text-gray-300' : 'text-gray-500'}`}>{arts}</span>
                       {/* alineada a la izquierda, no a la derecha como Arts/Total - el label
                           "Hora" es mucho más corto que un valor tipo "12:14 a. m.", así que
