@@ -125,6 +125,7 @@ export default function VentasDelDiaModal({ currentSessionId, onClose }: Props) 
                 ventas.map((sale) => {
                   const arts = sale.items.reduce((sum, item) => sum + item.quantity, 0);
                   const cancelled = sale.status === 'CANCELLED';
+                  const credito = sale.paymentMethod === 'CREDIT';
                   return (
                     <button
                       key={sale.id}
@@ -133,8 +134,18 @@ export default function VentasDelDiaModal({ currentSessionId, onClose }: Props) 
                         selected?.id === sale.id ? 'bg-orange-50' : 'hover:bg-gray-50'
                       }`}
                     >
-                      <span className={`font-bold ${cancelled ? 'line-through text-gray-300' : 'text-gray-700'}`}>
-                        {folioOf(sale.id)}
+                      <span className="flex items-center gap-1.5 min-w-0">
+                        <span className={`font-mono text-[10px] ${cancelled ? 'line-through text-gray-300' : 'text-gray-400'}`}>
+                          {folioOf(sale.id)}
+                        </span>
+                        {/* fiado/crédito es la excepción (la mayoría cobra en el momento) - se
+                            destaca acá porque a diferencia del resto de las ventas, esta plata
+                            todavía no entró a la caja */}
+                        {credito && !cancelled && (
+                          <span className="text-[9px] font-bold text-amber-600 bg-amber-50 px-1.5 py-0.5 rounded flex-shrink-0">
+                            Crédito
+                          </span>
+                        )}
                       </span>
                       <span className={`text-right ${cancelled ? 'text-gray-300' : 'text-gray-500'}`}>{arts}</span>
                       <span className={`text-right ${cancelled ? 'text-gray-300' : 'text-gray-500'}`}>{horaOf(sale)}</span>
