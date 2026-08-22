@@ -114,7 +114,7 @@ export default function VentasDelDiaModal({ currentSessionId, onClose }: Props) 
               <span>Folio</span>
               <span />
               <span className="text-right">Arts</span>
-              <span className="text-right">Hora</span>
+              <span>Hora</span>
               <span className="text-right">Total</span>
             </div>
             <div className="flex-1 overflow-y-auto divide-y divide-gray-50">
@@ -149,7 +149,11 @@ export default function VentasDelDiaModal({ currentSessionId, onClose }: Props) 
                         )}
                       </span>
                       <span className={`text-right ${cancelled ? 'text-gray-300' : 'text-gray-500'}`}>{arts}</span>
-                      <span className={`text-right whitespace-nowrap ${cancelled ? 'text-gray-300' : 'text-gray-500'}`}>{horaOf(sale)}</span>
+                      {/* alineada a la izquierda, no a la derecha como Arts/Total - el label
+                          "Hora" es mucho más corto que un valor tipo "12:14 a. m.", así que
+                          alinear a la derecha dejaba el valor mucho más corrido hacia la
+                          izquierda que el label, aunque el borde derecho coincidiera */}
+                      <span className={`whitespace-nowrap ${cancelled ? 'text-gray-300' : 'text-gray-500'}`}>{horaOf(sale)}</span>
                       <span className={`text-right font-bold ${cancelled ? 'text-gray-300' : 'text-orange-500'}`}>
                         {money(sale.total)}
                       </span>
