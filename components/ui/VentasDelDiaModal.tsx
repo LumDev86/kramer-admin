@@ -110,12 +110,12 @@ export default function VentasDelDiaModal({ currentSessionId, onClose }: Props) 
         <div className="flex flex-1 min-h-0">
           {/* Lista de tickets del día */}
           <div className="w-[380px] flex-shrink-0 border-r border-gray-100 flex flex-col min-h-0">
-            <div className="grid grid-cols-[64px_1fr_36px_72px_84px] gap-2 px-4 py-2 text-[11px] font-bold text-gray-400 uppercase tracking-wide border-b border-gray-100 flex-shrink-0">
+            <div className="grid grid-cols-[60px_1fr_32px_80px_84px] gap-x-3 px-4 py-2 text-[11px] font-bold text-gray-400 uppercase tracking-wide border-b border-gray-100 flex-shrink-0">
               <span>Folio</span>
               <span />
-              <span className="text-right">Arts</span>
-              <span>Hora</span>
-              <span className="text-right">Total</span>
+              <span className="text-right border-l border-gray-100 pl-2">Arts</span>
+              <span className="border-l border-gray-100 pl-2">Hora</span>
+              <span className="text-right border-l border-gray-100 pl-2">Total</span>
             </div>
             <div className="flex-1 overflow-y-auto divide-y divide-gray-50">
               {isFetching ? (
@@ -131,7 +131,7 @@ export default function VentasDelDiaModal({ currentSessionId, onClose }: Props) 
                     <button
                       key={sale.id}
                       onClick={() => { setSelectedSaleId(sale.id); setSelectedItemId(null); }}
-                      className={`w-full grid grid-cols-[64px_1fr_36px_72px_84px] gap-2 px-4 py-2.5 text-left text-sm transition-colors ${
+                      className={`w-full grid grid-cols-[60px_1fr_32px_80px_84px] gap-x-3 px-4 py-2.5 text-left text-sm transition-colors ${
                         selected?.id === sale.id ? 'bg-orange-50' : 'hover:bg-gray-50'
                       }`}
                     >
@@ -148,13 +148,13 @@ export default function VentasDelDiaModal({ currentSessionId, onClose }: Props) 
                           </span>
                         )}
                       </span>
-                      <span className={`text-right ${cancelled ? 'text-gray-300' : 'text-gray-500'}`}>{arts}</span>
+                      <span className={`text-right border-l border-gray-100 pl-2 ${cancelled ? 'text-gray-300' : 'text-gray-500'}`}>{arts}</span>
                       {/* alineada a la izquierda, no a la derecha como Arts/Total - el label
                           "Hora" es mucho más corto que un valor tipo "12:14 a. m.", así que
                           alinear a la derecha dejaba el valor mucho más corrido hacia la
                           izquierda que el label, aunque el borde derecho coincidiera */}
-                      <span className={`whitespace-nowrap ${cancelled ? 'text-gray-300' : 'text-gray-500'}`}>{horaOf(sale)}</span>
-                      <span className={`text-right font-bold ${cancelled ? 'text-gray-300' : 'text-orange-500'}`}>
+                      <span className={`whitespace-nowrap border-l border-gray-100 pl-2 ${cancelled ? 'text-gray-300' : 'text-gray-500'}`}>{horaOf(sale)}</span>
+                      <span className={`text-right border-l border-gray-100 pl-2 font-bold ${cancelled ? 'text-gray-300' : 'text-orange-500'}`}>
                         {money(sale.total)}
                       </span>
                     </button>
