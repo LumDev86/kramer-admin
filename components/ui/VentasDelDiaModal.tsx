@@ -113,7 +113,7 @@ export default function VentasDelDiaModal({ currentSessionId, onClose }: Props) 
             <div className="grid grid-cols-[60px_1fr_32px_80px_84px] gap-x-3 px-4 py-2 text-[11px] font-bold text-gray-400 uppercase tracking-wide border-b border-gray-100 flex-shrink-0">
               <span>Folio</span>
               <span />
-              <span className="text-right border-l border-gray-100 pl-2">Arts</span>
+              <span className="text-center border-l border-gray-100 pl-2">Arts</span>
               <span className="border-l border-gray-100 pl-2">Hora</span>
               <span className="text-right border-l border-gray-100 pl-2">Total</span>
             </div>
@@ -148,7 +148,7 @@ export default function VentasDelDiaModal({ currentSessionId, onClose }: Props) 
                           </span>
                         )}
                       </span>
-                      <span className={`text-right border-l border-gray-100 pl-2 ${cancelled ? 'text-gray-300' : 'text-gray-500'}`}>{arts}</span>
+                      <span className={`text-center border-l border-gray-100 pl-2 ${cancelled ? 'text-gray-300' : 'text-gray-500'}`}>{arts}</span>
                       {/* alineada a la izquierda, no a la derecha como Arts/Total - el label
                           "Hora" es mucho más corto que un valor tipo "12:14 a. m.", así que
                           alinear a la derecha dejaba el valor mucho más corrido hacia la
