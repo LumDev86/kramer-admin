@@ -110,20 +110,25 @@ export default function VentasDelDiaModal({ currentSessionId, onClose }: Props) 
         <div className="flex flex-1 min-h-0">
           {/* Lista de tickets del día */}
           <div className="w-[380px] flex-shrink-0 border-r border-gray-100 flex flex-col min-h-0">
-            <div className="grid grid-cols-[60px_1fr_32px_80px_84px] gap-x-3 px-4 py-2 text-[11px] font-bold text-gray-400 uppercase tracking-wide border-b border-gray-100 flex-shrink-0">
-              <span>Folio</span>
-              <span />
-              <span className="text-center border-l border-gray-100 pl-2">Arts</span>
-              <span className="border-l border-gray-100 pl-2">Hora</span>
-              <span className="text-right border-l border-gray-100 pl-2">Total</span>
-            </div>
-            <div className="flex-1 overflow-y-auto divide-y divide-gray-50">
+            {/* el header vive DENTRO del contenedor con scroll (sticky, no fixed afuera) para
+                que sufra el mismo recorte de ancho que las filas cuando aparece la scrollbar -
+                separados en dos contenedores, la lista pierde ~15px de ancho al scrollear pero
+                el header (afuera) no, y las columnas quedan desalineadas entre sí */}
+            <div className="flex-1 overflow-y-auto">
+              <div className="sticky top-0 z-10 grid grid-cols-[60px_1fr_32px_80px_84px] gap-x-3 px-4 py-2 text-[11px] font-bold text-gray-400 uppercase tracking-wide border-b border-gray-100 bg-white">
+                <span>Folio</span>
+                <span />
+                <span className="text-center border-l border-gray-100 pl-2">Arts</span>
+                <span className="border-l border-gray-100 pl-2">Hora</span>
+                <span className="text-right border-l border-gray-100 pl-2">Total</span>
+              </div>
               {isFetching ? (
                 <p className="px-4 py-8 text-center text-sm text-gray-400 font-medium">Cargando...</p>
               ) : ventas.length === 0 ? (
                 <p className="px-4 py-8 text-center text-sm text-gray-400 font-medium">Sin ventas ese día.</p>
               ) : (
-                ventas.map((sale) => {
+                <div className="divide-y divide-gray-50">
+                {ventas.map((sale) => {
                   const arts = sale.items.reduce((sum, item) => sum + item.quantity, 0);
                   const cancelled = sale.status === 'CANCELLED';
                   const credito = sale.paymentMethod === 'CREDIT';
@@ -157,7 +162,8 @@ export default function VentasDelDiaModal({ currentSessionId, onClose }: Props) 
                       </span>
                     </button>
                   );
-                })
+                })}
+                </div>
               )}
             </div>
             <div className="flex items-center justify-between px-4 py-3 border-t border-gray-100 flex-shrink-0">
