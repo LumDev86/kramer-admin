@@ -21,6 +21,7 @@ interface Props {
   onActualizarPrecioProducto: (productId: string, price: number) => void;
   actualizandoPrecio: boolean;
   errorActualizarPrecio?: string;
+  precioActualizado?: number;
   onProductCreated: () => void;
 }
 
@@ -36,6 +37,7 @@ export default function FacturaItemRow({
   onActualizarPrecioProducto,
   actualizandoPrecio,
   errorActualizarPrecio,
+  precioActualizado,
   onProductCreated,
 }: Props) {
   const [creando, setCreando] = useState(false);
@@ -72,6 +74,7 @@ export default function FacturaItemRow({
               onActualizarPrecio={(price) => onActualizarPrecioProducto(item.product!.id, price)}
               actualizandoPrecio={actualizandoPrecio}
               error={errorActualizarPrecio}
+              precioActualizado={precioActualizado}
             />
           ) : (
             <VincularProductoPanel

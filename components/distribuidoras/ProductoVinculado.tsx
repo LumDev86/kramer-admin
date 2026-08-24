@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Check, X } from '@phosphor-icons/react';
 import { FacturaItem } from '@/lib/api';
 import { money } from '@/lib/format';
@@ -21,11 +21,36 @@ interface Props {
   onActualizarPrecio: (price: number) => void;
   actualizandoPrecio: boolean;
   error?: string;
+  // precio con el que se confirmó la última actualización exitosa de ESTE producto (o
+  // undefined si no hay ninguna reciente) - se usa para mostrar un aviso explícito, porque de
+  // otro modo el único indicio de éxito era el "Precio de venta actual" de más arriba, fácil
+  // de no notar si el número resultó ser el mismo que ya tenía (ver comentario en la page)
+  precioActualizado?: number;
 }
 
-export default function ProductoVinculado({ item, onDesvincular, onActualizarPrecio, actualizandoPrecio, error }: Props) {
+export default function ProductoVinculado({
+  item,
+  onDesvincular,
+  onActualizarPrecio,
+  actualizandoPrecio,
+  error,
+  precioActualizado,
+}: Props) {
   const [priceDraft, setPriceDraft] = useState<string | null>(null);
   const [pctDraft, setPctDraft] = useState<string | null>(null);
+
+  // tras confirmar, se limpian los borradores para que los inputs vuelvan a reflejar el precio
+  // real (item.product.price, ya actualizado por la invalidación de queries) en vez de seguir
+  // mostrando el valor que se tipeó - si no se limpiara, un segundo click accidental en
+  // "Actualizar precio" reenviaría ese mismo borrador viejo en vez del precio vigente
+  useEffect(() => {
+    if (precioActualizado !== undefined) {
+      setPriceDraft(null);
+      setPctDraft(null);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [precioActualizado]);
+
   const change = getPriceChange(item);
   const subiendo = !!change && change.pct > 0;
   // margen actual (con el precio de venta de hoy contra el costo nuevo de esta factura) - se
@@ -86,6 +111,11 @@ export default function ProductoVinculado({ item, onDesvincular, onActualizarPre
                 Actualizar precio
               </button>
               {error && <p className="w-full text-[11px] font-semibold text-red-500">{error}</p>}
+              {!error && precioActualizado !== undefined && (
+                <p className="w-full text-[11px] font-semibold text-green-600">
+                  ✓ Precio actualizado a {money(precioActualizado)}
+                </p>
+              )}
             </div>
           )}
         </div>

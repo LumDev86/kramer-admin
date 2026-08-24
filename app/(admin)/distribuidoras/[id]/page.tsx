@@ -27,6 +27,12 @@ export default function DistribuidoraDetallePage() {
   const [toCancel, setToCancel] = useState<Factura | null>(null);
   const [showAumentoModal, setShowAumentoModal] = useState(false);
   const [priceUpdateError, setPriceUpdateError] = useState<{ productId: string; message: string } | null>(null);
+  // sin esto, actualizar el precio no daba ningún indicio visible de éxito más allá de un
+  // texto chico ("Precio de venta actual") que es fácil de no notar - si el navegador
+  // descargó la pestaña en segundo plano y el usuario volvió horas después con el input ya
+  // reseteado a su valor por defecto, el click igual "funcionaba" pero grababa el mismo precio
+  // de siempre, y sin este aviso quedaba indistinguible de un click que no hizo nada
+  const [priceUpdateSuccess, setPriceUpdateSuccess] = useState<{ productId: string; price: number } | null>(null);
 
   const { data, isLoading } = useQuery({
     queryKey: ['distribuidor', id],
@@ -71,15 +77,18 @@ export default function DistribuidoraDetallePage() {
       form.append('price', String(price));
       return products.update(productId, form);
     },
-    onSuccess: () => {
+    onSuccess: (_data, { productId, price }) => {
       invalidate();
       qc.invalidateQueries({ queryKey: ['products'] });
       setPriceUpdateError(null);
+      setPriceUpdateSuccess({ productId, price });
     },
     // sin esto, un fallo (red, sesión vencida, server caído) dejaba el click sin ningún efecto
     // visible - el botón "no hacía nada" en vez de avisar qué pasó
-    onError: (err: any, { productId }) =>
-      setPriceUpdateError({ productId, message: err.message ?? 'No se pudo actualizar el precio' }),
+    onError: (err: any, { productId }) => {
+      setPriceUpdateSuccess(null);
+      setPriceUpdateError({ productId, message: err.message ?? 'No se pudo actualizar el precio' });
+    },
   });
 
   const confirmMutation = useMutation({
@@ -258,6 +267,11 @@ export default function DistribuidoraDetallePage() {
                         errorActualizarPrecio={
                           item.product && priceUpdateError?.productId === item.product.id
                             ? priceUpdateError.message
+                            : undefined
+                        }
+                        precioActualizado={
+                          item.product && priceUpdateSuccess?.productId === item.product.id
+                            ? priceUpdateSuccess.price
                             : undefined
                         }
                         onProductCreated={invalidate}
