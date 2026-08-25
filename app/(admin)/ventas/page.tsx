@@ -115,7 +115,17 @@ export default function VentasPage() {
   const addItemMutation = useMutation({
     mutationFn: ({ saleId, data }: { saleId: string; data: Parameters<typeof sales.addItem>[1] }) =>
       sales.addItem(saleId, data),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ['sales', 'open'] }),
+    onSuccess: (sale, { data }) => {
+      qc.invalidateQueries({ queryKey: ['sales', 'open'] });
+      // deja el selector parado en el producto recién agregado (o cuya cantidad se acaba de
+      // sumar, si ya estaba en el carrito - ver sale.service.ts addItem) para poder ajustarlo
+      // con +/- al toque, en vez de que vuelva a la sección de escaneo y haya que ir a
+      // buscarlo a mano con las flechas. Una línea manual (sin productId) siempre crea fila
+      // nueva al final, así que ahí alcanza con apuntar al último ítem.
+      const idx = data.productId ? sale.items.findIndex((i) => i.productId === data.productId) : sale.items.length - 1;
+      if (idx >= 0) setCartIndex(idx);
+      cartContainerRef.current?.focus();
+    },
   });
 
   const updateItemMutation = useMutation({
@@ -230,7 +240,8 @@ export default function VentasPage() {
     });
     setQuery('');
     setScanError('');
-    scanInputRef.current?.focus();
+    // el foco pasa al carrito (no de vuelta al escaneo) en el onSuccess de addItemMutation,
+    // ya parado en la fila del producto recién agregado
   };
 
   // el escáner solo lee el código de barras: busca ese producto por código exacto y nada más.
@@ -337,7 +348,7 @@ export default function VentasPage() {
     setManualName('');
     setManualPrice('');
     setQuery('');
-    scanInputRef.current?.focus();
+    // el foco pasa al carrito (no de vuelta al escaneo) en el onSuccess de addItemMutation
   };
 
   const total = activeSale ? Number(activeSale.total) : 0;
