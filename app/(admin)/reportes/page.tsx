@@ -305,7 +305,7 @@ export default function ReportesPage() {
               </div>
               <div className="divide-y divide-gray-50">
                 {data.productosConAumento.length === 0 ? (
-                  <p className="px-5 py-6 text-center text-sm text-gray-400 font-medium">No se detectaron aumentos vs. el período anterior.</p>
+                  <p className="px-5 py-6 text-center text-sm text-gray-400 font-medium">No se registraron aumentos de precio en este período.</p>
                 ) : (
                   data.productosConAumento.map((p) => (
                     <div key={p.productId} className="flex justify-between px-5 py-2.5 text-sm gap-3">
