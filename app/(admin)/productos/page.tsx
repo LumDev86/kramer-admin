@@ -21,6 +21,7 @@ export default function ProductosPage() {
   const [deleteError, setDeleteError] = useState('');
   const [priceError, setPriceError] = useState<{ id: string; message: string } | null>(null);
   const [costError, setCostError] = useState<{ id: string; message: string } | null>(null);
+  const [gananciaError, setGananciaError] = useState<{ id: string; message: string } | null>(null);
 
   const { data: allCategories } = useQuery({
     queryKey: ['categories-all'],
@@ -82,33 +83,26 @@ export default function ProductosPage() {
     onSettled: () => qc.invalidateQueries({ queryKey: ['products'] }),
   });
 
-  const updatePriceMutation = useMutation({
-    mutationFn: ({ id, price }: { id: string; price: number }) => {
-      const form = new FormData();
-      form.append('price', String(price));
-      return products.update(id, form);
-    },
-    onSuccess: (_product, { id }) => {
-      qc.invalidateQueries({ queryKey: ['products'] });
-      setPriceError((e) => (e?.id === id ? null : e));
-    },
-    onError: (err: any, { id }) => {
-      setPriceError({ id, message: err.message ?? 'No se pudo actualizar el precio' });
-    },
-  });
+  // Costo, Precio y Ganancia son tres campos vinculados por price = cost * (1 + pct/100):
+  // tocar cualquiera de los tres manda un único PUT parcial con los campos que corresponda,
+  // y el que se editó decide qué mensaje de error mostrar (ver field más abajo)
+  type ProductFieldEdit = { id: string; field: 'price' | 'cost' | 'ganancia'; data: { price?: number; cost?: number | null } };
 
-  const updateCostMutation = useMutation({
-    mutationFn: ({ id, cost }: { id: string; cost: number | null }) => {
+  const fieldErrorSetters = { price: setPriceError, cost: setCostError, ganancia: setGananciaError };
+
+  const updateProductMutation = useMutation({
+    mutationFn: ({ id, data }: ProductFieldEdit) => {
       const form = new FormData();
-      form.append('cost', cost === null ? '' : String(cost));
+      if (data.price !== undefined) form.append('price', String(data.price));
+      if (data.cost !== undefined) form.append('cost', data.cost === null ? '' : String(data.cost));
       return products.update(id, form);
     },
-    onSuccess: (_product, { id }) => {
+    onSuccess: (_product, { id, field }) => {
       qc.invalidateQueries({ queryKey: ['products'] });
-      setCostError((e) => (e?.id === id ? null : e));
+      fieldErrorSetters[field]((e) => (e?.id === id ? null : e));
     },
-    onError: (err: any, { id }) => {
-      setCostError({ id, message: err.message ?? 'No se pudo actualizar el costo' });
+    onError: (err: any, { id, field }) => {
+      fieldErrorSetters[field]({ id, message: err.message ?? 'No se pudo actualizar' });
     },
   });
 
@@ -171,8 +165,8 @@ export default function ProductosPage() {
             <tr className="text-left">
               <th className="px-4 py-3 text-xs font-bold text-gray-400 uppercase tracking-wide">Producto</th>
               <th className="px-4 py-3 text-xs font-bold text-gray-400 uppercase tracking-wide">Categoría</th>
-              <th className="px-4 py-3 text-xs font-bold text-gray-400 uppercase tracking-wide">Precio</th>
               <th className="px-4 py-3 text-xs font-bold text-gray-400 uppercase tracking-wide">Costo</th>
+              <th className="px-4 py-3 text-xs font-bold text-gray-400 uppercase tracking-wide">Precio</th>
               <th className="px-4 py-3 text-xs font-bold text-gray-400 uppercase tracking-wide w-24">Ganancia</th>
               <th className="px-4 py-3 text-xs font-bold text-gray-400 uppercase tracking-wide w-20">Activo</th>
               <th className="px-4 py-3 text-xs font-bold text-gray-400 uppercase tracking-wide w-24">Acciones</th>
@@ -200,73 +194,118 @@ export default function ProductosPage() {
                   </div>
                 </td>
                 <td className="px-4 py-3 text-gray-500">{product.category?.name ?? '—'}</td>
-                <td className="px-4 py-3">
-                  <div className="flex items-center gap-1">
-                    <span className="font-bold text-orange-500">$</span>
-                    <input
-                      key={product.price}
-                      type="number"
-                      step="0.01"
-                      defaultValue={product.price}
-                      disabled={updatePriceMutation.isPending && updatePriceMutation.variables?.id === product.id}
-                      onBlur={(e) => {
-                        const newPrice = parseFloat(e.target.value);
-                        if (isNaN(newPrice) || newPrice <= 0) {
-                          e.target.value = product.price;
-                          return;
-                        }
-                        if (newPrice === parseFloat(product.price)) return;
-                        setPriceError((err) => (err?.id === product.id ? null : err));
-                        updatePriceMutation.mutate({ id: product.id, price: newPrice });
-                      }}
-                      className="w-24 font-bold text-orange-500 bg-transparent outline-none border-b border-transparent focus:border-orange-300 disabled:opacity-50"
-                    />
-                  </div>
-                  {priceError?.id === product.id && (
-                    <p className="text-[11px] font-semibold text-red-500 mt-0.5">{priceError.message}</p>
-                  )}
-                </td>
-                <td className="px-4 py-3">
-                  <div className="flex items-center gap-1">
-                    <span className="font-bold text-gray-500">$</span>
-                    <input
-                      key={product.cost ?? ''}
-                      type="number"
-                      step="0.01"
-                      defaultValue={product.cost ?? ''}
-                      placeholder="—"
-                      disabled={updateCostMutation.isPending && updateCostMutation.variables?.id === product.id}
-                      onBlur={(e) => {
-                        const raw = e.target.value;
-                        const newCost = raw === '' ? null : parseFloat(raw);
-                        if (newCost !== null && (isNaN(newCost) || newCost < 0)) {
-                          e.target.value = product.cost ?? '';
-                          return;
-                        }
-                        const currentCost = product.cost ? parseFloat(product.cost) : null;
-                        if (newCost === currentCost) return;
-                        setCostError((err) => (err?.id === product.id ? null : err));
-                        updateCostMutation.mutate({ id: product.id, cost: newCost });
-                      }}
-                      className="w-24 font-bold text-gray-500 bg-transparent outline-none border-b border-transparent focus:border-orange-300 disabled:opacity-50"
-                    />
-                  </div>
-                  {costError?.id === product.id && (
-                    <p className="text-[11px] font-semibold text-red-500 mt-0.5">{costError.message}</p>
-                  )}
-                </td>
-                <td className="px-4 py-3">
-                  {(() => {
-                    const cost = product.cost ? parseFloat(product.cost) : 0;
-                    if (!cost) return <span className="text-xs text-gray-300 font-medium">—</span>;
-                    const pct = ((parseFloat(product.price) - cost) / cost) * 100;
-                    return (
-                      <span className={`text-xs font-bold ${pct >= 0 ? 'text-green-600' : 'text-red-500'}`}>
-                        {pct >= 0 ? '+' : ''}{pct.toFixed(1)}%
-                      </span>
-                    );
-                  })()}
-                </td>
+                {(() => {
+                  const costNum = product.cost ? parseFloat(product.cost) : null;
+                  const priceNum = parseFloat(product.price);
+                  const pct = costNum ? ((priceNum - costNum) / costNum) * 100 : null;
+                  const rowBusy = updateProductMutation.isPending && updateProductMutation.variables?.id === product.id;
+
+                  return (
+                    <>
+                      <td className="px-4 py-3">
+                        <div className="flex items-center gap-1">
+                          <span className="font-bold text-gray-500">$</span>
+                          <input
+                            key={product.cost ?? ''}
+                            type="number"
+                            step="0.01"
+                            defaultValue={product.cost ?? ''}
+                            placeholder="—"
+                            disabled={rowBusy}
+                            onBlur={(e) => {
+                              const raw = e.target.value;
+                              const newCost = raw === '' ? null : parseFloat(raw);
+                              if (newCost !== null && (isNaN(newCost) || newCost < 0)) {
+                                e.target.value = product.cost ?? '';
+                                return;
+                              }
+                              if (newCost === costNum) return;
+
+                              // mantiene el % de ganancia actual: si ya había costo y precio
+                              // cargados, el precio nuevo se recalcula para conservar ese
+                              // mismo margen en vez de quedar desalineado con el costo nuevo
+                              let newPrice: number | undefined;
+                              if (costNum && newCost !== null) {
+                                const currentPct = (priceNum - costNum) / costNum;
+                                newPrice = parseFloat((newCost * (1 + currentPct)).toFixed(2));
+                              }
+
+                              updateProductMutation.mutate({
+                                id: product.id,
+                                field: 'cost',
+                                data: { cost: newCost, ...(newPrice !== undefined && { price: newPrice }) },
+                              });
+                            }}
+                            className="w-24 font-bold text-gray-500 bg-transparent outline-none border-b border-transparent focus:border-orange-300 disabled:opacity-50"
+                          />
+                        </div>
+                        {costError?.id === product.id && (
+                          <p className="text-[11px] font-semibold text-red-500 mt-0.5">{costError.message}</p>
+                        )}
+                      </td>
+                      <td className="px-4 py-3">
+                        <div className="flex items-center gap-1">
+                          <span className="font-bold text-orange-500">$</span>
+                          <input
+                            key={product.price}
+                            type="number"
+                            step="0.01"
+                            defaultValue={product.price}
+                            disabled={rowBusy}
+                            onBlur={(e) => {
+                              const newPrice = parseFloat(e.target.value);
+                              if (isNaN(newPrice) || newPrice <= 0) {
+                                e.target.value = product.price;
+                                return;
+                              }
+                              if (newPrice === priceNum) return;
+                              updateProductMutation.mutate({ id: product.id, field: 'price', data: { price: newPrice } });
+                            }}
+                            className="w-24 font-bold text-orange-500 bg-transparent outline-none border-b border-transparent focus:border-orange-300 disabled:opacity-50"
+                          />
+                        </div>
+                        {priceError?.id === product.id && (
+                          <p className="text-[11px] font-semibold text-red-500 mt-0.5">{priceError.message}</p>
+                        )}
+                      </td>
+                      <td className="px-4 py-3">
+                        <div className="flex items-center gap-0.5">
+                          <input
+                            key={`${product.cost ?? ''}-${product.price}`}
+                            type="number"
+                            step="0.1"
+                            defaultValue={pct !== null ? pct.toFixed(1) : ''}
+                            placeholder="—"
+                            disabled={!costNum || rowBusy}
+                            onBlur={(e) => {
+                              if (!costNum) return;
+                              const raw = e.target.value;
+                              const newPct = parseFloat(raw);
+                              if (raw === '' || isNaN(newPct)) {
+                                e.target.value = pct !== null ? pct.toFixed(1) : '';
+                                return;
+                              }
+                              if (pct !== null && Math.abs(newPct - pct) < 0.05) return;
+                              const newPrice = parseFloat((costNum * (1 + newPct / 100)).toFixed(2));
+                              if (newPrice <= 0) {
+                                e.target.value = pct !== null ? pct.toFixed(1) : '';
+                                return;
+                              }
+                              updateProductMutation.mutate({ id: product.id, field: 'ganancia', data: { price: newPrice } });
+                            }}
+                            className={`w-14 text-xs font-bold bg-transparent outline-none border-b border-transparent focus:border-orange-300 disabled:opacity-50 ${
+                              pct === null ? 'text-gray-300' : pct >= 0 ? 'text-green-600' : 'text-red-500'
+                            }`}
+                          />
+                          <span className="text-xs font-bold text-gray-300">%</span>
+                        </div>
+                        {gananciaError?.id === product.id && (
+                          <p className="text-[11px] font-semibold text-red-500 mt-0.5">{gananciaError.message}</p>
+                        )}
+                      </td>
+                    </>
+                  );
+                })()}
                 <td className="px-4 py-3">
                   <ToggleSwitch
                     checked={product.isActive}
