@@ -20,6 +20,7 @@ export default function ProductosPage() {
   const [toDelete, setToDelete] = useState<Product | null>(null);
   const [deleteError, setDeleteError] = useState('');
   const [priceError, setPriceError] = useState<{ id: string; message: string } | null>(null);
+  const [costError, setCostError] = useState<{ id: string; message: string } | null>(null);
 
   const { data: allCategories } = useQuery({
     queryKey: ['categories-all'],
@@ -96,6 +97,21 @@ export default function ProductosPage() {
     },
   });
 
+  const updateCostMutation = useMutation({
+    mutationFn: ({ id, cost }: { id: string; cost: number | null }) => {
+      const form = new FormData();
+      form.append('cost', cost === null ? '' : String(cost));
+      return products.update(id, form);
+    },
+    onSuccess: (_product, { id }) => {
+      qc.invalidateQueries({ queryKey: ['products'] });
+      setCostError((e) => (e?.id === id ? null : e));
+    },
+    onError: (err: any, { id }) => {
+      setCostError({ id, message: err.message ?? 'No se pudo actualizar el costo' });
+    },
+  });
+
   return (
     <div className="flex flex-col gap-6">
       <div className="flex items-center justify-between">
@@ -156,6 +172,7 @@ export default function ProductosPage() {
               <th className="px-4 py-3 text-xs font-bold text-gray-400 uppercase tracking-wide">Producto</th>
               <th className="px-4 py-3 text-xs font-bold text-gray-400 uppercase tracking-wide">Categoría</th>
               <th className="px-4 py-3 text-xs font-bold text-gray-400 uppercase tracking-wide">Precio</th>
+              <th className="px-4 py-3 text-xs font-bold text-gray-400 uppercase tracking-wide">Costo</th>
               <th className="px-4 py-3 text-xs font-bold text-gray-400 uppercase tracking-wide w-24">Ganancia</th>
               <th className="px-4 py-3 text-xs font-bold text-gray-400 uppercase tracking-wide w-20">Activo</th>
               <th className="px-4 py-3 text-xs font-bold text-gray-400 uppercase tracking-wide w-24">Acciones</th>
@@ -165,7 +182,7 @@ export default function ProductosPage() {
             {isLoading ? (
               Array.from({ length: 8 }).map((_, i) => (
                 <tr key={i}>
-                  <td colSpan={6} className="px-4 py-3">
+                  <td colSpan={7} className="px-4 py-3">
                     <div className="h-5 bg-gray-100 rounded animate-pulse" />
                   </td>
                 </tr>
@@ -205,13 +222,37 @@ export default function ProductosPage() {
                       className="w-24 font-bold text-orange-500 bg-transparent outline-none border-b border-transparent focus:border-orange-300 disabled:opacity-50"
                     />
                   </div>
-                  {product.cost && (
-                    <p className="text-xs text-gray-400 font-medium">
-                      Mayor: ${parseFloat(product.cost).toLocaleString('es-AR')}
-                    </p>
-                  )}
                   {priceError?.id === product.id && (
                     <p className="text-[11px] font-semibold text-red-500 mt-0.5">{priceError.message}</p>
+                  )}
+                </td>
+                <td className="px-4 py-3">
+                  <div className="flex items-center gap-1">
+                    <span className="font-bold text-gray-500">$</span>
+                    <input
+                      key={product.cost ?? ''}
+                      type="number"
+                      step="0.01"
+                      defaultValue={product.cost ?? ''}
+                      placeholder="—"
+                      disabled={updateCostMutation.isPending && updateCostMutation.variables?.id === product.id}
+                      onBlur={(e) => {
+                        const raw = e.target.value;
+                        const newCost = raw === '' ? null : parseFloat(raw);
+                        if (newCost !== null && (isNaN(newCost) || newCost < 0)) {
+                          e.target.value = product.cost ?? '';
+                          return;
+                        }
+                        const currentCost = product.cost ? parseFloat(product.cost) : null;
+                        if (newCost === currentCost) return;
+                        setCostError((err) => (err?.id === product.id ? null : err));
+                        updateCostMutation.mutate({ id: product.id, cost: newCost });
+                      }}
+                      className="w-24 font-bold text-gray-500 bg-transparent outline-none border-b border-transparent focus:border-orange-300 disabled:opacity-50"
+                    />
+                  </div>
+                  {costError?.id === product.id && (
+                    <p className="text-[11px] font-semibold text-red-500 mt-0.5">{costError.message}</p>
                   )}
                 </td>
                 <td className="px-4 py-3">
