@@ -19,6 +19,7 @@ export default function ProductosPage() {
   const [page, setPage] = useState(1);
   const [toDelete, setToDelete] = useState<Product | null>(null);
   const [deleteError, setDeleteError] = useState('');
+  const [priceError, setPriceError] = useState<{ id: string; message: string } | null>(null);
 
   const { data: allCategories } = useQuery({
     queryKey: ['categories-all'],
@@ -78,6 +79,21 @@ export default function ProductosPage() {
       }
     },
     onSettled: () => qc.invalidateQueries({ queryKey: ['products'] }),
+  });
+
+  const updatePriceMutation = useMutation({
+    mutationFn: ({ id, price }: { id: string; price: number }) => {
+      const form = new FormData();
+      form.append('price', String(price));
+      return products.update(id, form);
+    },
+    onSuccess: (_product, { id }) => {
+      qc.invalidateQueries({ queryKey: ['products'] });
+      setPriceError((e) => (e?.id === id ? null : e));
+    },
+    onError: (err: any, { id }) => {
+      setPriceError({ id, message: err.message ?? 'No se pudo actualizar el precio' });
+    },
   });
 
   return (
@@ -168,11 +184,34 @@ export default function ProductosPage() {
                 </td>
                 <td className="px-4 py-3 text-gray-500">{product.category?.name ?? '—'}</td>
                 <td className="px-4 py-3">
-                  <p className="font-bold text-orange-500">${parseFloat(product.price).toLocaleString('es-AR')}</p>
+                  <div className="flex items-center gap-1">
+                    <span className="font-bold text-orange-500">$</span>
+                    <input
+                      key={product.price}
+                      type="number"
+                      step="0.01"
+                      defaultValue={product.price}
+                      disabled={updatePriceMutation.isPending && updatePriceMutation.variables?.id === product.id}
+                      onBlur={(e) => {
+                        const newPrice = parseFloat(e.target.value);
+                        if (isNaN(newPrice) || newPrice <= 0) {
+                          e.target.value = product.price;
+                          return;
+                        }
+                        if (newPrice === parseFloat(product.price)) return;
+                        setPriceError((err) => (err?.id === product.id ? null : err));
+                        updatePriceMutation.mutate({ id: product.id, price: newPrice });
+                      }}
+                      className="w-24 font-bold text-orange-500 bg-transparent outline-none border-b border-transparent focus:border-orange-300 disabled:opacity-50"
+                    />
+                  </div>
                   {product.cost && (
                     <p className="text-xs text-gray-400 font-medium">
                       Mayor: ${parseFloat(product.cost).toLocaleString('es-AR')}
                     </p>
+                  )}
+                  {priceError?.id === product.id && (
+                    <p className="text-[11px] font-semibold text-red-500 mt-0.5">{priceError.message}</p>
                   )}
                 </td>
                 <td className="px-4 py-3">
