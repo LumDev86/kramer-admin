@@ -93,21 +93,6 @@ export default function DistribuidoraDetallePage() {
     },
   });
 
-  const createManualMutation = useMutation({
-    mutationFn: () => facturas.createManual(id),
-    onSuccess: (factura) => {
-      invalidate();
-      setActiveFacturaId(factura.id);
-      setRevealCount(Infinity);
-      setTab('facturas');
-    },
-  });
-
-  const toggleIvaMutation = useMutation({
-    mutationFn: (ivaDiscriminado: boolean) => distribuidores.update(id, { ivaDiscriminado }),
-    onSuccess: invalidate,
-  });
-
   const confirmMutation = useMutation({
     mutationFn: (facturaId: string) => facturas.confirm(facturaId),
     onSuccess: () => {
@@ -204,11 +189,8 @@ export default function DistribuidoraDetallePage() {
       {tab === 'productos' && (
         <ProductosDistribuidora
           distribuidorId={id}
-          onCargarManual={() => createManualMutation.mutate()}
-          cargandoManual={createManualMutation.isPending}
+          distribuidorNombre={data.nombre}
           ivaDiscriminado={data.ivaDiscriminado}
-          onToggleIva={() => toggleIvaMutation.mutate(!data.ivaDiscriminado)}
-          togglingIva={toggleIvaMutation.isPending}
         />
       )}
 
