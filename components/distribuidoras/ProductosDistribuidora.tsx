@@ -3,12 +3,13 @@
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import Image from 'next/image';
-import { distribuidores, products, Product, ProductoDistribuidor } from '@/lib/api';
-import { MagnifyingGlass, PencilSimple, Check, X, Plus } from '@phosphor-icons/react';
+import { distribuidores, products, categories, Product } from '@/lib/api';
+import { MagnifyingGlass, Plus, X } from '@phosphor-icons/react';
 import { money } from '@/lib/format';
 import ToggleSwitch from '@/components/ui/ToggleSwitch';
 import ProductSearchModal from '@/components/ui/ProductSearchModal';
 import AjustarIvaModal from '@/components/ui/AjustarIvaModal';
+import NuevoProductoManualForm from './NuevoProductoManualForm';
 
 interface Props {
   distribuidorId: string;
@@ -19,9 +20,9 @@ interface Props {
 export default function ProductosDistribuidora({ distribuidorId, distribuidorNombre, ivaDiscriminado }: Props) {
   const qc = useQueryClient();
   const [search, setSearch] = useState('');
-  const [editingId, setEditingId] = useState<string | null>(null);
-  const [price, setPrice] = useState('');
-  const [cost, setCost] = useState('');
+  const [priceError, setPriceError] = useState<{ id: string; message: string } | null>(null);
+  const [costError, setCostError] = useState<{ id: string; message: string } | null>(null);
+  const [gananciaError, setGananciaError] = useState<{ id: string; message: string } | null>(null);
 
   const [pickerOpen, setPickerOpen] = useState(false);
   const [pending, setPending] = useState<Product | null>(null);
@@ -29,6 +30,7 @@ export default function ProductosDistribuidora({ distribuidorId, distribuidorNom
   const [pendingCosto, setPendingCosto] = useState('');
   const [pendingPrecio, setPendingPrecio] = useState('');
   const [pendingError, setPendingError] = useState('');
+  const [creatingNew, setCreatingNew] = useState(false);
 
   const [showIvaAdjust, setShowIvaAdjust] = useState(false);
 
@@ -37,21 +39,34 @@ export default function ProductosDistribuidora({ distribuidorId, distribuidorNom
     queryFn: () => distribuidores.getProductos(distribuidorId),
   });
 
+  const { data: catsData } = useQuery({
+    queryKey: ['categories', { parentId: 'null', limit: 100 }],
+    queryFn: () => categories.getAll({ parentId: 'null', limit: 100 }),
+  });
+
   const invalidateAll = () => {
     qc.invalidateQueries({ queryKey: ['distribuidor', distribuidorId] });
     qc.invalidateQueries({ queryKey: ['products'] });
   };
 
-  const updateMutation = useMutation({
-    mutationFn: ({ id, data }: { id: string; data: { price: string; cost: string } }) => {
+  // mismo patrón que la lista de Productos: Costo, Precio y Ganancia vinculados por
+  // price = cost * (1 + pct/100), tocar cualquiera manda un único PUT parcial
+  type FieldEdit = { id: string; field: 'price' | 'cost' | 'ganancia'; data: { price?: number; cost?: number | null } };
+  const fieldErrorSetters = { price: setPriceError, cost: setCostError, ganancia: setGananciaError };
+
+  const updateFieldMutation = useMutation({
+    mutationFn: ({ id, data }: FieldEdit) => {
       const form = new FormData();
-      form.append('price', data.price);
-      form.append('cost', data.cost);
+      if (data.price !== undefined) form.append('price', String(data.price));
+      if (data.cost !== undefined) form.append('cost', data.cost === null ? '' : String(data.cost));
       return products.update(id, form);
     },
-    onSuccess: () => {
+    onSuccess: (_product, { id, field }) => {
       invalidateAll();
-      setEditingId(null);
+      fieldErrorSetters[field]((e) => (e?.id === id ? null : e));
+    },
+    onError: (err: any, { id, field }) => {
+      fieldErrorSetters[field]({ id, message: err.message ?? 'No se pudo actualizar' });
     },
   });
 
@@ -87,12 +102,6 @@ export default function ProductosDistribuidora({ distribuidorId, distribuidorNom
     } else {
       setShowIvaAdjust(true);
     }
-  };
-
-  const startEdit = (p: ProductoDistribuidor) => {
-    setEditingId(p.id);
-    setPrice(p.price);
-    setCost(p.cost ?? '');
   };
 
   const selectPending = (p: Product) => {
@@ -212,6 +221,16 @@ export default function ProductosDistribuidora({ distribuidorId, distribuidorNom
         </div>
       )}
 
+      {creatingNew && (
+        <NuevoProductoManualForm
+          distribuidorId={distribuidorId}
+          categories={catsData?.data ?? []}
+          categoriesLoading={!catsData}
+          onCreated={() => { setCreatingNew(false); invalidateAll(); }}
+          onCancel={() => setCreatingNew(false)}
+        />
+      )}
+
       <div className="bg-white rounded-2xl shadow-sm overflow-hidden">
         {isLoading ? (
           <p className="px-5 py-8 text-center text-sm text-gray-400 font-medium">Cargando...</p>
@@ -222,72 +241,149 @@ export default function ProductosDistribuidora({ distribuidorId, distribuidorNom
               : 'Todavía no confirmaste ninguna factura de esta distribuidora.'}
           </p>
         ) : (
-          <div className="divide-y divide-gray-50">
-            {filtered.map((p) => (
-              <div key={p.id} className="px-4 py-3">
-                <div className="flex items-center gap-3">
-                  <div className="relative w-10 h-10 flex-shrink-0 bg-gray-100 rounded-lg overflow-hidden">
-                    <Image src={p.imageUrl} alt={p.title} fill sizes="40px" className="object-contain p-1" />
-                  </div>
-                  <div className="min-w-0 flex-1">
-                    <p className="text-sm font-semibold text-gray-700 truncate">{p.title}</p>
-                    <p className="text-xs text-gray-400">
-                      Costo: {p.cost ? money(p.cost) : '—'} · Venta: {money(p.price)}
-                    </p>
-                  </div>
-                  {editingId !== p.id && (
-                    <button
-                      onClick={() => startEdit(p)}
-                      className="w-8 h-8 flex items-center justify-center rounded-lg text-gray-400 hover:bg-gray-100 hover:text-gray-600 flex-shrink-0 transition-colors"
-                    >
-                      <PencilSimple size={15} weight="bold" />
-                    </button>
-                  )}
-                </div>
-                {editingId === p.id && (
-                  <div className="flex items-end gap-2 mt-2.5 pl-[52px]">
-                    <div className="flex-1">
-                      <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wide">Costo</label>
-                      <input
-                        type="number"
-                        step="0.01"
-                        value={cost}
-                        onChange={(e) => setCost(e.target.value)}
-                        className="w-full border border-gray-200 rounded-lg px-2.5 py-1.5 text-sm outline-none focus:border-orange-400"
-                      />
-                    </div>
-                    <div className="flex-1">
-                      <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wide">Venta</label>
-                      <input
-                        type="number"
-                        step="0.01"
-                        value={price}
-                        onChange={(e) => setPrice(e.target.value)}
-                        className="w-full border border-gray-200 rounded-lg px-2.5 py-1.5 text-sm outline-none focus:border-orange-400"
-                      />
-                    </div>
-                    <button
-                      onClick={() => setEditingId(null)}
-                      className="w-8 h-8 flex items-center justify-center rounded-lg text-gray-400 hover:bg-gray-100 flex-shrink-0 transition-colors"
-                    >
-                      <X size={15} weight="bold" />
-                    </button>
-                    <button
-                      onClick={() => updateMutation.mutate({ id: p.id, data: { price, cost } })}
-                      disabled={updateMutation.isPending || !price}
-                      className="w-8 h-8 flex items-center justify-center rounded-lg bg-green-600 hover:bg-green-700 text-white flex-shrink-0 disabled:opacity-50 transition-colors"
-                    >
-                      <Check size={15} weight="bold" />
-                    </button>
-                  </div>
-                )}
-              </div>
-            ))}
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead className="border-b border-gray-100">
+                <tr className="text-left">
+                  <th className="px-4 py-3 text-xs font-bold text-gray-400 uppercase tracking-wide">Producto</th>
+                  <th className="px-4 py-3 text-xs font-bold text-gray-400 uppercase tracking-wide">Costo</th>
+                  <th className="px-4 py-3 text-xs font-bold text-gray-400 uppercase tracking-wide">Precio</th>
+                  <th className="px-4 py-3 text-xs font-bold text-gray-400 uppercase tracking-wide w-24">Ganancia</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-gray-50">
+                {filtered.map((p) => {
+                  const costNum = p.cost ? parseFloat(p.cost) : null;
+                  const priceNum = parseFloat(p.price);
+                  const pct = costNum ? ((priceNum - costNum) / costNum) * 100 : null;
+                  const rowBusy = updateFieldMutation.isPending && updateFieldMutation.variables?.id === p.id;
+
+                  return (
+                    <tr key={p.id} className="hover:bg-gray-50 transition-colors">
+                      <td className="px-4 py-3">
+                        <div className="flex items-center gap-3">
+                          <div className="relative w-10 h-10 flex-shrink-0 bg-gray-100 rounded-lg overflow-hidden">
+                            <Image src={p.imageUrl} alt={p.title} fill sizes="40px" className="object-contain p-1" />
+                          </div>
+                          <span className="font-semibold text-gray-700 truncate max-w-xs">{p.title}</span>
+                        </div>
+                      </td>
+                      <td className="px-4 py-3">
+                        <div className="flex items-center gap-1">
+                          <span className="font-bold text-gray-500">$</span>
+                          <input
+                            key={p.cost ?? ''}
+                            type="number"
+                            step="0.01"
+                            defaultValue={p.cost ?? ''}
+                            placeholder="—"
+                            disabled={rowBusy}
+                            onBlur={(e) => {
+                              const raw = e.target.value;
+                              const newCost = raw === '' ? null : parseFloat(raw);
+                              if (newCost !== null && (isNaN(newCost) || newCost < 0)) {
+                                e.target.value = p.cost ?? '';
+                                return;
+                              }
+                              if (newCost === costNum) return;
+
+                              // mantiene el % de ganancia actual: si ya había costo y precio,
+                              // el precio nuevo se recalcula para conservar ese mismo margen
+                              let newPrice: number | undefined;
+                              if (costNum && newCost !== null) {
+                                const currentPct = (priceNum - costNum) / costNum;
+                                newPrice = parseFloat((newCost * (1 + currentPct)).toFixed(2));
+                              }
+
+                              updateFieldMutation.mutate({
+                                id: p.id,
+                                field: 'cost',
+                                data: { cost: newCost, ...(newPrice !== undefined && { price: newPrice }) },
+                              });
+                            }}
+                            className="w-24 font-bold text-gray-500 bg-transparent outline-none border-b border-transparent focus:border-orange-300 disabled:opacity-50"
+                          />
+                        </div>
+                        {costError?.id === p.id && (
+                          <p className="text-[11px] font-semibold text-red-500 mt-0.5">{costError.message}</p>
+                        )}
+                      </td>
+                      <td className="px-4 py-3">
+                        <div className="flex items-center gap-1">
+                          <span className="font-bold text-orange-500">$</span>
+                          <input
+                            key={p.price}
+                            type="number"
+                            step="0.01"
+                            defaultValue={p.price}
+                            disabled={rowBusy}
+                            onBlur={(e) => {
+                              const newPrice = parseFloat(e.target.value);
+                              if (isNaN(newPrice) || newPrice <= 0) {
+                                e.target.value = p.price;
+                                return;
+                              }
+                              if (newPrice === priceNum) return;
+                              updateFieldMutation.mutate({ id: p.id, field: 'price', data: { price: newPrice } });
+                            }}
+                            className="w-24 font-bold text-orange-500 bg-transparent outline-none border-b border-transparent focus:border-orange-300 disabled:opacity-50"
+                          />
+                        </div>
+                        {priceError?.id === p.id && (
+                          <p className="text-[11px] font-semibold text-red-500 mt-0.5">{priceError.message}</p>
+                        )}
+                      </td>
+                      <td className="px-4 py-3">
+                        <div className="flex items-center gap-0.5">
+                          <input
+                            key={`${p.cost ?? ''}-${p.price}`}
+                            type="number"
+                            step="0.1"
+                            defaultValue={pct !== null ? pct.toFixed(1) : ''}
+                            placeholder="—"
+                            disabled={!costNum || rowBusy}
+                            onBlur={(e) => {
+                              if (!costNum) return;
+                              const raw = e.target.value;
+                              const newPct = parseFloat(raw);
+                              if (raw === '' || isNaN(newPct)) {
+                                e.target.value = pct !== null ? pct.toFixed(1) : '';
+                                return;
+                              }
+                              if (pct !== null && Math.abs(newPct - pct) < 0.05) return;
+                              const newPrice = parseFloat((costNum * (1 + newPct / 100)).toFixed(2));
+                              if (newPrice <= 0) {
+                                e.target.value = pct !== null ? pct.toFixed(1) : '';
+                                return;
+                              }
+                              updateFieldMutation.mutate({ id: p.id, field: 'ganancia', data: { price: newPrice } });
+                            }}
+                            className={`w-14 text-xs font-bold bg-transparent outline-none border-b border-transparent focus:border-orange-300 disabled:opacity-50 ${
+                              pct === null ? 'text-gray-300' : pct >= 0 ? 'text-green-600' : 'text-red-500'
+                            }`}
+                          />
+                          <span className="text-xs font-bold text-gray-300">%</span>
+                        </div>
+                        {gananciaError?.id === p.id && (
+                          <p className="text-[11px] font-semibold text-red-500 mt-0.5">{gananciaError.message}</p>
+                        )}
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
           </div>
         )}
       </div>
 
-      {pickerOpen && <ProductSearchModal onSelect={selectPending} onClose={() => setPickerOpen(false)} />}
+      {pickerOpen && (
+        <ProductSearchModal
+          onSelect={selectPending}
+          onClose={() => setPickerOpen(false)}
+          onCreateNew={() => { setPickerOpen(false); setCreatingNew(true); }}
+        />
+      )}
 
       {showIvaAdjust && (
         <AjustarIvaModal

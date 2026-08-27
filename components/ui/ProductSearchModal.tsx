@@ -4,17 +4,19 @@ import { useEffect, useRef, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import Image from 'next/image';
 import { products, Product } from '@/lib/api';
-import { MagnifyingGlass, X } from '@phosphor-icons/react';
+import { MagnifyingGlass, Plus, X } from '@phosphor-icons/react';
 import { money } from '@/lib/format';
 
 interface Props {
   onSelect: (product: Product) => void;
   onClose: () => void;
+  // si viene, muestra un botón para crear un producto nuevo en vez de elegir uno existente
+  onCreateNew?: () => void;
 }
 
 const LIMIT = 20;
 
-export default function ProductSearchModal({ onSelect, onClose }: Props) {
+export default function ProductSearchModal({ onSelect, onClose, onCreateNew }: Props) {
   const inputRef = useRef<HTMLInputElement>(null);
   const [search, setSearch] = useState('');
   const [page, setPage] = useState(1);
@@ -88,6 +90,15 @@ export default function ProductSearchModal({ onSelect, onClose }: Props) {
         <p className="px-4 py-1.5 text-[11px] text-gray-400 font-medium border-b border-gray-50 flex-shrink-0">
           ↑↓ para moverte · Enter para elegir · Esc para cerrar
         </p>
+        {onCreateNew && (
+          <button
+            onClick={onCreateNew}
+            className="flex items-center gap-1.5 px-4 py-2.5 text-xs font-bold text-orange-500 hover:bg-orange-50 border-b border-gray-50 transition-colors flex-shrink-0"
+          >
+            <Plus size={14} weight="bold" />
+            Crear producto nuevo
+          </button>
+        )}
         <div className="overflow-y-auto divide-y divide-gray-50">
           {isFetching ? (
             <p className="px-4 py-8 text-center text-sm text-gray-400 font-medium">Buscando...</p>
