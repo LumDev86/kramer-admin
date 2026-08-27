@@ -359,6 +359,7 @@ export interface Distribuidor {
   nombre: string;
   telefono: string | null;
   notas: string | null;
+  ivaDiscriminado: boolean;
   totalGastado?: number;
   createdAt: string;
 }
@@ -438,7 +439,7 @@ export const distribuidores = {
   getById: (id: string) => request<DistribuidorConFacturas>(`/distribuidores/${id}`),
   create: (data: { nombre: string; telefono?: string; notas?: string }) =>
     request<Distribuidor>('/distribuidores', { method: 'POST', body: JSON.stringify(data) }),
-  update: (id: string, data: { nombre?: string; telefono?: string | null; notas?: string | null }) =>
+  update: (id: string, data: { nombre?: string; telefono?: string | null; notas?: string | null; ivaDiscriminado?: boolean }) =>
     request<Distribuidor>(`/distribuidores/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
   delete: (id: string) => request<void>(`/distribuidores/${id}`, { method: 'DELETE' }),
   getProductos: (id: string) => request<ProductoDistribuidor[]>(`/distribuidores/${id}/productos`),
@@ -452,6 +453,8 @@ export const facturas = {
     request<Record<string, SuggestedProduct[]>>(`/facturas/${facturaId}/suggestions`),
   create: (distribuidorId: string, form: FormData) =>
     request<Factura>(`/distribuidores/${distribuidorId}/facturas`, { method: 'POST', body: form }),
+  createManual: (distribuidorId: string) =>
+    request<Factura>(`/distribuidores/${distribuidorId}/facturas/manual`, { method: 'POST' }),
   addItem: (
     facturaId: string,
     data: { productId?: string; nombreDetectado: string; codigoDetectado?: string; cantidad?: number; precioUnitario: number }

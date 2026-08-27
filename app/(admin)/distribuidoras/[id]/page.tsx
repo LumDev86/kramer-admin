@@ -10,16 +10,19 @@ import { CaretLeft, Warning, TrendUp } from '@phosphor-icons/react';
 import ConfirmModal from '@/components/ui/ConfirmModal';
 import ImageLightbox from '@/components/ui/ImageLightbox';
 import AplicarAumentoModal from '@/components/ui/AplicarAumentoModal';
+import ToggleSwitch from '@/components/ui/ToggleSwitch';
 import { money } from '@/lib/format';
 import SubirFacturaCard from '@/components/distribuidoras/SubirFacturaCard';
 import FacturaItemRow from '@/components/distribuidoras/FacturaItemRow';
 import AgregarLineaManual from '@/components/distribuidoras/AgregarLineaManual';
 import HistorialFacturas from '@/components/distribuidoras/HistorialFacturas';
+import ProductosDistribuidora from '@/components/distribuidoras/ProductosDistribuidora';
 
 export default function DistribuidoraDetallePage() {
   const { id } = useParams() as { id: string };
   const qc = useQueryClient();
 
+  const [tab, setTab] = useState<'facturas' | 'productos'>('facturas');
   const [activeFacturaId, setActiveFacturaId] = useState<string | null>(null);
   const [uploadError, setUploadError] = useState('');
   const [lightboxUrl, setLightboxUrl] = useState<string | null>(null);
@@ -91,6 +94,21 @@ export default function DistribuidoraDetallePage() {
     },
   });
 
+  const createManualMutation = useMutation({
+    mutationFn: () => facturas.createManual(id),
+    onSuccess: (factura) => {
+      invalidate();
+      setActiveFacturaId(factura.id);
+      setRevealCount(Infinity);
+      setTab('facturas');
+    },
+  });
+
+  const toggleIvaMutation = useMutation({
+    mutationFn: (ivaDiscriminado: boolean) => distribuidores.update(id, { ivaDiscriminado }),
+    onSuccess: invalidate,
+  });
+
   const confirmMutation = useMutation({
     mutationFn: (facturaId: string) => facturas.confirm(facturaId),
     onSuccess: () => {
@@ -156,6 +174,14 @@ export default function DistribuidoraDetallePage() {
           <p className="text-xs font-bold text-gray-400 uppercase tracking-wide">Total gastado</p>
           <p className="text-2xl font-extrabold text-orange-500">{money(totalGastado)}</p>
         </div>
+        <div className="flex items-center gap-2 border border-gray-200 rounded-xl px-3 py-2">
+          <span className="text-xs font-bold text-gray-500">IVA discriminado</span>
+          <ToggleSwitch
+            checked={data.ivaDiscriminado}
+            loading={toggleIvaMutation.isPending}
+            onChange={() => toggleIvaMutation.mutate(!data.ivaDiscriminado)}
+          />
+        </div>
         <button
           onClick={() => setShowAumentoModal(true)}
           className="flex items-center gap-2 border border-gray-200 text-gray-600 hover:bg-gray-50 font-bold px-4 py-2.5 rounded-xl text-sm transition-colors"
@@ -165,30 +191,59 @@ export default function DistribuidoraDetallePage() {
         </button>
       </div>
 
-      <SubirFacturaCard
-        onUpload={(file) => uploadMutation.mutate(file)}
-        uploading={uploadMutation.isPending}
-        error={uploadError}
-      />
+      <div className="flex gap-2 border-b border-gray-200">
+        <button
+          onClick={() => setTab('facturas')}
+          className={`px-4 py-2.5 text-sm font-bold border-b-2 -mb-px transition-colors ${
+            tab === 'facturas' ? 'border-orange-500 text-orange-500' : 'border-transparent text-gray-400 hover:text-gray-600'
+          }`}
+        >
+          Facturas
+        </button>
+        <button
+          onClick={() => setTab('productos')}
+          className={`px-4 py-2.5 text-sm font-bold border-b-2 -mb-px transition-colors ${
+            tab === 'productos' ? 'border-orange-500 text-orange-500' : 'border-transparent text-gray-400 hover:text-gray-600'
+          }`}
+        >
+          Productos
+        </button>
+      </div>
 
-      {pendientes.length > 0 && !activeFactura && (
-        <div className="bg-white rounded-2xl shadow-sm p-5 flex flex-col gap-2">
-          <p className="text-sm font-bold text-gray-700">Facturas pendientes de revisión</p>
-          <div className="flex flex-wrap gap-2">
-            {pendientes.map((f) => (
-              <button
-                key={f.id}
-                onClick={() => { setActiveFacturaId(f.id); setRevealCount(Infinity); }}
-                className="flex items-center gap-2 px-3 py-2 rounded-xl border border-orange-200 bg-orange-50 text-orange-600 text-xs font-bold"
-              >
-                {money(f.total)} · {f.items.length} ítems
-              </button>
-            ))}
-          </div>
-        </div>
+      {tab === 'productos' && (
+        <ProductosDistribuidora
+          distribuidorId={id}
+          onCargarManual={() => createManualMutation.mutate()}
+          cargandoManual={createManualMutation.isPending}
+        />
       )}
 
-      {activeFactura && (
+      {tab === 'facturas' && (
+        <>
+          <SubirFacturaCard
+            onUpload={(file) => uploadMutation.mutate(file)}
+            uploading={uploadMutation.isPending}
+            error={uploadError}
+          />
+
+          {pendientes.length > 0 && !activeFactura && (
+            <div className="bg-white rounded-2xl shadow-sm p-5 flex flex-col gap-2">
+              <p className="text-sm font-bold text-gray-700">Facturas pendientes de revisión</p>
+              <div className="flex flex-wrap gap-2">
+                {pendientes.map((f) => (
+                  <button
+                    key={f.id}
+                    onClick={() => { setActiveFacturaId(f.id); setRevealCount(Infinity); }}
+                    className="flex items-center gap-2 px-3 py-2 rounded-xl border border-orange-200 bg-orange-50 text-orange-600 text-xs font-bold"
+                  >
+                    {money(f.total)} · {f.items.length} ítems
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {activeFactura && (
         <div className="grid grid-cols-1 lg:grid-cols-[280px_1fr] gap-6">
           <div className="bg-white rounded-2xl shadow-sm p-3">
             <div className="relative w-full aspect-[3/4] rounded-xl overflow-hidden bg-gray-100">
@@ -329,7 +384,9 @@ export default function DistribuidoraDetallePage() {
         </div>
       )}
 
-      <HistorialFacturas facturas={historial} onViewImage={setLightboxUrl} />
+          <HistorialFacturas facturas={historial} onViewImage={setLightboxUrl} />
+        </>
+      )}
 
       {toCancel && (
         <ConfirmModal
