@@ -6,14 +6,25 @@ import Image from 'next/image';
 import { distribuidores, products, ProductoDistribuidor } from '@/lib/api';
 import { MagnifyingGlass, PencilSimple, Check, X, Plus } from '@phosphor-icons/react';
 import { money } from '@/lib/format';
+import ToggleSwitch from '@/components/ui/ToggleSwitch';
 
 interface Props {
   distribuidorId: string;
   onCargarManual: () => void;
   cargandoManual: boolean;
+  ivaDiscriminado: boolean;
+  onToggleIva: () => void;
+  togglingIva: boolean;
 }
 
-export default function ProductosDistribuidora({ distribuidorId, onCargarManual, cargandoManual }: Props) {
+export default function ProductosDistribuidora({
+  distribuidorId,
+  onCargarManual,
+  cargandoManual,
+  ivaDiscriminado,
+  onToggleIva,
+  togglingIva,
+}: Props) {
   const qc = useQueryClient();
   const [search, setSearch] = useState('');
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -59,6 +70,10 @@ export default function ProductosDistribuidora({ distribuidorId, onCargarManual,
             placeholder="Buscar producto..."
             className="w-full border border-gray-200 rounded-xl pl-9 pr-3 py-2.5 text-sm outline-none focus:border-orange-400"
           />
+        </div>
+        <div className="flex items-center gap-2 border border-gray-200 rounded-xl px-3 py-2 flex-shrink-0">
+          <span className="text-xs font-bold text-gray-500">IVA discriminado</span>
+          <ToggleSwitch checked={ivaDiscriminado} loading={togglingIva} onChange={onToggleIva} />
         </div>
         <button
           onClick={onCargarManual}

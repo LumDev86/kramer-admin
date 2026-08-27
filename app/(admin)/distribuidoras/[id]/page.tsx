@@ -10,7 +10,6 @@ import { CaretLeft, Warning, TrendUp } from '@phosphor-icons/react';
 import ConfirmModal from '@/components/ui/ConfirmModal';
 import ImageLightbox from '@/components/ui/ImageLightbox';
 import AplicarAumentoModal from '@/components/ui/AplicarAumentoModal';
-import ToggleSwitch from '@/components/ui/ToggleSwitch';
 import { money } from '@/lib/format';
 import SubirFacturaCard from '@/components/distribuidoras/SubirFacturaCard';
 import FacturaItemRow from '@/components/distribuidoras/FacturaItemRow';
@@ -174,14 +173,6 @@ export default function DistribuidoraDetallePage() {
           <p className="text-xs font-bold text-gray-400 uppercase tracking-wide">Total gastado</p>
           <p className="text-2xl font-extrabold text-orange-500">{money(totalGastado)}</p>
         </div>
-        <div className="flex items-center gap-2 border border-gray-200 rounded-xl px-3 py-2">
-          <span className="text-xs font-bold text-gray-500">IVA discriminado</span>
-          <ToggleSwitch
-            checked={data.ivaDiscriminado}
-            loading={toggleIvaMutation.isPending}
-            onChange={() => toggleIvaMutation.mutate(!data.ivaDiscriminado)}
-          />
-        </div>
         <button
           onClick={() => setShowAumentoModal(true)}
           className="flex items-center gap-2 border border-gray-200 text-gray-600 hover:bg-gray-50 font-bold px-4 py-2.5 rounded-xl text-sm transition-colors"
@@ -215,6 +206,9 @@ export default function DistribuidoraDetallePage() {
           distribuidorId={id}
           onCargarManual={() => createManualMutation.mutate()}
           cargandoManual={createManualMutation.isPending}
+          ivaDiscriminado={data.ivaDiscriminado}
+          onToggleIva={() => toggleIvaMutation.mutate(!data.ivaDiscriminado)}
+          togglingIva={toggleIvaMutation.isPending}
         />
       )}
 
