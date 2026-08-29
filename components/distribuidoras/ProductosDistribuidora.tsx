@@ -29,6 +29,7 @@ export default function ProductosDistribuidora({ distribuidorId, distribuidorNom
   const [pendingCantidad, setPendingCantidad] = useState('1');
   const [pendingCosto, setPendingCosto] = useState('');
   const [pendingPrecio, setPendingPrecio] = useState('');
+  const [pendingCodigoArticulo, setPendingCodigoArticulo] = useState('');
   const [pendingError, setPendingError] = useState('');
   const [creatingNew, setCreatingNew] = useState(false);
 
@@ -78,6 +79,7 @@ export default function ProductosDistribuidora({ distribuidorId, distribuidorNom
         cantidad: parseFloat(pendingCantidad || '1'),
         costo,
         ...(pendingPrecio !== '' && !isNaN(precioNum) && precioNum !== Number(pending!.price) && { precio: precioNum }),
+        ...(pendingCodigoArticulo.trim() && { codigoArticulo: pendingCodigoArticulo.trim() }),
       });
     },
     onSuccess: () => {
@@ -86,6 +88,7 @@ export default function ProductosDistribuidora({ distribuidorId, distribuidorNom
       setPendingCosto('');
       setPendingPrecio('');
       setPendingCantidad('1');
+      setPendingCodigoArticulo('');
       setPendingError('');
     },
     onError: (err: any) => setPendingError(err.message ?? 'No se pudo registrar la compra'),
@@ -110,6 +113,7 @@ export default function ProductosDistribuidora({ distribuidorId, distribuidorNom
     setPendingCosto(p.cost ?? '');
     setPendingPrecio(p.price);
     setPendingCantidad('1');
+    setPendingCodigoArticulo('');
     setPendingError('');
   };
 
@@ -217,6 +221,21 @@ export default function ProductosDistribuidora({ distribuidorId, distribuidorNom
               {compraManualMutation.isPending ? 'Guardando...' : 'Agregar'}
             </button>
           </div>
+          <div className="flex items-center gap-3 flex-wrap">
+            <input
+              type="text"
+              value={pendingCodigoArticulo}
+              onChange={(e) => setPendingCodigoArticulo(e.target.value)}
+              onKeyDown={(e) => { if (e.key === 'Enter') e.preventDefault(); }}
+              placeholder="Código de artículo de esta distribuidora (opcional)"
+              className="flex-1 min-w-[220px] border border-gray-200 rounded-lg px-2.5 py-1.5 text-sm outline-none focus:border-orange-400"
+            />
+            {pendingCostNum > 0 && (
+              <p className="text-[11px] font-semibold text-gray-500 whitespace-nowrap">
+                Subtotal de la compra: {money(pendingCostNum * (parseFloat(pendingCantidad || '0') || 0))}
+              </p>
+            )}
+          </div>
           {pendingError && <p className="text-xs font-semibold text-red-500">{pendingError}</p>}
         </div>
       )}
@@ -225,8 +244,8 @@ export default function ProductosDistribuidora({ distribuidorId, distribuidorNom
         <NuevoProductoManualForm
           categories={catsData?.data ?? []}
           categoriesLoading={!catsData}
-          onRegistrar={(product, cantidad, costo) =>
-            distribuidores.registrarCompraManual(distribuidorId, product.id, { cantidad, costo })
+          onRegistrar={(product, cantidad, costo, codigoArticulo) =>
+            distribuidores.registrarCompraManual(distribuidorId, product.id, { cantidad, costo, codigoArticulo })
           }
           onCreated={() => { setCreatingNew(false); invalidateAll(); }}
           onCancel={() => setCreatingNew(false)}

@@ -445,8 +445,11 @@ export const distribuidores = {
   getProductos: (id: string) => request<ProductoDistribuidor[]>(`/distribuidores/${id}/productos`),
   aplicarAumento: (id: string, data: { pct: number; productIds: string[] }) =>
     request<ProductoAjustado[]>(`/distribuidores/${id}/aplicar-aumento`, { method: 'POST', body: JSON.stringify(data) }),
-  registrarCompraManual: (id: string, productId: string, data: { cantidad: number; costo: number; precio?: number }) =>
-    request<Factura>(`/distribuidores/${id}/productos/${productId}/compra-manual`, { method: 'POST', body: JSON.stringify(data) }),
+  registrarCompraManual: (
+    id: string,
+    productId: string,
+    data: { cantidad: number; costo: number; precio?: number; codigoArticulo?: string }
+  ) => request<Factura>(`/distribuidores/${id}/productos/${productId}/compra-manual`, { method: 'POST', body: JSON.stringify(data) }),
 };
 
 export const facturas = {
@@ -459,7 +462,14 @@ export const facturas = {
     request<Factura>(`/distribuidores/${distribuidorId}/facturas/manual`, { method: 'POST' }),
   addItem: (
     facturaId: string,
-    data: { productId?: string; nombreDetectado: string; codigoDetectado?: string; cantidad?: number; precioUnitario: number }
+    data: {
+      productId?: string;
+      nombreDetectado: string;
+      codigoDetectado?: string;
+      codigoArticulo?: string;
+      cantidad?: number;
+      precioUnitario: number;
+    }
   ) => request<Factura>(`/facturas/${facturaId}/items`, { method: 'POST', body: JSON.stringify(data) }),
   updateItem: (
     facturaId: string,

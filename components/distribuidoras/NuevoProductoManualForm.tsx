@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { useMutation } from '@tanstack/react-query';
 import { X, MagnifyingGlass } from '@phosphor-icons/react';
 import { products, Category, ImageSearchResult, Product } from '@/lib/api';
+import { money } from '@/lib/format';
 import ImageUpload from '@/components/ui/ImageUpload';
 import UnitSelector from '@/components/ui/UnitSelector';
 import CategorySelector from '@/components/ui/CategorySelector';
@@ -13,7 +14,7 @@ interface Props {
   categoriesLoading: boolean;
   // qué hacer una vez creado el producto (registrar la compra ya confirmada, o agregarlo como
   // línea de una factura manual en construcción) - lo decide quien use este formulario
-  onRegistrar: (product: Product, cantidad: number, costo: number) => Promise<unknown>;
+  onRegistrar: (product: Product, cantidad: number, costo: number, codigoArticulo?: string) => Promise<unknown>;
   onCreated: () => void;
   onCancel: () => void;
 }
@@ -30,6 +31,7 @@ export default function NuevoProductoManualForm({
   const [title, setTitle] = useState('');
   const [cantidad, setCantidad] = useState('1');
   const [costo, setCosto] = useState('');
+  const [codigoArticulo, setCodigoArticulo] = useState('');
   const [form, setForm] = useState({ price: '', quantity: '', unit: '', categoryId: '', barcode: '' });
   const [image, setImage] = useState<File | null>(null);
   const [error, setError] = useState('');
@@ -54,7 +56,7 @@ export default function NuevoProductoManualForm({
       else if (aiImageUrl) fd.append('imageSourceUrl', aiImageUrl);
 
       const product = await products.create(fd);
-      return onRegistrar(product, parseFloat(cantidad || '1'), parseFloat(costo));
+      return onRegistrar(product, parseFloat(cantidad || '1'), parseFloat(costo), codigoArticulo.trim() || undefined);
     },
     onSuccess: onCreated,
     onError: (err: any) => setError(err.message ?? 'Error al crear el producto'),
@@ -222,11 +224,28 @@ export default function NuevoProductoManualForm({
               />
             </div>
           </div>
-          {pct !== null && (
-            <p className={`text-[11px] font-semibold ${pct >= 0 ? 'text-green-600' : 'text-red-500'}`}>
-              Ganancia actual: {pct >= 0 ? '+' : ''}{pct.toFixed(1)}%
-            </p>
-          )}
+          <div className="flex items-center gap-3 flex-wrap">
+            {pct !== null && (
+              <p className={`text-[11px] font-semibold ${pct >= 0 ? 'text-green-600' : 'text-red-500'}`}>
+                Ganancia actual: {pct >= 0 ? '+' : ''}{pct.toFixed(1)}%
+              </p>
+            )}
+            {costNum > 0 && (
+              <p className="text-[11px] font-semibold text-gray-500">
+                Subtotal de la compra: {money(costNum * (parseFloat(cantidad || '0') || 0))}
+              </p>
+            )}
+          </div>
+          <div className="flex flex-wrap gap-2">
+            <input
+              type="text"
+              value={codigoArticulo}
+              onChange={(e) => setCodigoArticulo(e.target.value)}
+              onKeyDown={(e) => { if (e.key === 'Enter') e.preventDefault(); }}
+              placeholder="Código de artículo de esta distribuidora (opcional)"
+              className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm outline-none focus:border-orange-400"
+            />
+          </div>
           <div className="flex flex-wrap gap-2">
             <input
               type="number"
