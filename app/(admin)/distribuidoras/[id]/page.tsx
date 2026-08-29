@@ -15,6 +15,7 @@ import SubirFacturaCard from '@/components/distribuidoras/SubirFacturaCard';
 import FacturaItemRow from '@/components/distribuidoras/FacturaItemRow';
 import AgregarLineaManual from '@/components/distribuidoras/AgregarLineaManual';
 import AgregarProductoAFactura from '@/components/distribuidoras/AgregarProductoAFactura';
+import FacturaManualItemsTable from '@/components/distribuidoras/FacturaManualItemsTable';
 import HistorialFacturas from '@/components/distribuidoras/HistorialFacturas';
 import ProductosDistribuidora from '@/components/distribuidoras/ProductosDistribuidora';
 
@@ -270,81 +271,85 @@ export default function DistribuidoraDetallePage() {
             )}
 
             <div className="bg-white rounded-2xl shadow-sm overflow-hidden">
-            <div className="overflow-x-auto">
-              <table className="w-full text-sm">
-                <thead className="border-b border-gray-100">
-                  <tr className="text-left">
-                    <th className="px-4 py-3 text-xs font-bold text-gray-400 uppercase tracking-wide">Producto</th>
-                    <th className="px-4 py-3 text-xs font-bold text-gray-400 uppercase tracking-wide w-24">Cant.</th>
-                    <th className="px-4 py-3 text-xs font-bold text-gray-400 uppercase tracking-wide w-28">P. Unitario</th>
-                    <th className="px-4 py-3 text-xs font-bold text-gray-400 uppercase tracking-wide w-28">Subtotal</th>
-                    <th className="px-4 py-3 w-10" />
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-gray-50">
-                  {activeFactura.items.length === 0 ? (
-                    <tr>
-                      <td colSpan={5} className="px-4 py-8 text-center text-sm text-gray-400 font-medium">
-                        Sin productos todavía.
-                      </td>
+            {activeFactura.imageUrl ? (
+              <div className="overflow-x-auto">
+                <table className="w-full text-sm">
+                  <thead className="border-b border-gray-100">
+                    <tr className="text-left">
+                      <th className="px-4 py-3 text-xs font-bold text-gray-400 uppercase tracking-wide">Producto</th>
+                      <th className="px-4 py-3 text-xs font-bold text-gray-400 uppercase tracking-wide w-24">Cant.</th>
+                      <th className="px-4 py-3 text-xs font-bold text-gray-400 uppercase tracking-wide w-28">P. Unitario</th>
+                      <th className="px-4 py-3 text-xs font-bold text-gray-400 uppercase tracking-wide w-28">Subtotal</th>
+                      <th className="px-4 py-3 w-10" />
                     </tr>
-                  ) : (
-                    activeFactura.items.slice(0, revealCount).map((item) => (
-                      <FacturaItemRow
-                        key={item.id}
-                        item={item}
-                        facturaId={activeFactura.id}
-                        suggestions={suggestions?.[item.id] ?? []}
-                        categories={catsData?.data ?? []}
-                        categoriesLoading={!catsData}
-                        onUpdate={(itemData) =>
-                          updateItemMutation.mutate({ facturaId: activeFactura.id, itemId: item.id, data: itemData })
-                        }
-                        onRemove={() => removeItemMutation.mutate({ facturaId: activeFactura.id, itemId: item.id })}
-                        onVincular={(product, precio) => {
-                          updateItemMutation.mutate({
-                            facturaId: activeFactura.id,
-                            itemId: item.id,
-                            data: { productId: product.id },
-                          });
-                          const newPrice = parseFloat(precio);
-                          if (!isNaN(newPrice) && newPrice > 0 && newPrice !== Number(product.price)) {
-                            updateProductPriceMutation.mutate({ productId: product.id, price: newPrice });
+                  </thead>
+                  <tbody className="divide-y divide-gray-50">
+                    {activeFactura.items.length === 0 ? (
+                      <tr>
+                        <td colSpan={5} className="px-4 py-8 text-center text-sm text-gray-400 font-medium">
+                          Sin productos todavía.
+                        </td>
+                      </tr>
+                    ) : (
+                      activeFactura.items.slice(0, revealCount).map((item) => (
+                        <FacturaItemRow
+                          key={item.id}
+                          item={item}
+                          facturaId={activeFactura.id}
+                          suggestions={suggestions?.[item.id] ?? []}
+                          categories={catsData?.data ?? []}
+                          categoriesLoading={!catsData}
+                          onUpdate={(itemData) =>
+                            updateItemMutation.mutate({ facturaId: activeFactura.id, itemId: item.id, data: itemData })
                           }
-                        }}
-                        onActualizarPrecioProducto={(productId, price) =>
-                          updateProductPriceMutation.mutate({ productId, price })
-                        }
-                        actualizandoPrecio={updateProductPriceMutation.isPending}
-                        errorActualizarPrecio={
-                          item.product && priceUpdateError?.productId === item.product.id
-                            ? priceUpdateError.message
-                            : undefined
-                        }
-                        precioActualizado={
-                          item.product && priceUpdateSuccess?.productId === item.product.id
-                            ? priceUpdateSuccess.price
-                            : undefined
-                        }
-                        onProductCreated={invalidate}
-                      />
-                    ))
-                  )}
-                  {revealCount < activeFactura.items.length && (
-                    <tr>
-                      <td colSpan={5} className="px-4 py-3 animate-fadeIn">
-                        <div className="flex items-center gap-2">
-                          <div className="w-3.5 h-3.5 border-2 border-orange-400 border-t-transparent rounded-full animate-spin flex-shrink-0" />
-                          <span className="text-xs text-orange-500 font-semibold">
-                            Detectando productos... ({revealCount}/{activeFactura.items.length})
-                          </span>
-                        </div>
-                      </td>
-                    </tr>
-                  )}
-                </tbody>
-              </table>
-            </div>
+                          onRemove={() => removeItemMutation.mutate({ facturaId: activeFactura.id, itemId: item.id })}
+                          onVincular={(product, precio) => {
+                            updateItemMutation.mutate({
+                              facturaId: activeFactura.id,
+                              itemId: item.id,
+                              data: { productId: product.id },
+                            });
+                            const newPrice = parseFloat(precio);
+                            if (!isNaN(newPrice) && newPrice > 0 && newPrice !== Number(product.price)) {
+                              updateProductPriceMutation.mutate({ productId: product.id, price: newPrice });
+                            }
+                          }}
+                          onActualizarPrecioProducto={(productId, price) =>
+                            updateProductPriceMutation.mutate({ productId, price })
+                          }
+                          actualizandoPrecio={updateProductPriceMutation.isPending}
+                          errorActualizarPrecio={
+                            item.product && priceUpdateError?.productId === item.product.id
+                              ? priceUpdateError.message
+                              : undefined
+                          }
+                          precioActualizado={
+                            item.product && priceUpdateSuccess?.productId === item.product.id
+                              ? priceUpdateSuccess.price
+                              : undefined
+                          }
+                          onProductCreated={invalidate}
+                        />
+                      ))
+                    )}
+                    {revealCount < activeFactura.items.length && (
+                      <tr>
+                        <td colSpan={5} className="px-4 py-3 animate-fadeIn">
+                          <div className="flex items-center gap-2">
+                            <div className="w-3.5 h-3.5 border-2 border-orange-400 border-t-transparent rounded-full animate-spin flex-shrink-0" />
+                            <span className="text-xs text-orange-500 font-semibold">
+                              Detectando productos... ({revealCount}/{activeFactura.items.length})
+                            </span>
+                          </div>
+                        </td>
+                      </tr>
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            ) : (
+              <FacturaManualItemsTable facturaId={activeFactura.id} items={activeFactura.items} onChanged={invalidate} />
+            )}
 
               <div className="p-4 border-t border-gray-100">
                 {activeFactura.imageUrl ? (

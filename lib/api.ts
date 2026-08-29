@@ -474,7 +474,14 @@ export const facturas = {
   updateItem: (
     facturaId: string,
     itemId: string,
-    data: { productId?: string | null; nombreDetectado?: string; codigoDetectado?: string | null; cantidad?: number; precioUnitario?: number }
+    data: {
+      productId?: string | null;
+      nombreDetectado?: string;
+      codigoDetectado?: string | null;
+      codigoArticulo?: string | null;
+      cantidad?: number;
+      precioUnitario?: number;
+    }
   ) => request<Factura>(`/facturas/${facturaId}/items/${itemId}`, { method: 'PATCH', body: JSON.stringify(data) }),
   removeItem: (facturaId: string, itemId: string) =>
     request<Factura>(`/facturas/${facturaId}/items/${itemId}`, { method: 'DELETE' }),

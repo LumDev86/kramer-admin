@@ -1,11 +1,10 @@
 'use client';
 
 import { useState } from 'react';
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useQuery, useMutation } from '@tanstack/react-query';
 import Image from 'next/image';
-import { distribuidores, facturas, products, Category, Product } from '@/lib/api';
-import { MagnifyingGlass, X } from '@phosphor-icons/react';
-import { money } from '@/lib/format';
+import { distribuidores, facturas, Category, Product } from '@/lib/api';
+import { MagnifyingGlass } from '@phosphor-icons/react';
 import ProductSearchModal from '@/components/ui/ProductSearchModal';
 import NuevoProductoManualForm from './NuevoProductoManualForm';
 
@@ -17,21 +16,16 @@ interface Props {
   onAdded: () => void;
 }
 
-type Elegido = { id: string; title: string; cost: string | null; price: string; imageUrl: string };
+type Elegido = { id: string; title: string; cost: string | null };
 
-// selector rápido de producto para armar una factura a mano (en vez de escanearla): primero
-// ofrece los productos que ya se le compraron antes a esta distribuidora (un click), después
-// buscar cualquier otro producto del catálogo, y si no existe, crearlo ahí mismo
+// selector rápido de producto para armar una factura a mano (en vez de escanearla): elegir un
+// producto (chip de "ya comprados", búsqueda, o crear uno nuevo) lo agrega directo como línea
+// con valores por defecto - todo lo demás (cantidad, costo, precio, ganancia, código de
+// artículo) se termina de ajustar en la fila misma (ver FacturaManualItemsTable), sin un paso
+// intermedio de confirmación que solo agregaba un click de más
 export default function AgregarProductoAFactura({ facturaId, distribuidorId, categories, categoriesLoading, onAdded }: Props) {
-  const qc = useQueryClient();
   const [pickerOpen, setPickerOpen] = useState(false);
   const [creatingNew, setCreatingNew] = useState(false);
-  const [selected, setSelected] = useState<Elegido | null>(null);
-  const [cantidad, setCantidad] = useState('1');
-  const [costo, setCosto] = useState('');
-  const [precio, setPrecio] = useState('');
-  const [gananciaPct, setGananciaPct] = useState('');
-  const [codigoArticulo, setCodigoArticulo] = useState('');
   const [error, setError] = useState('');
 
   const { data: productosDistribuidora } = useQuery({
@@ -40,55 +34,21 @@ export default function AgregarProductoAFactura({ facturaId, distribuidorId, cat
   });
 
   const addItemMutation = useMutation({
-    mutationFn: async () => {
-      const costoNum = parseFloat(costo);
-      const precioNum = parseFloat(precio);
-      const factura = await facturas.addItem(facturaId, {
-        productId: selected!.id,
-        nombreDetectado: selected!.title,
-        cantidad: parseFloat(cantidad || '1'),
-        precioUnitario: costoNum,
-        codigoArticulo: codigoArticulo.trim() || undefined,
-      });
-      // el "confirmar factura" solo actualiza costo y stock - si además cambiaste el precio
-      // de venta acá, hay que guardarlo aparte (misma lógica que al vincular un ítem escaneado)
-      if (!isNaN(precioNum) && precioNum > 0 && precioNum !== Number(selected!.price)) {
-        const form = new FormData();
-        form.append('price', String(precioNum));
-        await products.update(selected!.id, form);
-        qc.invalidateQueries({ queryKey: ['products'] });
-      }
-      return factura;
-    },
-    onSuccess: () => {
-      onAdded();
-      setSelected(null);
-      setCosto('');
-      setPrecio('');
-      setGananciaPct('');
-      setCodigoArticulo('');
-      setCantidad('1');
-      setError('');
-    },
+    mutationFn: (p: Elegido) =>
+      facturas.addItem(facturaId, {
+        productId: p.id,
+        nombreDetectado: p.title,
+        cantidad: 1,
+        precioUnitario: p.cost ? Number(p.cost) : 0,
+      }),
+    onSuccess: () => { onAdded(); setError(''); },
     onError: (err: any) => setError(err.message ?? 'No se pudo agregar la línea'),
   });
 
   const selectProduct = (p: Elegido) => {
-    setSelected(p);
-    setCosto(p.cost ?? '');
-    setPrecio(p.price);
-    setGananciaPct('');
-    setCodigoArticulo('');
-    setCantidad('1');
-    setError('');
     setPickerOpen(false);
+    addItemMutation.mutate(p);
   };
-
-  const costoNum = parseFloat(costo || '0') || 0;
-  const cantidadNum = parseFloat(cantidad || '0') || 0;
-  const precioNum = parseFloat(precio || '0') || 0;
-  const pct = costoNum > 0 && precio !== '' ? ((precioNum - costoNum) / costoNum) * 100 : null;
-  const subtotal = costoNum * cantidadNum;
 
   return (
     <div className="flex flex-col gap-3">
@@ -102,11 +62,8 @@ export default function AgregarProductoAFactura({ facturaId, distribuidorId, cat
               <button
                 key={p.id}
                 onClick={() => selectProduct(p)}
-                className={`flex items-center gap-1.5 pl-1.5 pr-2.5 py-1.5 rounded-lg border text-xs font-semibold transition-colors ${
-                  selected?.id === p.id
-                    ? 'border-orange-400 bg-orange-50 text-orange-600'
-                    : 'border-gray-200 text-gray-600 hover:bg-gray-50'
-                }`}
+                disabled={addItemMutation.isPending}
+                className="flex items-center gap-1.5 pl-1.5 pr-2.5 py-1.5 rounded-lg border border-gray-200 text-xs font-semibold text-gray-600 hover:bg-gray-50 transition-colors disabled:opacity-50"
               >
                 <div className="relative w-5 h-5 flex-shrink-0 bg-gray-100 rounded overflow-hidden">
                   <Image src={p.imageUrl} alt={p.title} fill sizes="20px" className="object-contain" />
@@ -126,96 +83,6 @@ export default function AgregarProductoAFactura({ facturaId, distribuidorId, cat
         Buscar otro producto o crear uno nuevo
       </button>
 
-      {selected && (
-        <div className="flex flex-col gap-2.5 bg-gray-50 rounded-xl p-3">
-          <div className="flex items-center gap-2">
-            <div className="relative w-8 h-8 flex-shrink-0 bg-white rounded-lg overflow-hidden">
-              <Image src={selected.imageUrl} alt={selected.title} fill sizes="32px" className="object-contain p-0.5" />
-            </div>
-            <p className="text-sm font-semibold text-gray-700 flex-1 truncate">{selected.title}</p>
-            <button
-              onClick={() => setSelected(null)}
-              className="w-7 h-7 flex items-center justify-center rounded-lg text-gray-400 hover:bg-gray-100 flex-shrink-0"
-            >
-              <X size={14} weight="bold" />
-            </button>
-          </div>
-          <div className="flex items-end gap-2 flex-wrap">
-            <div>
-              <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wide">Cant.</label>
-              <input
-                type="number"
-                step="1"
-                min="1"
-                value={cantidad}
-                onChange={(e) => setCantidad(e.target.value)}
-                className="w-16 border border-gray-200 rounded-lg px-2 py-1.5 text-sm outline-none focus:border-orange-400"
-              />
-            </div>
-            <div>
-              <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wide">Costo (mayor)</label>
-              <input
-                type="number"
-                step="0.01"
-                value={costo}
-                onChange={(e) => setCosto(e.target.value)}
-                className="w-24 border border-gray-200 rounded-lg px-2 py-1.5 text-sm outline-none focus:border-orange-400"
-              />
-            </div>
-            <div>
-              <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wide">Precio (lista)</label>
-              <input
-                type="number"
-                step="0.01"
-                value={precio}
-                onChange={(e) => setPrecio(e.target.value)}
-                className="w-24 border border-gray-200 rounded-lg px-2 py-1.5 text-sm outline-none focus:border-orange-400"
-              />
-            </div>
-            <div>
-              <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wide">Ganancia</label>
-              <div className="flex items-center gap-0.5">
-                <input
-                  type="number"
-                  step="0.1"
-                  value={gananciaPct !== '' ? gananciaPct : pct !== null ? pct.toFixed(1) : ''}
-                  disabled={!costoNum}
-                  onChange={(e) => {
-                    setGananciaPct(e.target.value);
-                    const newPct = parseFloat(e.target.value);
-                    if (isNaN(newPct) || !costoNum) return;
-                    setPrecio((costoNum * (1 + newPct / 100)).toFixed(2));
-                  }}
-                  className="w-16 border border-gray-200 rounded-lg px-2 py-1.5 text-sm outline-none focus:border-orange-400 disabled:opacity-50"
-                />
-                <span className="text-xs font-bold text-gray-400">%</span>
-              </div>
-            </div>
-            <button
-              onClick={() => addItemMutation.mutate()}
-              disabled={!costo || addItemMutation.isPending}
-              className="py-2 px-4 rounded-lg bg-orange-500 hover:bg-orange-600 text-white text-sm font-bold disabled:opacity-50"
-            >
-              {addItemMutation.isPending ? 'Agregando...' : 'Agregar línea'}
-            </button>
-          </div>
-          <div className="flex items-center gap-3 flex-wrap">
-            <input
-              type="text"
-              value={codigoArticulo}
-              onChange={(e) => setCodigoArticulo(e.target.value)}
-              onKeyDown={(e) => { if (e.key === 'Enter') e.preventDefault(); }}
-              placeholder="Código de artículo de esta distribuidora (opcional)"
-              className="flex-1 min-w-[220px] border border-gray-200 rounded-lg px-2.5 py-1.5 text-sm outline-none focus:border-orange-400"
-            />
-            {costoNum > 0 && (
-              <p className="text-[11px] font-semibold text-gray-500 whitespace-nowrap">
-                Subtotal: {money(subtotal)}
-              </p>
-            )}
-          </div>
-        </div>
-      )}
       {error && <p className="text-xs font-semibold text-red-500">{error}</p>}
 
       {pickerOpen && (
