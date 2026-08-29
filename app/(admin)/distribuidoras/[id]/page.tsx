@@ -6,7 +6,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import Link from 'next/link';
 import Image from 'next/image';
 import { distribuidores, facturas, products, categories, Factura } from '@/lib/api';
-import { CaretLeft, Warning, TrendUp } from '@phosphor-icons/react';
+import { CaretLeft, Warning, TrendUp, Plus } from '@phosphor-icons/react';
 import ConfirmModal from '@/components/ui/ConfirmModal';
 import ImageLightbox from '@/components/ui/ImageLightbox';
 import AplicarAumentoModal from '@/components/ui/AplicarAumentoModal';
@@ -14,6 +14,7 @@ import { money } from '@/lib/format';
 import SubirFacturaCard from '@/components/distribuidoras/SubirFacturaCard';
 import FacturaItemRow from '@/components/distribuidoras/FacturaItemRow';
 import AgregarLineaManual from '@/components/distribuidoras/AgregarLineaManual';
+import AgregarProductoAFactura from '@/components/distribuidoras/AgregarProductoAFactura';
 import HistorialFacturas from '@/components/distribuidoras/HistorialFacturas';
 import ProductosDistribuidora from '@/components/distribuidoras/ProductosDistribuidora';
 
@@ -59,6 +60,15 @@ export default function DistribuidoraDetallePage() {
       setRevealCount(0);
     },
     onError: (err: any) => setUploadError(err.message ?? 'Error al procesar la factura'),
+  });
+
+  const iniciarManualMutation = useMutation({
+    mutationFn: () => facturas.iniciarManual(id),
+    onSuccess: (factura) => {
+      invalidate();
+      setActiveFacturaId(factura.id);
+      setRevealCount(Infinity);
+    },
   });
 
   const updateItemMutation = useMutation({
@@ -202,6 +212,17 @@ export default function DistribuidoraDetallePage() {
             error={uploadError}
           />
 
+          {!activeFactura && (
+            <button
+              onClick={() => iniciarManualMutation.mutate()}
+              disabled={iniciarManualMutation.isPending}
+              className="flex items-center gap-2 self-start border border-gray-200 text-gray-600 hover:bg-gray-50 font-bold px-4 py-2.5 rounded-xl text-sm transition-colors disabled:opacity-50"
+            >
+              <Plus size={16} weight="bold" />
+              {iniciarManualMutation.isPending ? 'Creando...' : 'Crear factura manual (sin escanear)'}
+            </button>
+          )}
+
           {pendientes.length > 0 && !activeFactura && (
             <div className="bg-white rounded-2xl shadow-sm p-5 flex flex-col gap-2">
               <p className="text-sm font-bold text-gray-700">Facturas pendientes de revisión</p>
@@ -234,7 +255,7 @@ export default function DistribuidoraDetallePage() {
                 </button>
               ) : (
                 <div className="w-full h-full flex items-center justify-center text-xs text-gray-400 font-medium text-center px-4">
-                  Imagen eliminada
+                  Factura cargada a mano, sin imagen
                 </div>
               )}
             </div>
@@ -326,7 +347,17 @@ export default function DistribuidoraDetallePage() {
             </div>
 
               <div className="p-4 border-t border-gray-100">
-                <AgregarLineaManual facturaId={activeFactura.id} onAdded={invalidate} />
+                {activeFactura.imageUrl ? (
+                  <AgregarLineaManual facturaId={activeFactura.id} onAdded={invalidate} />
+                ) : (
+                  <AgregarProductoAFactura
+                    facturaId={activeFactura.id}
+                    distribuidorId={id}
+                    categories={catsData?.data ?? []}
+                    categoriesLoading={!catsData}
+                    onAdded={invalidate}
+                  />
+                )}
               </div>
             </div>
 

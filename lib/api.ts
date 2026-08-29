@@ -455,6 +455,8 @@ export const facturas = {
     request<Record<string, SuggestedProduct[]>>(`/facturas/${facturaId}/suggestions`),
   create: (distribuidorId: string, form: FormData) =>
     request<Factura>(`/distribuidores/${distribuidorId}/facturas`, { method: 'POST', body: form }),
+  iniciarManual: (distribuidorId: string) =>
+    request<Factura>(`/distribuidores/${distribuidorId}/facturas/manual`, { method: 'POST' }),
   addItem: (
     facturaId: string,
     data: { productId?: string; nombreDetectado: string; codigoDetectado?: string; cantidad?: number; precioUnitario: number }

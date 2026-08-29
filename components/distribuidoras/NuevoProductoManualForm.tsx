@@ -3,27 +3,27 @@
 import { useState } from 'react';
 import { useMutation } from '@tanstack/react-query';
 import { X, MagnifyingGlass } from '@phosphor-icons/react';
-import { distribuidores, products, Category, ImageSearchResult } from '@/lib/api';
+import { products, Category, ImageSearchResult, Product } from '@/lib/api';
 import ImageUpload from '@/components/ui/ImageUpload';
 import UnitSelector from '@/components/ui/UnitSelector';
 import CategorySelector from '@/components/ui/CategorySelector';
 
 interface Props {
-  distribuidorId: string;
   categories: Category[];
   categoriesLoading: boolean;
+  // qué hacer una vez creado el producto (registrar la compra ya confirmada, o agregarlo como
+  // línea de una factura manual en construcción) - lo decide quien use este formulario
+  onRegistrar: (product: Product, cantidad: number, costo: number) => Promise<unknown>;
   onCreated: () => void;
   onCancel: () => void;
 }
 
 // analogo a NuevoProductoDesdeFacturaForm, pero para un producto que nunca se compró antes
-// (no viene de un ítem de factura detectado) - el costo/cantidad se tipean a mano y, al crear,
-// además de dar de alta el producto se registra la compra manual para que quede vinculado
-// a esta distribuidora (ver factura.service.ts -> registrarCompraManual)
+// (no viene de un ítem de factura detectado) - el costo/cantidad se tipean a mano
 export default function NuevoProductoManualForm({
-  distribuidorId,
   categories,
   categoriesLoading,
+  onRegistrar,
   onCreated,
   onCancel,
 }: Props) {
@@ -54,10 +54,7 @@ export default function NuevoProductoManualForm({
       else if (aiImageUrl) fd.append('imageSourceUrl', aiImageUrl);
 
       const product = await products.create(fd);
-      return distribuidores.registrarCompraManual(distribuidorId, product.id, {
-        cantidad: parseFloat(cantidad || '1'),
-        costo: parseFloat(costo),
-      });
+      return onRegistrar(product, parseFloat(cantidad || '1'), parseFloat(costo));
     },
     onSuccess: onCreated,
     onError: (err: any) => setError(err.message ?? 'Error al crear el producto'),

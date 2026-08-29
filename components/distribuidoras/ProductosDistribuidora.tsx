@@ -223,9 +223,11 @@ export default function ProductosDistribuidora({ distribuidorId, distribuidorNom
 
       {creatingNew && (
         <NuevoProductoManualForm
-          distribuidorId={distribuidorId}
           categories={catsData?.data ?? []}
           categoriesLoading={!catsData}
+          onRegistrar={(product, cantidad, costo) =>
+            distribuidores.registrarCompraManual(distribuidorId, product.id, { cantidad, costo })
+          }
           onCreated={() => { setCreatingNew(false); invalidateAll(); }}
           onCancel={() => setCreatingNew(false)}
         />
