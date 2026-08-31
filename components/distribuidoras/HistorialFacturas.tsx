@@ -1,8 +1,10 @@
 'use client';
 
+import { useState } from 'react';
 import Image from 'next/image';
-import { Factura } from '@/lib/api';
+import { Factura, Category } from '@/lib/api';
 import { money } from '@/lib/format';
+import FacturaDetalleModal from './FacturaDetalleModal';
 
 const STATUS_LABEL: Record<Factura['status'], string> = {
   PENDING_REVIEW: 'En revisión',
@@ -13,9 +15,27 @@ const STATUS_LABEL: Record<Factura['status'], string> = {
 interface Props {
   facturas: Factura[];
   onViewImage: (url: string) => void;
+  distribuidorId: string;
+  distribuidorNombre: string;
+  categories: Category[];
+  categoriesLoading: boolean;
+  onChanged: () => void;
 }
 
-export default function HistorialFacturas({ facturas, onViewImage }: Props) {
+export default function HistorialFacturas({
+  facturas,
+  onViewImage,
+  distribuidorId,
+  distribuidorNombre,
+  categories,
+  categoriesLoading,
+  onChanged,
+}: Props) {
+  const [viewingId, setViewingId] = useState<string | null>(null);
+  // deriva siempre del array vigente, para que los cambios hechos adentro del modal
+  // (editar/agregar un producto) se reflejen sin tener que cerrarlo y volver a abrirlo
+  const viewing = viewingId ? facturas.find((f) => f.id === viewingId) ?? null : null;
+
   return (
     <div className="bg-white rounded-2xl shadow-sm overflow-hidden">
       <div className="px-5 py-4 border-b border-gray-100">
@@ -26,11 +46,15 @@ export default function HistorialFacturas({ facturas, onViewImage }: Props) {
       ) : (
         <div className="divide-y divide-gray-50">
           {facturas.map((f) => (
-            <div key={f.id} className="flex items-center gap-4 px-5 py-3">
+            <div
+              key={f.id}
+              onClick={() => setViewingId(f.id)}
+              className="w-full flex items-center gap-4 px-5 py-3 text-left hover:bg-gray-50 transition-colors cursor-pointer"
+            >
               {f.imageUrl ? (
                 <button
                   type="button"
-                  onClick={() => onViewImage(f.imageUrl!)}
+                  onClick={(e) => { e.stopPropagation(); onViewImage(f.imageUrl!); }}
                   className="relative w-12 h-12 rounded-lg overflow-hidden bg-gray-100 flex-shrink-0 cursor-zoom-in"
                   title="Ver imagen ampliada"
                 >
@@ -38,7 +62,7 @@ export default function HistorialFacturas({ facturas, onViewImage }: Props) {
                 </button>
               ) : (
                 <div
-                  title="La imagen se borró automáticamente (factura cancelada hace más de 2 días)"
+                  title="Sin imagen (factura cargada a mano, o imagen borrada tras cancelación)"
                   className="w-12 h-12 rounded-lg bg-gray-100 flex-shrink-0 flex items-center justify-center text-[9px] text-gray-400 font-semibold text-center leading-tight"
                 >
                   Sin imagen
@@ -59,6 +83,18 @@ export default function HistorialFacturas({ facturas, onViewImage }: Props) {
             </div>
           ))}
         </div>
+      )}
+
+      {viewing && (
+        <FacturaDetalleModal
+          factura={viewing}
+          distribuidorId={distribuidorId}
+          distribuidorNombre={distribuidorNombre}
+          categories={categories}
+          categoriesLoading={categoriesLoading}
+          onClose={() => setViewingId(null)}
+          onChanged={onChanged}
+        />
       )}
     </div>
   );

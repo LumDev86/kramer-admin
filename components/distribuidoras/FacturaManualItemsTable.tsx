@@ -11,6 +11,11 @@ interface Props {
   facturaId: string;
   items: FacturaItem[];
   onChanged: () => void;
+  // el backend solo permite eliminar líneas de una factura pendiente de revisión - al
+  // corregir una ya confirmada desde el historial no hay botón de borrar, solo editar/agregar
+  allowRemove?: boolean;
+  // una factura cancelada queda de solo lectura (el backend rechaza cualquier edición)
+  readOnly?: boolean;
 }
 
 const FIELDS = ['cantidad', 'costo', 'precio', 'ganancia', 'codigoArticulo'] as const;
@@ -28,7 +33,7 @@ const focusCell = (row: number, field: Field) => {
 // precio/ganancia van al producto (confirmar la factura es lo que sincroniza el costo final
 // al producto). Navegable con flechas arriba/abajo (misma columna, otra fila), Enter (guarda
 // y pasa al siguiente campo de la fila) y Tab (orden natural del navegador).
-export default function FacturaManualItemsTable({ facturaId, items, onChanged }: Props) {
+export default function FacturaManualItemsTable({ facturaId, items, onChanged, allowRemove = true, readOnly = false }: Props) {
   const qc = useQueryClient();
   const [error, setError] = useState('');
   const [bultoOpenId, setBultoOpenId] = useState<string | null>(null);
@@ -144,7 +149,7 @@ export default function FacturaManualItemsTable({ facturaId, items, onChanged }:
                 const costo = Number(item.precioUnitario);
                 const precio = product ? Number(product.price) : null;
                 const pct = product && costo > 0 ? ((precio! - costo) / costo) * 100 : null;
-                const busy = updateItemMutation.isPending || updateProductMutation.isPending;
+                const busy = readOnly || updateItemMutation.isPending || updateProductMutation.isPending;
 
                 return (
                   <tr key={item.id} className="hover:bg-gray-50 transition-colors">
@@ -207,6 +212,7 @@ export default function FacturaManualItemsTable({ facturaId, items, onChanged }:
                           }}
                           className="w-20 font-bold text-gray-500 outline-none border-b border-transparent focus:border-orange-300 disabled:opacity-50"
                         />
+                        {!readOnly && (
                         <button
                           type="button"
                           title="Calcular por bulto/caja"
@@ -217,6 +223,7 @@ export default function FacturaManualItemsTable({ facturaId, items, onChanged }:
                         >
                           📦
                         </button>
+                        )}
                       </div>
                       {item.unidadesPorBultoDetectada != null && bultoOpenId !== item.id && (
                         <p className="text-[10px] text-gray-400 font-medium mt-0.5 whitespace-nowrap">
@@ -360,12 +367,14 @@ export default function FacturaManualItemsTable({ facturaId, items, onChanged }:
                     </td>
                     <td className="px-4 py-3 font-bold text-gray-700">{money(item.subtotal)}</td>
                     <td className="px-4 py-3">
-                      <button
-                        onClick={() => removeItemMutation.mutate(item.id)}
-                        className="w-7 h-7 rounded-lg flex items-center justify-center text-gray-400 hover:bg-red-50 hover:text-red-500 transition-colors"
-                      >
-                        <Trash size={14} weight="bold" />
-                      </button>
+                      {allowRemove && !readOnly && (
+                        <button
+                          onClick={() => removeItemMutation.mutate(item.id)}
+                          className="w-7 h-7 rounded-lg flex items-center justify-center text-gray-400 hover:bg-red-50 hover:text-red-500 transition-colors"
+                        >
+                          <Trash size={14} weight="bold" />
+                        </button>
+                      )}
                     </td>
                   </tr>
                 );

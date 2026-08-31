@@ -396,7 +396,15 @@ export default function DistribuidoraDetallePage() {
         </div>
       )}
 
-          <HistorialFacturas facturas={historial} onViewImage={setLightboxUrl} />
+          <HistorialFacturas
+            facturas={historial}
+            onViewImage={setLightboxUrl}
+            distribuidorId={id}
+            distribuidorNombre={data.nombre}
+            categories={catsData?.data ?? []}
+            categoriesLoading={!catsData}
+            onChanged={invalidate}
+          />
         </>
       )}
 
