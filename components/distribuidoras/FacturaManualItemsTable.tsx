@@ -121,6 +121,7 @@ export default function FacturaManualItemsTable({ facturaId, items, onChanged }:
                     </td>
                     <td className="px-4 py-3">
                       <input
+                        key={item.cantidad}
                         data-row={row}
                         data-field="cantidad"
                         type="number"
@@ -142,6 +143,7 @@ export default function FacturaManualItemsTable({ facturaId, items, onChanged }:
                       <div className="flex items-center gap-1">
                         <span className="font-bold text-gray-500">$</span>
                         <input
+                          key={item.precioUnitario}
                           data-row={row}
                           data-field="costo"
                           type="number"
@@ -171,6 +173,7 @@ export default function FacturaManualItemsTable({ facturaId, items, onChanged }:
                         <div className="flex items-center gap-1">
                           <span className="font-bold text-orange-500">$</span>
                           <input
+                            key={product.price}
                             data-row={row}
                             data-field="precio"
                             type="number"
@@ -193,6 +196,7 @@ export default function FacturaManualItemsTable({ facturaId, items, onChanged }:
                       {product && (
                         <div className="flex items-center gap-0.5">
                           <input
+                            key={`${item.precioUnitario}-${product.price}`}
                             data-row={row}
                             data-field="ganancia"
                             type="number"
@@ -221,6 +225,7 @@ export default function FacturaManualItemsTable({ facturaId, items, onChanged }:
                     </td>
                     <td className="px-4 py-3">
                       <input
+                        key={item.codigoArticuloDetectado ?? ''}
                         data-row={row}
                         data-field="codigoArticulo"
                         type="text"
