@@ -126,14 +126,14 @@ export default function FacturaManualItemsTable({ facturaId, items, onChanged, a
         <table className="w-full text-sm">
           <thead className="border-b border-gray-100">
             <tr className="text-left">
-              <th className="px-4 py-3 text-xs font-bold text-gray-400 uppercase tracking-wide">Producto</th>
-              <th className="px-4 py-3 text-xs font-bold text-gray-400 uppercase tracking-wide w-20">Cant.</th>
-              <th className="px-4 py-3 text-xs font-bold text-gray-400 uppercase tracking-wide w-28">Costo</th>
-              <th className="px-4 py-3 text-xs font-bold text-gray-400 uppercase tracking-wide w-28">Precio</th>
-              <th className="px-4 py-3 text-xs font-bold text-gray-400 uppercase tracking-wide w-20">Ganancia</th>
-              <th className="px-4 py-3 text-xs font-bold text-gray-400 uppercase tracking-wide w-32">Cód. artículo</th>
-              <th className="px-4 py-3 text-xs font-bold text-gray-400 uppercase tracking-wide w-28">Subtotal</th>
-              <th className="px-4 py-3 w-10" />
+              <th className="px-2.5 py-2.5 text-xs font-bold text-gray-400 uppercase tracking-wide">Producto</th>
+              <th className="px-2.5 py-2.5 text-xs font-bold text-gray-400 uppercase tracking-wide w-14">Cant.</th>
+              <th className="px-2.5 py-2.5 text-xs font-bold text-gray-400 uppercase tracking-wide w-20">Costo</th>
+              <th className="px-2.5 py-2.5 text-xs font-bold text-gray-400 uppercase tracking-wide w-20">Precio</th>
+              <th className="px-2.5 py-2.5 text-xs font-bold text-gray-400 uppercase tracking-wide w-16">Ganan.</th>
+              <th className="px-2.5 py-2.5 text-xs font-bold text-gray-400 uppercase tracking-wide w-24">Cód. art.</th>
+              <th className="px-2.5 py-2.5 text-xs font-bold text-gray-400 uppercase tracking-wide w-20">Subtotal</th>
+              <th className="px-2.5 py-2.5 w-8" />
             </tr>
           </thead>
           <tbody className="divide-y divide-gray-50">
@@ -153,19 +153,19 @@ export default function FacturaManualItemsTable({ facturaId, items, onChanged, a
 
                 return (
                   <tr key={item.id} className="hover:bg-gray-50 transition-colors">
-                    <td className="px-4 py-3">
-                      <div className="flex items-center gap-2 min-w-[140px]">
+                    <td className="px-2.5 py-2.5">
+                      <div className="flex items-center gap-1.5 min-w-[90px]">
                         {product && (
-                          <div className="relative w-8 h-8 flex-shrink-0 bg-gray-100 rounded-lg overflow-hidden">
-                            <Image src={product.imageUrl} alt={product.title} fill sizes="32px" className="object-contain p-0.5" />
+                          <div className="relative w-7 h-7 flex-shrink-0 bg-gray-100 rounded-lg overflow-hidden">
+                            <Image src={product.imageUrl} alt={product.title} fill sizes="28px" className="object-contain p-0.5" />
                           </div>
                         )}
-                        <span className="font-semibold text-gray-700 truncate max-w-[160px]">
+                        <span className="font-semibold text-gray-700 truncate max-w-[110px]">
                           {product?.title ?? item.nombreDetectado}
                         </span>
                       </div>
                     </td>
-                    <td className="px-4 py-3">
+                    <td className="px-2.5 py-2.5">
                       <input
                         key={item.cantidad}
                         data-row={row}
@@ -182,10 +182,10 @@ export default function FacturaManualItemsTable({ facturaId, items, onChanged, a
                           if (val === item.cantidad) return;
                           updateItemMutation.mutate({ itemId: item.id, data: { cantidad: val } });
                         }}
-                        className="w-16 font-semibold outline-none border-b border-transparent focus:border-orange-300 disabled:opacity-50"
+                        className="w-11 font-semibold outline-none border-b border-transparent focus:border-orange-300 disabled:opacity-50"
                       />
                     </td>
-                    <td className="px-4 py-3">
+                    <td className="px-2.5 py-2.5">
                       <div className="flex items-center gap-1">
                         <span className="font-bold text-gray-500">$</span>
                         <input
@@ -210,7 +210,7 @@ export default function FacturaManualItemsTable({ facturaId, items, onChanged, a
                               if (newPrice > 0) updateProductMutation.mutate({ productId: product.id, price: newPrice });
                             }
                           }}
-                          className="w-20 font-bold text-gray-500 outline-none border-b border-transparent focus:border-orange-300 disabled:opacity-50"
+                          className="w-14 font-bold text-gray-500 outline-none border-b border-transparent focus:border-orange-300 disabled:opacity-50"
                         />
                         {!readOnly && (
                         <button
@@ -289,7 +289,7 @@ export default function FacturaManualItemsTable({ facturaId, items, onChanged, a
                         </div>
                       )}
                     </td>
-                    <td className="px-4 py-3">
+                    <td className="px-2.5 py-2.5">
                       {product && (
                         <div className="flex items-center gap-1">
                           <span className="font-bold text-orange-500">$</span>
@@ -308,12 +308,12 @@ export default function FacturaManualItemsTable({ facturaId, items, onChanged, a
                               if (val === precio) return;
                               updateProductMutation.mutate({ productId: product.id, price: val });
                             }}
-                            className="w-20 font-bold text-orange-500 outline-none border-b border-transparent focus:border-orange-300 disabled:opacity-50"
+                            className="w-14 font-bold text-orange-500 outline-none border-b border-transparent focus:border-orange-300 disabled:opacity-50"
                           />
                         </div>
                       )}
                     </td>
-                    <td className="px-4 py-3">
+                    <td className="px-2.5 py-2.5">
                       {product && (
                         <div className="flex items-center gap-0.5">
                           <input
@@ -344,7 +344,7 @@ export default function FacturaManualItemsTable({ facturaId, items, onChanged, a
                         </div>
                       )}
                     </td>
-                    <td className="px-4 py-3">
+                    <td className="px-2.5 py-2.5">
                       <input
                         key={item.codigoArticuloDetectado ?? ''}
                         data-row={row}
@@ -365,14 +365,14 @@ export default function FacturaManualItemsTable({ facturaId, items, onChanged, a
                         className="w-full text-xs outline-none border-b border-transparent focus:border-orange-300 disabled:opacity-50"
                       />
                     </td>
-                    <td className="px-4 py-3 font-bold text-gray-700">{money(item.subtotal)}</td>
-                    <td className="px-4 py-3">
+                    <td className="px-2.5 py-2.5 font-bold text-gray-700 whitespace-nowrap">{money(item.subtotal)}</td>
+                    <td className="px-1 py-2.5">
                       {allowRemove && !readOnly && (
                         <button
                           onClick={() => removeItemMutation.mutate(item.id)}
-                          className="w-7 h-7 rounded-lg flex items-center justify-center text-gray-400 hover:bg-red-50 hover:text-red-500 transition-colors"
+                          className="w-6 h-6 rounded-lg flex items-center justify-center text-gray-400 hover:bg-red-50 hover:text-red-500 transition-colors"
                         >
-                          <Trash size={14} weight="bold" />
+                          <Trash size={13} weight="bold" />
                         </button>
                       )}
                     </td>

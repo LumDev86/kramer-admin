@@ -58,7 +58,7 @@ export default function FacturaDetalleModal({
         onClick={onClose}
       >
         <div
-          className="bg-white rounded-2xl shadow-xl w-full max-w-3xl flex flex-col animate-slideUp"
+          className="bg-white rounded-2xl shadow-xl w-full max-w-4xl flex flex-col animate-slideUp"
           onClick={(e) => e.stopPropagation()}
         >
           <div className="flex items-start justify-between gap-3 p-5 border-b border-dashed border-gray-300">
