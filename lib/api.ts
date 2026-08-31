@@ -469,6 +469,7 @@ export const facturas = {
       codigoArticulo?: string;
       cantidad?: number;
       precioUnitario: number;
+      unidadesPorBulto?: number;
     }
   ) => request<Factura>(`/facturas/${facturaId}/items`, { method: 'POST', body: JSON.stringify(data) }),
   updateItem: (
@@ -481,6 +482,7 @@ export const facturas = {
       codigoArticulo?: string | null;
       cantidad?: number;
       precioUnitario?: number;
+      unidadesPorBulto?: number | null;
     }
   ) => request<Factura>(`/facturas/${facturaId}/items/${itemId}`, { method: 'PATCH', body: JSON.stringify(data) }),
   removeItem: (facturaId: string, itemId: string) =>
