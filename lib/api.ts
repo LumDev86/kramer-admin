@@ -210,7 +210,7 @@ export const sales = {
   getByDate: (date: string) => request<SaleWithCliente[]>(`/sales/by-date?date=${date}`),
   getSummary: (date?: string) => request<SaleSummary>(`/sales/summary${date ? `?date=${date}` : ''}`),
   create: () => request<Sale>('/sales', { method: 'POST' }),
-  addItem: (saleId: string, data: { productId?: string; name?: string; unitPrice?: number; quantity?: number }) =>
+  addItem: (saleId: string, data: { productId?: string; name?: string; unitPrice?: number; cost?: number | null; quantity?: number }) =>
     request<Sale>(`/sales/${saleId}/items`, { method: 'POST', body: JSON.stringify(data) }),
   updateItem: (saleId: string, itemId: string, data: { quantity?: number; unitPrice?: number }) =>
     request<Sale>(`/sales/${saleId}/items/${itemId}`, { method: 'PATCH', body: JSON.stringify(data) }),

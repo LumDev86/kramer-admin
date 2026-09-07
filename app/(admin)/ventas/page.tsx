@@ -236,7 +236,12 @@ export default function VentasPage() {
     // backend para que no tenga que volver a buscarlos - menos ida y vuelta a la base, más rápido
     addItemMutation.mutate({
       saleId,
-      data: { productId: product.id, name: product.title, unitPrice: Number(product.price) },
+      data: {
+        productId: product.id,
+        name: product.title,
+        unitPrice: Number(product.price),
+        cost: product.cost !== null ? Number(product.cost) : null,
+      },
     });
     setQuery('');
     setScanError('');
