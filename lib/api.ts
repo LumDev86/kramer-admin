@@ -437,7 +437,7 @@ export interface ProductoAjustado {
 export const distribuidores = {
   getAll: () => request<Distribuidor[]>('/distribuidores'),
   getById: (id: string) => request<DistribuidorConFacturas>(`/distribuidores/${id}`),
-  create: (data: { nombre: string; telefono?: string; notas?: string }) =>
+  create: (data: { nombre: string; telefono?: string; notas?: string; ivaDiscriminado?: boolean }) =>
     request<Distribuidor>('/distribuidores', { method: 'POST', body: JSON.stringify(data) }),
   update: (id: string, data: { nombre?: string; telefono?: string | null; notas?: string | null; ivaDiscriminado?: boolean }) =>
     request<Distribuidor>(`/distribuidores/${id}`, { method: 'PUT', body: JSON.stringify(data) }),

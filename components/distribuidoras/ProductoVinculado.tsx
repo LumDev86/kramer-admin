@@ -67,6 +67,9 @@ export default function ProductoVinculado({
           <X size={12} weight="bold" />
         </button>
       </div>
+      <p className="text-[11px] text-purple-500 font-semibold">
+        PedidosYa (+40% s/precio de catálogo): {money(Number(item.product.price) * 1.4)}
+      </p>
       {change && (
         <div className="flex flex-col gap-1">
           <p className={`text-[11px] font-bold ${subiendo ? 'text-red-500' : 'text-green-600'}`}>

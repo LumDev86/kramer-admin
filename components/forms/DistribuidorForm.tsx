@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useQueryClient } from '@tanstack/react-query';
 import { Distribuidor, distribuidores } from '@/lib/api';
+import ToggleSwitch from '@/components/ui/ToggleSwitch';
 
 interface Props {
   distribuidor?: Distribuidor;
@@ -17,6 +18,7 @@ export default function DistribuidorForm({ distribuidor }: Props) {
   const [nombre, setNombre] = useState(distribuidor?.nombre ?? '');
   const [telefono, setTelefono] = useState(distribuidor?.telefono ?? '');
   const [notas, setNotas] = useState(distribuidor?.notas ?? '');
+  const [ivaDiscriminado, setIvaDiscriminado] = useState(distribuidor?.ivaDiscriminado ?? true);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
@@ -26,9 +28,9 @@ export default function DistribuidorForm({ distribuidor }: Props) {
     setLoading(true);
     try {
       if (isEdit) {
-        await distribuidores.update(distribuidor.id, { nombre, telefono: telefono || null, notas: notas || null });
+        await distribuidores.update(distribuidor.id, { nombre, telefono: telefono || null, notas: notas || null, ivaDiscriminado });
       } else {
-        await distribuidores.create({ nombre, ...(telefono && { telefono }), ...(notas && { notas }) });
+        await distribuidores.create({ nombre, ivaDiscriminado, ...(telefono && { telefono }), ...(notas && { notas }) });
       }
       qc.invalidateQueries({ queryKey: ['distribuidores'] });
       router.push('/distribuidoras');
@@ -73,6 +75,18 @@ export default function DistribuidorForm({ distribuidor }: Props) {
           placeholder="Rubro, condiciones de pago, etc."
           className="border border-gray-200 rounded-xl px-3 py-2.5 text-sm outline-none focus:border-orange-400 font-medium resize-none"
         />
+      </div>
+
+      <div className="flex items-center justify-between bg-gray-50 rounded-xl px-4 py-3">
+        <div>
+          <p className="text-sm font-semibold text-gray-700">Discrimina IVA en las facturas</p>
+          <p className="text-xs text-gray-400 mt-0.5">
+            Activalo si esta distribuidora te factura el precio neto y el IVA por separado (factura tipo A) —
+            al escanear, se le suma el IVA al costo automáticamente. Desactivalo si el precio que figura en la
+            factura ya es el costo final, sin nada que sumarle.
+          </p>
+        </div>
+        <ToggleSwitch checked={ivaDiscriminado} onChange={() => setIvaDiscriminado((v) => !v)} />
       </div>
 
       {error && <p className="text-xs text-red-500 font-semibold bg-red-50 rounded-lg px-3 py-2">{error}</p>}
