@@ -52,7 +52,6 @@ export default function FacturaManualItemsTable({
   const [bultoPrecio, setBultoPrecio] = useState('');
   const [bultoCantidad, setBultoCantidad] = useState('1');
   const [ivaOpenId, setIvaOpenId] = useState<string | null>(null);
-  const [ivaNeto, setIvaNeto] = useState('');
   const [ivaAlicuota, setIvaAlicuota] = useState('21');
 
   const updateItemMutation = useMutation({
@@ -120,17 +119,18 @@ export default function FacturaManualItemsTable({
 
   const openIva = (item: FacturaItem) => {
     setIvaOpenId(item.id);
-    setIvaNeto('');
     setIvaAlicuota(item.alicuotaIvaDetectada != null ? String(item.alicuotaIvaDetectada) : '21');
   };
 
-  // análogo a applyBulto: el costo final (con IVA ya sumado) es lo único que se guarda en
-  // precioUnitario - igual que hace la IA al leer una factura escaneada (ver invoiceExtraction.ts)
+  // el costo ya cargado en la columna "Costo" se toma como el neto (sin IVA) - no hace falta
+  // pedirlo de nuevo en un campo aparte. El costo final (con IVA ya sumado) es lo único que se
+  // guarda en precioUnitario, igual que hace la IA al leer una factura escaneada
+  // (ver invoiceExtraction.ts)
   const applyIva = (item: FacturaItem) => {
-    const neto = parseFloat(ivaNeto);
+    const neto = Number(item.precioUnitario);
     const alicuota = parseFloat(ivaAlicuota);
     if (!(neto > 0) || isNaN(alicuota) || alicuota < 0) {
-      setError('Completá el costo neto (sin IVA) y la alícuota');
+      setError('Cargá primero el costo en la columna de al lado, y una alícuota válida');
       return;
     }
     const costoConIva = parseFloat((neto * (1 + alicuota / 100)).toFixed(2));
@@ -138,9 +138,8 @@ export default function FacturaManualItemsTable({
 
     // mantiene el % de ganancia actual, igual que al editar el costo a mano
     const product = item.product;
-    const costoActual = Number(item.precioUnitario);
-    if (product && costoActual > 0) {
-      const currentPct = (Number(product.price) - costoActual) / costoActual;
+    if (product && neto > 0) {
+      const currentPct = (Number(product.price) - neto) / neto;
       const newPrice = parseFloat((costoConIva * (1 + currentPct)).toFixed(2));
       if (newPrice > 0) updateProductMutation.mutate({ productId: product.id, price: newPrice });
     }
@@ -348,19 +347,7 @@ export default function FacturaManualItemsTable({
                         </div>
                       )}
                       {ivaOpenId === item.id && (
-                        <div className="flex flex-col gap-1 mt-2 bg-gray-50 rounded-lg p-2 w-48">
-                          <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wide">
-                            Costo neto (sin IVA)
-                          </label>
-                          <input
-                            type="number"
-                            step="0.01"
-                            min="0"
-                            autoFocus
-                            value={ivaNeto}
-                            onChange={(e) => setIvaNeto(e.target.value)}
-                            className="border border-gray-200 rounded-lg px-2 py-1 text-xs outline-none focus:border-orange-400"
-                          />
+                        <div className="flex flex-col gap-1 mt-2 bg-gray-50 rounded-lg p-2 w-40">
                           <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wide">
                             Alícuota IVA %
                           </label>
@@ -368,13 +355,14 @@ export default function FacturaManualItemsTable({
                             type="number"
                             step="0.1"
                             min="0"
+                            autoFocus
                             value={ivaAlicuota}
                             onChange={(e) => setIvaAlicuota(e.target.value)}
                             className="border border-gray-200 rounded-lg px-2 py-1 text-xs outline-none focus:border-orange-400"
                           />
-                          {parseFloat(ivaNeto) > 0 && !isNaN(parseFloat(ivaAlicuota)) && (
+                          {Number(item.precioUnitario) > 0 && !isNaN(parseFloat(ivaAlicuota)) && (
                             <p className="text-[11px] font-semibold text-gray-500">
-                              = {money(parseFloat(ivaNeto) * (1 + parseFloat(ivaAlicuota) / 100))} con IVA
+                              {money(item.precioUnitario)} + {ivaAlicuota}% = {money(Number(item.precioUnitario) * (1 + parseFloat(ivaAlicuota) / 100))}
                             </p>
                           )}
                           <div className="flex gap-1 mt-1">
