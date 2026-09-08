@@ -174,6 +174,7 @@ export default function FacturaManualItemsTable({
               <th className="px-2.5 py-2.5 text-xs font-bold text-gray-400 uppercase tracking-wide w-14">Cant.</th>
               <th className="px-2.5 py-2.5 text-xs font-bold text-gray-400 uppercase tracking-wide w-20">Costo</th>
               <th className="px-2.5 py-2.5 text-xs font-bold text-gray-400 uppercase tracking-wide w-20">Precio</th>
+              <th className="px-2.5 py-2.5 text-xs font-bold text-purple-400 uppercase tracking-wide w-20">PedidosYa</th>
               <th className="px-2.5 py-2.5 text-xs font-bold text-gray-400 uppercase tracking-wide w-16">Ganan.</th>
               <th className="px-2.5 py-2.5 text-xs font-bold text-gray-400 uppercase tracking-wide w-24">Cód. art.</th>
               <th className="px-2.5 py-2.5 text-xs font-bold text-gray-400 uppercase tracking-wide w-20">Subtotal</th>
@@ -183,7 +184,7 @@ export default function FacturaManualItemsTable({
           <tbody className="divide-y divide-gray-50">
             {items.length === 0 ? (
               <tr>
-                <td colSpan={8} className="px-4 py-8 text-center text-sm text-gray-400 font-medium">
+                <td colSpan={9} className="px-4 py-8 text-center text-sm text-gray-400 font-medium">
                   Sin productos todavía.
                 </td>
               </tr>
@@ -256,28 +257,30 @@ export default function FacturaManualItemsTable({
                           }}
                           className="w-14 font-bold text-gray-500 outline-none border-b border-transparent focus:border-orange-300 disabled:opacity-50"
                         />
+                      </div>
+                      <div className="flex items-center gap-2 mt-1">
                         {!readOnly && (
                         <button
                           type="button"
-                          title="Calcular por bulto/caja"
+                          title="Calcular a partir del precio de un bulto/caja"
                           onClick={() => (bultoOpenId === item.id ? setBultoOpenId(null) : openBulto(item))}
-                          className={`text-xs flex-shrink-0 rounded px-1 transition-colors ${
-                            bultoOpenId === item.id ? 'bg-orange-100' : 'hover:bg-gray-100'
+                          className={`text-[10px] font-bold rounded px-1.5 py-0.5 transition-colors whitespace-nowrap ${
+                            bultoOpenId === item.id ? 'bg-orange-100 text-orange-600' : 'text-gray-400 hover:bg-gray-100'
                           }`}
                         >
-                          📦
+                          📦 Bulto
                         </button>
                         )}
                         {!readOnly && ivaDiscriminado && (
                         <button
                           type="button"
-                          title="Calcular con IVA (esta distribuidora lo discrimina aparte)"
+                          title="Calcular sumando el IVA al costo neto"
                           onClick={() => (ivaOpenId === item.id ? setIvaOpenId(null) : openIva(item))}
-                          className={`text-xs flex-shrink-0 rounded px-1 transition-colors ${
-                            ivaOpenId === item.id ? 'bg-orange-100' : 'hover:bg-gray-100'
+                          className={`text-[10px] font-bold rounded px-1.5 py-0.5 transition-colors whitespace-nowrap ${
+                            ivaOpenId === item.id ? 'bg-orange-100 text-orange-600' : 'text-gray-400 hover:bg-gray-100'
                           }`}
                         >
-                          🧾
+                          🧾 +IVA
                         </button>
                         )}
                       </div>
@@ -414,10 +417,12 @@ export default function FacturaManualItemsTable({
                           />
                         </div>
                       )}
+                    </td>
+                    <td className="px-2.5 py-2.5">
                       {product && (
-                        <p className="text-[10px] text-purple-500 font-semibold whitespace-nowrap mt-0.5">
-                          PY: {money(Number(product.price) * 1.4)}
-                        </p>
+                        <span className="font-bold text-purple-500">
+                          {money(Number(product.price) * 1.4)}
+                        </span>
                       )}
                     </td>
                     <td className="px-2.5 py-2.5">
