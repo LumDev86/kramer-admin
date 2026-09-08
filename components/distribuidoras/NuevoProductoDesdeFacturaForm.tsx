@@ -199,6 +199,15 @@ export default function NuevoProductoDesdeFacturaForm({
                     </p>
                   );
                 })()}
+                {(() => {
+                  const priceNum = parseFloat(form.price);
+                  if (isNaN(priceNum) || priceNum <= 0) return null;
+                  return (
+                    <p className="text-[11px] font-semibold text-purple-500">
+                      PedidosYa (+40%): {money(priceNum * 1.4)}
+                    </p>
+                  );
+                })()}
               </div>
             </div>
             <div className="flex flex-wrap gap-2">

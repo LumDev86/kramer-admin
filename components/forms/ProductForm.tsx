@@ -284,6 +284,11 @@ export default function ProductForm({ product }: Props) {
               Ganancia actual: {gananciaPct >= 0 ? '+' : ''}{gananciaPct.toFixed(1)}%
             </p>
           )}
+          {!isNaN(priceNum) && priceNum > 0 && (
+            <p className="text-[11px] font-semibold text-purple-500">
+              Precio sugerido PedidosYa (+40%): ${(priceNum * 1.4).toFixed(2)}
+            </p>
+          )}
         </div>
       </div>
 

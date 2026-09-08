@@ -230,6 +230,11 @@ export default function NuevoProductoManualForm({
                 Ganancia actual: {pct >= 0 ? '+' : ''}{pct.toFixed(1)}%
               </p>
             )}
+            {!isNaN(priceNum) && priceNum > 0 && (
+              <p className="text-[11px] font-semibold text-purple-500">
+                PedidosYa (+40%): {money(priceNum * 1.4)}
+              </p>
+            )}
             {costNum > 0 && (
               <p className="text-[11px] font-semibold text-gray-500">
                 Subtotal de la compra: {money(costNum * (parseFloat(cantidad || '0') || 0))}

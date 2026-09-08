@@ -110,6 +110,15 @@ export default function ProductoVinculado({
               >
                 Actualizar precio
               </button>
+              {(() => {
+                const priceNum = parseFloat(String(priceDraft ?? item.product.price));
+                if (isNaN(priceNum) || priceNum <= 0) return null;
+                return (
+                  <span className="text-[11px] text-purple-500 font-semibold whitespace-nowrap">
+                    PedidosYa (+40%): {money(priceNum * 1.4)}
+                  </span>
+                );
+              })()}
               {error && <p className="w-full text-[11px] font-semibold text-red-500">{error}</p>}
               {!error && precioActualizado !== undefined && (
                 <p className="w-full text-[11px] font-semibold text-green-600">
