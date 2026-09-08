@@ -348,7 +348,12 @@ export default function DistribuidoraDetallePage() {
                 </table>
               </div>
             ) : (
-              <FacturaManualItemsTable facturaId={activeFactura.id} items={activeFactura.items} onChanged={invalidate} />
+              <FacturaManualItemsTable
+                facturaId={activeFactura.id}
+                items={activeFactura.items}
+                onChanged={invalidate}
+                ivaDiscriminado={data.ivaDiscriminado}
+              />
             )}
 
               <div className="p-4 border-t border-gray-100">
@@ -401,6 +406,7 @@ export default function DistribuidoraDetallePage() {
             onViewImage={setLightboxUrl}
             distribuidorId={id}
             distribuidorNombre={data.nombre}
+            ivaDiscriminado={data.ivaDiscriminado}
             categories={catsData?.data ?? []}
             categoriesLoading={!catsData}
             onChanged={invalidate}

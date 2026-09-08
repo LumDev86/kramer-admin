@@ -13,6 +13,7 @@ interface Props {
   factura: Factura;
   distribuidorId: string;
   distribuidorNombre: string;
+  ivaDiscriminado: boolean;
   categories: Category[];
   categoriesLoading: boolean;
   onClose: () => void;
@@ -33,6 +34,7 @@ export default function FacturaDetalleModal({
   factura,
   distribuidorId,
   distribuidorNombre,
+  ivaDiscriminado,
   categories,
   categoriesLoading,
   onClose,
@@ -111,6 +113,7 @@ export default function FacturaDetalleModal({
               onChanged={onChanged}
               allowRemove={false}
               readOnly={cancelada}
+              ivaDiscriminado={ivaDiscriminado}
             />
 
             {editable && (

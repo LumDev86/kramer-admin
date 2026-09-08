@@ -16,6 +16,10 @@ interface Props {
   allowRemove?: boolean;
   // una factura cancelada queda de solo lectura (el backend rechaza cualquier edición)
   readOnly?: boolean;
+  // si la distribuidora discrimina IVA aparte del precio neto (ver Distribuidor.ivaDiscriminado)
+  // - acá no hay IA leyendo la factura, así que se ofrece una calculadora manual (📦 ya existe
+  // para bultos, esta es la misma idea para IVA) en vez de aplicarlo solo
+  ivaDiscriminado?: boolean;
 }
 
 const FIELDS = ['cantidad', 'costo', 'precio', 'ganancia', 'codigoArticulo'] as const;
@@ -33,13 +37,23 @@ const focusCell = (row: number, field: Field) => {
 // precio/ganancia van al producto (confirmar la factura es lo que sincroniza el costo final
 // al producto). Navegable con flechas arriba/abajo (misma columna, otra fila), Enter (guarda
 // y pasa al siguiente campo de la fila) y Tab (orden natural del navegador).
-export default function FacturaManualItemsTable({ facturaId, items, onChanged, allowRemove = true, readOnly = false }: Props) {
+export default function FacturaManualItemsTable({
+  facturaId,
+  items,
+  onChanged,
+  allowRemove = true,
+  readOnly = false,
+  ivaDiscriminado = false,
+}: Props) {
   const qc = useQueryClient();
   const [error, setError] = useState('');
   const [bultoOpenId, setBultoOpenId] = useState<string | null>(null);
   const [bultoUnidades, setBultoUnidades] = useState('');
   const [bultoPrecio, setBultoPrecio] = useState('');
   const [bultoCantidad, setBultoCantidad] = useState('1');
+  const [ivaOpenId, setIvaOpenId] = useState<string | null>(null);
+  const [ivaNeto, setIvaNeto] = useState('');
+  const [ivaAlicuota, setIvaAlicuota] = useState('21');
 
   const updateItemMutation = useMutation({
     mutationFn: ({ itemId, data }: { itemId: string; data: Parameters<typeof facturas.updateItem>[2] }) =>
@@ -102,6 +116,36 @@ export default function FacturaManualItemsTable({ facturaId, items, onChanged, a
     }
 
     setBultoOpenId(null);
+  };
+
+  const openIva = (item: FacturaItem) => {
+    setIvaOpenId(item.id);
+    setIvaNeto('');
+    setIvaAlicuota(item.alicuotaIvaDetectada != null ? String(item.alicuotaIvaDetectada) : '21');
+  };
+
+  // análogo a applyBulto: el costo final (con IVA ya sumado) es lo único que se guarda en
+  // precioUnitario - igual que hace la IA al leer una factura escaneada (ver invoiceExtraction.ts)
+  const applyIva = (item: FacturaItem) => {
+    const neto = parseFloat(ivaNeto);
+    const alicuota = parseFloat(ivaAlicuota);
+    if (!(neto > 0) || isNaN(alicuota) || alicuota < 0) {
+      setError('Completá el costo neto (sin IVA) y la alícuota');
+      return;
+    }
+    const costoConIva = parseFloat((neto * (1 + alicuota / 100)).toFixed(2));
+    updateItemMutation.mutate({ itemId: item.id, data: { precioUnitario: costoConIva } });
+
+    // mantiene el % de ganancia actual, igual que al editar el costo a mano
+    const product = item.product;
+    const costoActual = Number(item.precioUnitario);
+    if (product && costoActual > 0) {
+      const currentPct = (Number(product.price) - costoActual) / costoActual;
+      const newPrice = parseFloat((costoConIva * (1 + currentPct)).toFixed(2));
+      if (newPrice > 0) updateProductMutation.mutate({ productId: product.id, price: newPrice });
+    }
+
+    setIvaOpenId(null);
   };
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>, row: number, field: Field) => {
@@ -224,6 +268,18 @@ export default function FacturaManualItemsTable({ facturaId, items, onChanged, a
                           📦
                         </button>
                         )}
+                        {!readOnly && ivaDiscriminado && (
+                        <button
+                          type="button"
+                          title="Calcular con IVA (esta distribuidora lo discrimina aparte)"
+                          onClick={() => (ivaOpenId === item.id ? setIvaOpenId(null) : openIva(item))}
+                          className={`text-xs flex-shrink-0 rounded px-1 transition-colors ${
+                            ivaOpenId === item.id ? 'bg-orange-100' : 'hover:bg-gray-100'
+                          }`}
+                        >
+                          🧾
+                        </button>
+                        )}
                       </div>
                       {item.unidadesPorBultoDetectada != null && bultoOpenId !== item.id && (
                         <p className="text-[10px] text-gray-400 font-medium mt-0.5 whitespace-nowrap">
@@ -288,6 +344,52 @@ export default function FacturaManualItemsTable({ facturaId, items, onChanged, a
                           </div>
                         </div>
                       )}
+                      {ivaOpenId === item.id && (
+                        <div className="flex flex-col gap-1 mt-2 bg-gray-50 rounded-lg p-2 w-48">
+                          <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wide">
+                            Costo neto (sin IVA)
+                          </label>
+                          <input
+                            type="number"
+                            step="0.01"
+                            min="0"
+                            autoFocus
+                            value={ivaNeto}
+                            onChange={(e) => setIvaNeto(e.target.value)}
+                            className="border border-gray-200 rounded-lg px-2 py-1 text-xs outline-none focus:border-orange-400"
+                          />
+                          <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wide">
+                            Alícuota IVA %
+                          </label>
+                          <input
+                            type="number"
+                            step="0.1"
+                            min="0"
+                            value={ivaAlicuota}
+                            onChange={(e) => setIvaAlicuota(e.target.value)}
+                            className="border border-gray-200 rounded-lg px-2 py-1 text-xs outline-none focus:border-orange-400"
+                          />
+                          {parseFloat(ivaNeto) > 0 && !isNaN(parseFloat(ivaAlicuota)) && (
+                            <p className="text-[11px] font-semibold text-gray-500">
+                              = {money(parseFloat(ivaNeto) * (1 + parseFloat(ivaAlicuota) / 100))} con IVA
+                            </p>
+                          )}
+                          <div className="flex gap-1 mt-1">
+                            <button
+                              onClick={() => setIvaOpenId(null)}
+                              className="flex-1 py-1 rounded-lg border border-gray-200 text-[11px] font-semibold text-gray-600"
+                            >
+                              Cancelar
+                            </button>
+                            <button
+                              onClick={() => applyIva(item)}
+                              className="flex-1 py-1 rounded-lg bg-orange-500 hover:bg-orange-600 text-white text-[11px] font-bold"
+                            >
+                              Aplicar
+                            </button>
+                          </div>
+                        </div>
+                      )}
                     </td>
                     <td className="px-2.5 py-2.5">
                       {product && (
@@ -311,6 +413,11 @@ export default function FacturaManualItemsTable({ facturaId, items, onChanged, a
                             className="w-14 font-bold text-orange-500 outline-none border-b border-transparent focus:border-orange-300 disabled:opacity-50"
                           />
                         </div>
+                      )}
+                      {product && (
+                        <p className="text-[10px] text-purple-500 font-semibold whitespace-nowrap mt-0.5">
+                          PY: {money(Number(product.price) * 1.4)}
+                        </p>
                       )}
                     </td>
                     <td className="px-2.5 py-2.5">

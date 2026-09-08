@@ -17,6 +17,7 @@ interface Props {
   onViewImage: (url: string) => void;
   distribuidorId: string;
   distribuidorNombre: string;
+  ivaDiscriminado: boolean;
   categories: Category[];
   categoriesLoading: boolean;
   onChanged: () => void;
@@ -27,6 +28,7 @@ export default function HistorialFacturas({
   onViewImage,
   distribuidorId,
   distribuidorNombre,
+  ivaDiscriminado,
   categories,
   categoriesLoading,
   onChanged,
@@ -90,6 +92,7 @@ export default function HistorialFacturas({
           factura={viewing}
           distribuidorId={distribuidorId}
           distribuidorNombre={distribuidorNombre}
+          ivaDiscriminado={ivaDiscriminado}
           categories={categories}
           categoriesLoading={categoriesLoading}
           onClose={() => setViewingId(null)}
