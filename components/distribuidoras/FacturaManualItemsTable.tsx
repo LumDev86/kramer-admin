@@ -89,6 +89,21 @@ export default function FacturaManualItemsTable({
     onSuccess: onChanged,
   });
 
+  // punto único de guardado del costo real (siempre con IVA sumado si corresponde) - lo usan
+  // el input de Costo y los de Subtotal (neto y c/IVA), que son 3 formas distintas de llegar
+  // al mismo valor final. Mantiene el % de ganancia actual, recalculando el precio de venta
+  // para conservar el mismo margen contra el costo nuevo.
+  const commitCostoConIva = (item: FacturaItem, costoConIvaActual: number, nuevoCostoConIva: number) => {
+    if (Math.abs(nuevoCostoConIva - costoConIvaActual) < 0.005) return;
+    updateItemMutation.mutate({ itemId: item.id, data: { precioUnitario: nuevoCostoConIva } });
+    const product = item.product;
+    if (product && costoConIvaActual > 0) {
+      const currentPct = (Number(product.price) - costoConIvaActual) / costoConIvaActual;
+      const newPrice = parseFloat((nuevoCostoConIva * (1 + currentPct)).toFixed(2));
+      if (newPrice > 0) updateProductMutation.mutate({ productId: product.id, price: newPrice });
+    }
+  };
+
   const openBulto = (item: FacturaItem) => {
     setBultoOpenId(item.id);
     setBultoUnidades(item.unidadesPorBultoDetectada != null ? String(item.unidadesPorBultoDetectada) : '');
@@ -166,19 +181,19 @@ export default function FacturaManualItemsTable({
               className={`absolute top-0.5 left-0.5 w-4 h-4 rounded-full bg-white transition-transform ${ivaFacturaOn ? 'translate-x-4' : ''}`}
             />
           </button>
-          <span className="text-xs font-bold text-purple-700">Aplicar IVA a esta factura</span>
+          <span className="text-sm font-bold text-purple-700">Aplicar IVA a esta factura</span>
           {ivaFacturaOn && (
             <div className="flex items-center gap-1.5">
-              <span className="text-xs text-purple-500 font-medium">Alícuota general:</span>
+              <span className="text-sm text-purple-500 font-medium">Alícuota general:</span>
               <input
                 type="number"
                 step="0.1"
                 min="0"
                 value={ivaFacturaPct}
                 onChange={(e) => setIvaFacturaPct(e.target.value)}
-                className="w-14 border border-purple-200 rounded-lg px-2 py-1 text-xs outline-none focus:border-purple-400 font-semibold"
+                className="w-16 border border-purple-200 rounded-lg px-2 py-1.5 text-base outline-none focus:border-purple-400 font-semibold"
               />
-              <span className="text-xs text-purple-500 font-medium">%</span>
+              <span className="text-sm text-purple-500 font-medium">%</span>
             </div>
           )}
         </div>
@@ -244,7 +259,7 @@ export default function FacturaManualItemsTable({
                         </span>
                       </div>
                     </td>
-                    <td className="px-2.5 py-2.5">
+                    <td className="px-3 py-3">
                       <input
                         key={item.cantidad}
                         data-row={row}
@@ -261,12 +276,12 @@ export default function FacturaManualItemsTable({
                           if (val === item.cantidad) return;
                           updateItemMutation.mutate({ itemId: item.id, data: { cantidad: val } });
                         }}
-                        className="w-11 font-semibold outline-none border-b border-transparent focus:border-orange-300 disabled:opacity-50"
+                        className="w-16 text-base font-semibold outline-none border-b border-transparent focus:border-orange-300 disabled:opacity-50"
                       />
                     </td>
-                    <td className="px-2.5 py-2.5">
+                    <td className="px-3 py-3">
                       <div className="flex items-center gap-1">
-                        <span className="font-bold text-gray-500">$</span>
+                        <span className="font-bold text-gray-500 text-base">$</span>
                         <input
                           key={`${item.precioUnitario}-${ivaFacturaOn}-${itemPct}`}
                           data-row={row}
@@ -284,17 +299,9 @@ export default function FacturaManualItemsTable({
                             const nuevoCostoConIva = ivaFacturaOn
                               ? parseFloat((tipeado * (1 + itemPct / 100)).toFixed(2))
                               : tipeado;
-                            if (nuevoCostoConIva === costoConIva) return;
-                            updateItemMutation.mutate({ itemId: item.id, data: { precioUnitario: nuevoCostoConIva } });
-                            // mantiene el % de ganancia actual: recalcula el precio de venta
-                            // para conservar el mismo margen contra el costo nuevo
-                            if (product && costoConIva > 0) {
-                              const currentPct = (precio! - costoConIva) / costoConIva;
-                              const newPrice = parseFloat((nuevoCostoConIva * (1 + currentPct)).toFixed(2));
-                              if (newPrice > 0) updateProductMutation.mutate({ productId: product.id, price: newPrice });
-                            }
+                            commitCostoConIva(item, costoConIva, nuevoCostoConIva);
                           }}
-                          className="w-14 font-bold text-gray-500 outline-none border-b border-transparent focus:border-orange-300 disabled:opacity-50"
+                          className="w-20 text-base font-bold text-gray-600 outline-none border-b border-transparent focus:border-orange-300 disabled:opacity-50"
                         />
                       </div>
                       <div className="flex items-center gap-2 mt-1">
@@ -303,7 +310,7 @@ export default function FacturaManualItemsTable({
                           type="button"
                           title="Calcular a partir del precio de un bulto/caja"
                           onClick={() => (bultoOpenId === item.id ? setBultoOpenId(null) : openBulto(item))}
-                          className={`text-[10px] font-bold rounded px-1.5 py-0.5 transition-colors whitespace-nowrap ${
+                          className={`text-xs font-bold rounded px-1.5 py-0.5 transition-colors whitespace-nowrap ${
                             bultoOpenId === item.id ? 'bg-orange-100 text-orange-600' : 'text-gray-400 hover:bg-gray-100'
                           }`}
                         >
@@ -377,7 +384,7 @@ export default function FacturaManualItemsTable({
                     </td>
                     {ivaFacturaOn && (
                       <>
-                        <td className="px-2.5 py-2.5">
+                        <td className="px-3 py-3">
                           <div className="flex items-center gap-0.5">
                             <input
                               type="number"
@@ -389,20 +396,20 @@ export default function FacturaManualItemsTable({
                                 const raw = e.target.value.trim();
                                 setIvaPorItem((prev) => ({ ...prev, [item.id]: raw === '' ? ivaFacturaPct : raw }));
                               }}
-                              className="w-10 text-xs font-semibold text-purple-600 outline-none border-b border-transparent focus:border-purple-300 disabled:opacity-50"
+                              className="w-14 text-base font-semibold text-purple-600 outline-none border-b border-transparent focus:border-purple-300 disabled:opacity-50"
                             />
-                            <span className="text-xs font-bold text-purple-300">%</span>
+                            <span className="text-sm font-bold text-purple-300">%</span>
                           </div>
                         </td>
-                        <td className="px-2.5 py-2.5 font-semibold text-purple-600 whitespace-nowrap">
+                        <td className="px-3 py-3 text-base font-semibold text-purple-600 whitespace-nowrap">
                           {money(costoConIva)}
                         </td>
                       </>
                     )}
-                    <td className="px-2.5 py-2.5">
+                    <td className="px-3 py-3">
                       {product && (
                         <div className="flex items-center gap-1">
-                          <span className="font-bold text-orange-500">$</span>
+                          <span className="font-bold text-orange-500 text-base">$</span>
                           <input
                             key={product.price}
                             data-row={row}
@@ -418,19 +425,19 @@ export default function FacturaManualItemsTable({
                               if (val === precio) return;
                               updateProductMutation.mutate({ productId: product.id, price: val });
                             }}
-                            className="w-14 font-bold text-orange-500 outline-none border-b border-transparent focus:border-orange-300 disabled:opacity-50"
+                            className="w-20 text-base font-bold text-orange-500 outline-none border-b border-transparent focus:border-orange-300 disabled:opacity-50"
                           />
                         </div>
                       )}
                     </td>
-                    <td className="px-2.5 py-2.5">
+                    <td className="px-3 py-3">
                       {product && (
-                        <span className="font-bold text-purple-500">
+                        <span className="text-base font-bold text-purple-500">
                           {money(Number(product.price) * 1.4)}
                         </span>
                       )}
                     </td>
-                    <td className="px-2.5 py-2.5">
+                    <td className="px-3 py-3">
                       {product && (
                         <div className="flex items-center gap-0.5">
                           <input
@@ -453,15 +460,15 @@ export default function FacturaManualItemsTable({
                               if (newPrice <= 0) { e.target.value = pct !== null ? pct.toFixed(1) : ''; return; }
                               updateProductMutation.mutate({ productId: product.id, price: newPrice });
                             }}
-                            className={`w-14 text-xs font-bold outline-none border-b border-transparent focus:border-orange-300 disabled:opacity-50 ${
+                            className={`w-16 text-base font-bold outline-none border-b border-transparent focus:border-orange-300 disabled:opacity-50 ${
                               pct === null ? 'text-gray-300' : pct >= 0 ? 'text-green-600' : 'text-red-500'
                             }`}
                           />
-                          <span className="text-xs font-bold text-gray-300">%</span>
+                          <span className="text-sm font-bold text-gray-300">%</span>
                         </div>
                       )}
                     </td>
-                    <td className="px-2.5 py-2.5">
+                    <td className="px-3 py-3">
                       <input
                         key={item.codigoArticuloDetectado ?? ''}
                         data-row={row}
@@ -479,15 +486,46 @@ export default function FacturaManualItemsTable({
                           updateItemMutation.mutate({ itemId: item.id, data: { codigoArticulo: val || null } });
                         }}
                         placeholder="—"
-                        className="w-full text-xs outline-none border-b border-transparent focus:border-orange-300 disabled:opacity-50"
+                        className="w-full text-sm outline-none border-b border-transparent focus:border-orange-300 disabled:opacity-50"
                       />
                     </td>
-                    <td className="px-2.5 py-2.5 font-bold text-gray-700 whitespace-nowrap">
-                      {money(ivaFacturaOn ? costoNeto * Number(item.cantidad) : Number(item.subtotal))}
+                    <td className="px-3 py-3">
+                      <input
+                        key={`subneto-${item.precioUnitario}-${ivaFacturaOn}-${itemPct}-${item.cantidad}`}
+                        type="number"
+                        step="0.01"
+                        min="0"
+                        disabled={busy}
+                        defaultValue={(ivaFacturaOn ? costoNeto * Number(item.cantidad) : Number(item.subtotal)).toFixed(2)}
+                        onBlur={(e) => {
+                          const tipeado = parseFloat(e.target.value);
+                          if (isNaN(tipeado) || tipeado < 0 || !(Number(item.cantidad) > 0)) return;
+                          const nuevoCostoUnitNeto = tipeado / Number(item.cantidad);
+                          const nuevoCostoConIva = ivaFacturaOn
+                            ? parseFloat((nuevoCostoUnitNeto * (1 + itemPct / 100)).toFixed(2))
+                            : parseFloat(nuevoCostoUnitNeto.toFixed(2));
+                          commitCostoConIva(item, costoConIva, nuevoCostoConIva);
+                        }}
+                        className="w-24 text-base font-bold text-gray-700 outline-none border-b border-transparent focus:border-orange-300 disabled:opacity-50"
+                      />
                     </td>
                     {ivaFacturaOn && (
-                      <td className="px-2.5 py-2.5 font-bold text-purple-600 whitespace-nowrap">
-                        {money(item.subtotal)}
+                      <td className="px-3 py-3">
+                        <input
+                          key={`subiva-${item.precioUnitario}-${item.cantidad}`}
+                          type="number"
+                          step="0.01"
+                          min="0"
+                          disabled={busy}
+                          defaultValue={Number(item.subtotal).toFixed(2)}
+                          onBlur={(e) => {
+                            const tipeado = parseFloat(e.target.value);
+                            if (isNaN(tipeado) || tipeado < 0 || !(Number(item.cantidad) > 0)) return;
+                            const nuevoCostoConIva = parseFloat((tipeado / Number(item.cantidad)).toFixed(2));
+                            commitCostoConIva(item, costoConIva, nuevoCostoConIva);
+                          }}
+                          className="w-24 text-base font-bold text-purple-600 outline-none border-b border-transparent focus:border-purple-300 disabled:opacity-50"
+                        />
                       </td>
                     )}
                     <td className="px-1 py-2.5">

@@ -242,10 +242,10 @@ export default function DistribuidoraDetallePage() {
           )}
 
           {activeFactura && (
-        <div className="grid grid-cols-1 lg:grid-cols-[280px_1fr] gap-6">
-          <div className="bg-white rounded-2xl shadow-sm p-3">
-            <div className="relative w-full aspect-[3/4] rounded-xl overflow-hidden bg-gray-100">
-              {activeFactura.imageUrl ? (
+        <div className={activeFactura.imageUrl ? 'grid grid-cols-1 lg:grid-cols-[280px_1fr] gap-6' : 'flex flex-col gap-6'}>
+          {activeFactura.imageUrl && (
+            <div className="bg-white rounded-2xl shadow-sm p-3">
+              <div className="relative w-full aspect-[3/4] rounded-xl overflow-hidden bg-gray-100">
                 <button
                   type="button"
                   onClick={() => setLightboxUrl(activeFactura.imageUrl)}
@@ -254,13 +254,9 @@ export default function DistribuidoraDetallePage() {
                 >
                   <Image src={activeFactura.imageUrl} alt="Factura" fill sizes="280px" className="object-contain" />
                 </button>
-              ) : (
-                <div className="w-full h-full flex items-center justify-center text-xs text-gray-400 font-medium text-center px-4">
-                  Factura cargada a mano, sin imagen
-                </div>
-              )}
+              </div>
             </div>
-          </div>
+          )}
 
           <div className="flex flex-col gap-4">
             {activeFactura.extractionError && (
