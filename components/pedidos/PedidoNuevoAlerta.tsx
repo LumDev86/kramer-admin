@@ -15,9 +15,10 @@ const POLL_INTERVAL_MS = 8000;
 // suene y el modal aparezca sin importar qué sección del panel se esté mirando. Reemplaza al
 // push del sistema operativo como forma principal de aviso: acá se elige el sonido y se
 // muestran los datos completos del pedido en vez de depender de una notificación nativa.
-// Limitación real (ya documentada en lib/notificationSound.ts): un audio propio de la página
-// solo sale si esta pestaña está activa/en foreground - si el navegador está minimizado o en
-// segundo plano, esto no suena. El push del Service Worker se deja como respaldo para ese caso.
+// Es el ÚNICO aviso de pedido nuevo (el Web Push con notificación nativa de Windows se sacó a
+// pedido del dueño). Suena también con la pestaña en segundo plano (ver
+// refetchIntervalInBackground más abajo), siempre que haya habido al menos un click en el
+// panel en esta sesión - sin ese gesto el navegador bloquea el audio.
 export default function PedidoNuevoAlerta() {
   const router = useRouter();
   const audioRef = useRef<HTMLAudioElement>(null);
@@ -30,6 +31,13 @@ export default function PedidoNuevoAlerta() {
     queryKey: ['pedidos-nuevo-watch'],
     queryFn: () => pedidos.getAll('NUEVO'),
     refetchInterval: POLL_INTERVAL_MS,
+    // React Query por defecto CORTA el polling cuando la pestaña queda oculta (otra pestaña
+    // activa, ventana minimizada o tapada por completo) - ese era el motivo real de que la
+    // alarma no sonara fuera del panel: nadie se enteraba del pedido hasta volver a la
+    // pestaña. El audio en sí sí puede sonar en segundo plano una vez desbloqueado por el
+    // primer click (ver más abajo). Chrome igual puede espaciar este timer hasta ~1 min si la
+    // pestaña lleva >5 min oculta, así que en ese caso el aviso puede demorar hasta ~1 min.
+    refetchIntervalInBackground: true,
   });
 
   useEffect(() => {

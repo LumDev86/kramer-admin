@@ -4,8 +4,7 @@ import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { auth } from '@/lib/api';
 import { getToken } from '@/lib/auth';
-import { requestNotificationPermission } from '@/lib/notificationSound';
-import { setupPushSubscription } from '@/lib/push';
+import { removePushSubscription } from '@/lib/push';
 import Sidebar from '@/components/layout/Sidebar';
 import PedidoNuevoAlerta from '@/components/pedidos/PedidoNuevoAlerta';
 
@@ -27,19 +26,11 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // el aviso principal de "pedido nuevo" es el modal + sonido propio de PedidoNuevoAlerta (ver
-  // ese componente) - Web Push queda como respaldo silencioso para cuando esta pestaña está en
-  // segundo plano o el navegador minimizado, caso en el que un audio propio de la página no
-  // suena (ver lib/notificationSound.ts). Pedir el permiso necesita un gesto real del usuario;
-  // el login ya cuenta, pero si la sesión venía guardada (pestaña reabierta sin loguearse de
-  // nuevo) puede no haber habido ningún click todavía, así que lo pedimos también en el primer
-  // click/touch de la sesión, sin mostrar nada visible.
+  // el aviso de "pedido nuevo" es solo el modal + sonido de PedidoNuevoAlerta - se limpia el
+  // Web Push que haya quedado registrado de antes para que no aparezca más la notificación
+  // nativa de Windows (ver lib/push.ts)
   useEffect(() => {
-    const handler = () => {
-      requestNotificationPermission().then(() => setupPushSubscription());
-    };
-    window.addEventListener('pointerdown', handler, { once: true });
-    return () => window.removeEventListener('pointerdown', handler);
+    removePushSubscription();
   }, []);
 
   if (checking) {
