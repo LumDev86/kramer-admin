@@ -39,8 +39,12 @@ export default function ProductosPage() {
     ? { parentCategoryId: categoryId }
     : {};
 
+  // el optimistic update del toggle escribe sobre esta misma key exacta - si se agrega un
+  // filtro nuevo al listado, tiene que entrar acá o el toggle deja de encontrar la query
+  const productsKey = ['products', { search, page, categoryId, subcategoryId }];
+
   const { data, isLoading } = useQuery({
-    queryKey: ['products', { search, page, categoryId, subcategoryId }],
+    queryKey: productsKey,
     queryFn: () => products.getAll({ search: search || undefined, page, limit: LIMIT, ...productFilter }),
   });
 
@@ -60,19 +64,19 @@ export default function ProductosPage() {
     mutationFn: (id: string) => products.toggleActive(id),
     onMutate: async (id) => {
       await qc.cancelQueries({ queryKey: ['products'] });
-      const snapshot = qc.getQueryData<any>(['products', { search, page }]);
+      const snapshot = qc.getQueryData<any>(productsKey);
       const previousValue = snapshot?.data?.find((p: Product) => p.id === id)?.isActive;
-      qc.setQueryData(['products', { search, page }], (old: any) => ({
+      qc.setQueryData(productsKey, (old: any) => old && ({
         ...old,
         data: old.data.map((p: Product) =>
           p.id === id ? { ...p, isActive: !p.isActive } : p
         ),
       }));
-      return { id, previousValue };
+      return { id, previousValue, key: productsKey };
     },
     onError: (_err, _id, context) => {
       if (context?.previousValue !== undefined) {
-        qc.setQueryData(['products', { search, page }], (old: any) => ({
+        qc.setQueryData(context.key, (old: any) => old && ({
           ...old,
           data: old.data.map((p: Product) =>
             p.id === context.id ? { ...p, isActive: context.previousValue } : p
