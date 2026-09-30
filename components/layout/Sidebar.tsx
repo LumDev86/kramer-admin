@@ -4,25 +4,26 @@ import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { useQuery } from '@tanstack/react-query';
-import { House, Package, Tag, Image, CashRegister, Truck, ChartBar, SignOut, Users, List, X, ShoppingBag, Bicycle } from '@phosphor-icons/react';
+import { House, Package, Tag, Image, CashRegister, Truck, ChartBar, SignOut, Users, List, X, ShoppingBag, Bicycle, type Icon } from '@phosphor-icons/react';
 import { removeToken, getToken } from '@/lib/auth';
 import { clientes, pedidos } from '@/lib/api';
 
-// cada sección tiene un atajo Alt + número (el 0 va al final, como en el teclado) para moverse
-// por el panel sin mouse. Se eligió Alt + número porque las F ya están tomadas en Ventas (F1
-// crédito, F2 efectivo, F10 buscar) o por el navegador (F5 recargar, F11, F12...), y el lector de
-// código de barras nunca manda Alt, así que no se puede disparar sin querer al escanear.
-const NAV = [
-  { href: '/',              label: 'Dashboard',     icon: House,        key: '1' },
-  { href: '/ventas',        label: 'Ventas',        icon: CashRegister, key: '2' },
-  { href: '/pedidos',       label: 'Pedidos',       icon: ShoppingBag,  key: '3' },
-  { href: '/reportes',      label: 'Reportes',      icon: ChartBar,     key: '4' },
-  { href: '/productos',     label: 'Productos',     icon: Package,      key: '5' },
-  { href: '/categorias',    label: 'Categorías',    icon: Tag,          key: '6' },
-  { href: '/distribuidoras', label: 'Distribuidoras', icon: Truck,      key: '7' },
-  { href: '/clientes',      label: 'Clientes',      icon: Users,        key: '8' },
-  { href: '/repartidores',  label: 'Repartidores',  icon: Bicycle,      key: '9' },
-  { href: '/banners',       label: 'Banners',       icon: Image,        key: '0' },
+// las secciones más usadas tienen una tecla F para entrar con una sola tecla, sin mouse. F1, F2
+// y F10 no se usan acá porque ya son de Ventas (crédito, efectivo, buscar), y F11/F12 se dejan
+// para el navegador (pantalla completa, herramientas de desarrollo). F5 deja de recargar la
+// página (se recarga igual con Ctrl+R). Una letra sola no sirve: el lector de código de barras
+// "tipea" y cambiaría de sección en medio de un escaneo.
+const NAV: { href: string; label: string; icon: Icon; key?: string }[] = [
+  { href: '/',              label: 'Dashboard',     icon: House        },
+  { href: '/ventas',        label: 'Ventas',        icon: CashRegister, key: 'F3' },
+  { href: '/pedidos',       label: 'Pedidos',       icon: ShoppingBag,  key: 'F4' },
+  { href: '/reportes',      label: 'Reportes',      icon: ChartBar,     key: 'F8' },
+  { href: '/productos',     label: 'Productos',     icon: Package,      key: 'F5' },
+  { href: '/categorias',    label: 'Categorías',    icon: Tag,          key: 'F9' },
+  { href: '/distribuidoras', label: 'Distribuidoras', icon: Truck,      key: 'F6' },
+  { href: '/clientes',      label: 'Clientes',      icon: Users,        key: 'F7' },
+  { href: '/repartidores',  label: 'Repartidores',  icon: Bicycle      },
+  { href: '/banners',       label: 'Banners',       icon: Image        },
 ];
 
 export default function Sidebar() {
@@ -50,14 +51,11 @@ export default function Sidebar() {
     setOpen(false);
   }, [pathname]);
 
-  // Alt + número -> sección. Se mira e.code (Digit1...) y no e.key para que funcione igual
-  // con cualquier distribución de teclado.
+  // tecla F -> sección (ver NAV)
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
-      if (!e.altKey || e.ctrlKey || e.shiftKey || e.metaKey) return;
-      const match = /^Digit(\d)$/.exec(e.code);
-      if (!match) return;
-      const item = NAV.find((n) => n.key === match[1]);
+      if (e.altKey || e.ctrlKey || e.shiftKey || e.metaKey) return;
+      const item = NAV.find((n) => n.key === e.key);
       if (!item) return;
       e.preventDefault();
       router.push(item.href);
@@ -112,7 +110,7 @@ export default function Sidebar() {
               <Link
                 key={href}
                 href={href}
-                title={`${label} (Alt+${key})`}
+                title={key ? `${label} (${key})` : label}
                 className={`group relative flex items-center gap-3 pl-4 pr-3 py-2.5 rounded-2xl border transition-all duration-200 active:scale-[0.97] ${
                   active
                     ? 'bg-orange-50 border-orange-100 shadow-sm'
@@ -148,9 +146,11 @@ export default function Sidebar() {
                     {pedidosNuevosCount > 9 ? '9+' : pedidosNuevosCount}
                   </span>
                 )}
-                <kbd className="hidden md:inline text-[10px] font-semibold text-gray-300 font-sans flex-shrink-0">
-                  Alt+{key}
-                </kbd>
+                {key && (
+                  <kbd className="hidden md:inline text-[10px] font-semibold text-gray-300 font-sans flex-shrink-0">
+                    {key}
+                  </kbd>
+                )}
               </Link>
             );
           })}
