@@ -29,7 +29,7 @@ Un solo componente para alta y edición: prop `x?: X` opcional (si viene, `isEdi
 
 ## Sidebar (`components/layout/Sidebar.tsx`)
 
-Agregar un objeto `{ href, label, icon }` al array `NAV` (ícono de `@phosphor-icons/react`). No hace falta tocar la lógica de `isActive`.
+Agregar un objeto `{ href, label, icon, key }` al array `NAV` (ícono de `@phosphor-icons/react`). `key` es el dígito del atajo Alt+número para ir a la sección con el teclado (hoy están usados del 1 al 0; si no quedan libres, dejar la sección sin atajo o reordenar). No hace falta tocar la lógica de `isActive`.
 
 ## Deploy
 

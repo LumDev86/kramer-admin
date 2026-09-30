@@ -7,6 +7,7 @@ import { distribuidores, facturas, Category, Product } from '@/lib/api';
 import { MagnifyingGlass } from '@phosphor-icons/react';
 import ProductSearchModal from '@/components/ui/ProductSearchModal';
 import NuevoProductoManualForm from './NuevoProductoManualForm';
+import { useF10 } from '@/lib/useF10';
 
 interface Props {
   facturaId: string;
@@ -27,6 +28,9 @@ export default function AgregarProductoAFactura({ facturaId, distribuidorId, cat
   const [pickerOpen, setPickerOpen] = useState(false);
   const [creatingNew, setCreatingNew] = useState(false);
   const [error, setError] = useState('');
+
+  // F10 abre/cierra el buscador, igual que en Ventas
+  useF10(() => setPickerOpen((o) => !o));
 
   const { data: productosDistribuidora } = useQuery({
     queryKey: ['distribuidor', distribuidorId, 'productos'],
@@ -81,6 +85,7 @@ export default function AgregarProductoAFactura({ facturaId, distribuidorId, cat
       >
         <MagnifyingGlass size={13} weight="bold" />
         Buscar otro producto o crear uno nuevo
+        <span className="opacity-60 font-medium">· F10</span>
       </button>
 
       {error && <p className="text-xs font-semibold text-red-500">{error}</p>}

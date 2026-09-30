@@ -10,6 +10,7 @@ import ToggleSwitch from '@/components/ui/ToggleSwitch';
 import ProductSearchModal from '@/components/ui/ProductSearchModal';
 import AjustarIvaModal from '@/components/ui/AjustarIvaModal';
 import NuevoProductoManualForm from './NuevoProductoManualForm';
+import { useF10 } from '@/lib/useF10';
 
 interface Props {
   distribuidorId: string;
@@ -34,6 +35,9 @@ export default function ProductosDistribuidora({ distribuidorId, distribuidorNom
   const [creatingNew, setCreatingNew] = useState(false);
 
   const [showIvaAdjust, setShowIvaAdjust] = useState(false);
+
+  // F10 abre/cierra el buscador para cargar un producto a mano, igual que en Ventas
+  useF10(() => setPickerOpen((o) => !o));
 
   const { data: productos, isLoading } = useQuery({
     queryKey: ['distribuidor', distribuidorId, 'productos'],
@@ -146,6 +150,7 @@ export default function ProductosDistribuidora({ distribuidorId, distribuidorNom
         >
           <Plus size={16} weight="bold" />
           Cargar producto manualmente
+          <span className="opacity-60 font-medium">· F10</span>
         </button>
       </div>
 

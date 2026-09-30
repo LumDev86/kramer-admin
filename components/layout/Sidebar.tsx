@@ -8,17 +8,21 @@ import { House, Package, Tag, Image, CashRegister, Truck, ChartBar, SignOut, Use
 import { removeToken, getToken } from '@/lib/auth';
 import { clientes, pedidos } from '@/lib/api';
 
+// cada sección tiene un atajo Alt + número (el 0 va al final, como en el teclado) para moverse
+// por el panel sin mouse. Se eligió Alt + número porque las F ya están tomadas en Ventas (F1
+// crédito, F2 efectivo, F10 buscar) o por el navegador (F5 recargar, F11, F12...), y el lector de
+// código de barras nunca manda Alt, así que no se puede disparar sin querer al escanear.
 const NAV = [
-  { href: '/',              label: 'Dashboard',     icon: House       },
-  { href: '/ventas',        label: 'Ventas',        icon: CashRegister },
-  { href: '/pedidos',       label: 'Pedidos',       icon: ShoppingBag },
-  { href: '/reportes',      label: 'Reportes',      icon: ChartBar },
-  { href: '/productos',     label: 'Productos',     icon: Package  },
-  { href: '/categorias',    label: 'Categorías',    icon: Tag      },
-  { href: '/distribuidoras', label: 'Distribuidoras', icon: Truck  },
-  { href: '/clientes',      label: 'Clientes',      icon: Users    },
-  { href: '/repartidores',  label: 'Repartidores',  icon: Bicycle  },
-  { href: '/banners',       label: 'Banners',       icon: Image    },
+  { href: '/',              label: 'Dashboard',     icon: House,        key: '1' },
+  { href: '/ventas',        label: 'Ventas',        icon: CashRegister, key: '2' },
+  { href: '/pedidos',       label: 'Pedidos',       icon: ShoppingBag,  key: '3' },
+  { href: '/reportes',      label: 'Reportes',      icon: ChartBar,     key: '4' },
+  { href: '/productos',     label: 'Productos',     icon: Package,      key: '5' },
+  { href: '/categorias',    label: 'Categorías',    icon: Tag,          key: '6' },
+  { href: '/distribuidoras', label: 'Distribuidoras', icon: Truck,      key: '7' },
+  { href: '/clientes',      label: 'Clientes',      icon: Users,        key: '8' },
+  { href: '/repartidores',  label: 'Repartidores',  icon: Bicycle,      key: '9' },
+  { href: '/banners',       label: 'Banners',       icon: Image,        key: '0' },
 ];
 
 export default function Sidebar() {
@@ -45,6 +49,22 @@ export default function Sidebar() {
   useEffect(() => {
     setOpen(false);
   }, [pathname]);
+
+  // Alt + número -> sección. Se mira e.code (Digit1...) y no e.key para que funcione igual
+  // con cualquier distribución de teclado.
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      if (!e.altKey || e.ctrlKey || e.shiftKey || e.metaKey) return;
+      const match = /^Digit(\d)$/.exec(e.code);
+      if (!match) return;
+      const item = NAV.find((n) => n.key === match[1]);
+      if (!item) return;
+      e.preventDefault();
+      router.push(item.href);
+    };
+    window.addEventListener('keydown', handler);
+    return () => window.removeEventListener('keydown', handler);
+  }, [router]);
 
   const handleLogout = () => {
     removeToken();
@@ -86,12 +106,13 @@ export default function Sidebar() {
         </div>
 
         <nav className="flex-1 px-3 py-4 flex flex-col gap-1.5 overflow-y-auto">
-          {NAV.map(({ href, label, icon: Icon }) => {
+          {NAV.map(({ href, label, icon: Icon, key }) => {
             const active = isActive(href);
             return (
               <Link
                 key={href}
                 href={href}
+                title={`${label} (Alt+${key})`}
                 className={`group relative flex items-center gap-3 pl-4 pr-3 py-2.5 rounded-2xl border transition-all duration-200 active:scale-[0.97] ${
                   active
                     ? 'bg-orange-50 border-orange-100 shadow-sm'
@@ -127,6 +148,9 @@ export default function Sidebar() {
                     {pedidosNuevosCount > 9 ? '9+' : pedidosNuevosCount}
                   </span>
                 )}
+                <kbd className="hidden md:inline text-[10px] font-semibold text-gray-300 font-sans flex-shrink-0">
+                  Alt+{key}
+                </kbd>
               </Link>
             );
           })}

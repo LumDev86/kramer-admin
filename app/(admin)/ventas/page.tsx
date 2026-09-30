@@ -314,6 +314,11 @@ export default function VentasPage() {
         return;
       }
 
+      // Alt/Ctrl + tecla son atajos (ej. Alt+número cambia de sección, ver Sidebar), nunca
+      // parte de un código escaneado - sin esto el número quedaba en el buffer y se pegaba
+      // adelante del próximo código
+      if (e.altKey || e.ctrlKey || e.metaKey) return;
+
       const active = document.activeElement as HTMLElement | null;
       const isEditable =
         !!active && (active.tagName === 'INPUT' || active.tagName === 'TEXTAREA' || active.isContentEditable);
