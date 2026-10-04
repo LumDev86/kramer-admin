@@ -4,9 +4,9 @@ import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { useQuery } from '@tanstack/react-query';
-import { House, Package, Tag, Image, CashRegister, Truck, ChartBar, SignOut, Users, List, X, ShoppingBag, Bicycle, type Icon } from '@phosphor-icons/react';
+import { House, Package, Tag, Image, CashRegister, Truck, ChartBar, SignOut, Users, List, X, ShoppingBag, Bicycle, Lightbulb, type Icon } from '@phosphor-icons/react';
 import { removeToken, getToken } from '@/lib/auth';
-import { clientes, pedidos } from '@/lib/api';
+import { clientes, pedidos, sugerencias } from '@/lib/api';
 
 // las secciones más usadas tienen una tecla F para entrar con una sola tecla, sin mouse. F1, F2
 // y F10 no se usan acá porque ya son de Ventas (crédito, efectivo, buscar), y F11/F12 se dejan
@@ -24,6 +24,7 @@ const NAV: { href: string; label: string; icon: Icon; key?: string }[] = [
   { href: '/clientes',      label: 'Clientes',      icon: Users,        key: 'F7' },
   { href: '/repartidores',  label: 'Repartidores',  icon: Bicycle      },
   { href: '/banners',       label: 'Banners',       icon: Image        },
+  { href: '/sugerencias',   label: 'Sugerencias',   icon: Lightbulb    },
 ];
 
 export default function Sidebar() {
@@ -45,6 +46,14 @@ export default function Sidebar() {
     refetchInterval: 15000,
   });
   const pedidosNuevosCount = pedidosNuevos?.length ?? 0;
+
+  // sugerencias de productos que todavía nadie revisó
+  const { data: sugerenciasNuevas } = useQuery({
+    queryKey: ['sugerencias', 'nuevas-sidebar'],
+    queryFn: () => sugerencias.getAll({ estado: 'NUEVA', limit: 1 }),
+    enabled: !!getToken(),
+  });
+  const sugerenciasNuevasCount = sugerenciasNuevas?.meta.total ?? 0;
 
   // cerrar el drawer solo al navegar (mobile) - en desktop es siempre visible y esto no afecta nada
   useEffect(() => {
@@ -144,6 +153,11 @@ export default function Sidebar() {
                 {href === '/pedidos' && pedidosNuevosCount > 0 && (
                   <span className="w-5 h-5 rounded-full bg-red-500 text-white text-[10px] font-bold flex items-center justify-center flex-shrink-0">
                     {pedidosNuevosCount > 9 ? '9+' : pedidosNuevosCount}
+                  </span>
+                )}
+                {href === '/sugerencias' && sugerenciasNuevasCount > 0 && (
+                  <span className="w-5 h-5 rounded-full bg-red-500 text-white text-[10px] font-bold flex items-center justify-center flex-shrink-0">
+                    {sugerenciasNuevasCount > 9 ? '9+' : sugerenciasNuevasCount}
                   </span>
                 )}
                 {key && (

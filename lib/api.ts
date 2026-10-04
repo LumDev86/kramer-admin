@@ -658,3 +658,46 @@ export const repartidores = {
   getAll: () => request<Repartidor[]>('/repartidores'),
   toggleActive: (id: string) => request<Repartidor>(`/repartidores/${id}/toggle-active`, { method: 'PATCH' }),
 };
+
+export type SugerenciaEstado = 'NUEVA' | 'CONSIGUIENDO' | 'AGREGADA' | 'DESCARTADA';
+
+export interface Sugerencia {
+  id: string;
+  nombre: string;
+  nombreNormalizado: string;
+  tipo: string | null;
+  estado: SugerenciaEstado;
+  visible: boolean;
+  createdAt: string;
+  updatedAt: string;
+  votos: number;
+  contactos: number;
+}
+
+export interface SugerenciaVoto {
+  id: string;
+  comentario: string | null;
+  contactoNombre: string | null;
+  contactoWhatsapp: string | null;
+  createdAt: string;
+}
+
+export interface SugerenciaDetalle extends Omit<Sugerencia, 'votos' | 'contactos'> {
+  votos: SugerenciaVoto[];
+}
+
+export const sugerencias = {
+  getAll: (params: { page?: number; limit?: number; search?: string; estado?: SugerenciaEstado } = {}) => {
+    const qs = new URLSearchParams();
+    if (params.page)   qs.set('page',   String(params.page));
+    if (params.limit)  qs.set('limit',  String(params.limit));
+    if (params.search) qs.set('search', params.search);
+    if (params.estado) qs.set('estado', params.estado);
+    const q = qs.toString() ? `?${qs}` : '';
+    return request<PaginatedResponse<Sugerencia>>(`/sugerencias${q}`);
+  },
+  getById: (id: string) => request<SugerenciaDetalle>(`/sugerencias/${id}`),
+  update: (id: string, data: { nombre?: string; estado?: SugerenciaEstado; visible?: boolean }) =>
+    request<Sugerencia>(`/sugerencias/${id}`, { method: 'PATCH', body: JSON.stringify(data) }),
+  remove: (id: string) => request<void>(`/sugerencias/${id}`, { method: 'DELETE' }),
+};

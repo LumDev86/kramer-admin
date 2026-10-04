@@ -1,4 +1,4 @@
-import { PedidoStatus } from './api';
+import { PedidoStatus, SugerenciaEstado } from './api';
 
 export const money = (value: number | string) =>
   `$${Number(value).toLocaleString('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
@@ -27,3 +27,17 @@ export const PEDIDO_STATUS_LABEL: Record<PedidoStatus, string> = {
 };
 
 export const PAYMENT_LABEL: Record<string, string> = { CASH: 'Efectivo', TRANSFER: 'Transferencia' };
+
+export const SUGERENCIA_ESTADO_LABEL: Record<SugerenciaEstado, string> = {
+  NUEVA: 'Nueva',
+  CONSIGUIENDO: 'La estamos consiguiendo',
+  AGREGADA: 'Ya la sumamos',
+  DESCARTADA: 'Descartada',
+};
+
+export const SUGERENCIA_ESTADO_COLOR: Record<SugerenciaEstado, string> = {
+  NUEVA: 'bg-orange-50 text-orange-600 border-orange-200',
+  CONSIGUIENDO: 'bg-blue-50 text-blue-600 border-blue-200',
+  AGREGADA: 'bg-green-50 text-green-600 border-green-200',
+  DESCARTADA: 'bg-gray-50 text-gray-500 border-gray-200',
+};
