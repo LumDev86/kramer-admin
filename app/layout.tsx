@@ -1,5 +1,5 @@
 import type { Metadata } from 'next';
-import { Nunito } from 'next/font/google';
+import { Lilita_One, Nunito } from 'next/font/google';
 import './globals.css';
 import { Providers } from '@/components/providers';
 
@@ -7,6 +7,15 @@ const nunito = Nunito({
   subsets: ['latin'],
   display: 'swap',
   weight: ['400', '500', '600', '700', '800'],
+  variable: '--font-nunito',
+});
+
+// títulos y números grandes (totales, deudas) - tiene un solo peso, ya es gruesa de por sí
+const lilita = Lilita_One({
+  subsets: ['latin'],
+  display: 'swap',
+  weight: '400',
+  variable: '--font-lilita',
 });
 
 export const metadata: Metadata = {
@@ -22,8 +31,8 @@ export const metadata: Metadata = {
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="es" suppressHydrationWarning>
-      <body className={`${nunito.className} bg-gray-100 min-h-screen`} suppressHydrationWarning>
+    <html lang="es" className={`${nunito.variable} ${lilita.variable}`} suppressHydrationWarning>
+      <body className="font-sans bg-kr-cream text-kr-navy min-h-screen" suppressHydrationWarning>
         <Providers>{children}</Providers>
       </body>
     </html>

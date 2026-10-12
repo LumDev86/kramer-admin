@@ -2,9 +2,10 @@
 
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
+import Image from 'next/image';
 import { usePathname, useRouter } from 'next/navigation';
 import { useQuery } from '@tanstack/react-query';
-import { House, Package, Tag, Image, CashRegister, Truck, ChartBar, SignOut, Users, List, X, ShoppingBag, Bicycle, Lightbulb, type Icon } from '@phosphor-icons/react';
+import { GearSix, Package, Tag, Image as ImageIcon, CashRegister, Truck, ChartBar, SignOut, Users, List, X, ShoppingBag, Bicycle, Lightbulb, DotsThreeOutline, type Icon } from '@phosphor-icons/react';
 import { removeToken, getToken } from '@/lib/auth';
 import { clientes, pedidos, sugerencias } from '@/lib/api';
 
@@ -14,7 +15,7 @@ import { clientes, pedidos, sugerencias } from '@/lib/api';
 // página (se recarga igual con Ctrl+R). Una letra sola no sirve: el lector de código de barras
 // "tipea" y cambiaría de sección en medio de un escaneo.
 const NAV: { href: string; label: string; icon: Icon; key?: string }[] = [
-  { href: '/',              label: 'Dashboard',     icon: House        },
+  { href: '/',              label: 'Configuración', icon: GearSix      },
   { href: '/ventas',        label: 'Ventas',        icon: CashRegister, key: 'F3' },
   { href: '/pedidos',       label: 'Pedidos',       icon: ShoppingBag,  key: 'F4' },
   { href: '/reportes',      label: 'Reportes',      icon: ChartBar,     key: 'F8' },
@@ -23,9 +24,12 @@ const NAV: { href: string; label: string; icon: Icon; key?: string }[] = [
   { href: '/distribuidoras', label: 'Distribuidoras', icon: Truck,      key: 'F6' },
   { href: '/clientes',      label: 'Clientes',      icon: Users,        key: 'F7' },
   { href: '/repartidores',  label: 'Repartidores',  icon: Bicycle      },
-  { href: '/banners',       label: 'Banners',       icon: Image        },
+  { href: '/banners',       label: 'Banners',       icon: ImageIcon    },
   { href: '/sugerencias',   label: 'Sugerencias',   icon: Lightbulb    },
 ];
+
+// barra de abajo en el celular: lo que se usa en el día a día; el resto queda en "Más"
+const BOTTOM = ['/ventas', '/pedidos', '/productos', '/clientes'];
 
 export default function Sidebar() {
   const pathname = usePathname();
@@ -55,7 +59,13 @@ export default function Sidebar() {
   });
   const sugerenciasNuevasCount = sugerenciasNuevas?.meta.total ?? 0;
 
-  // cerrar el drawer solo al navegar (mobile) - en desktop es siempre visible y esto no afecta nada
+  const badgeFor = (href: string) =>
+    href === '/pedidos' ? pedidosNuevosCount
+      : href === '/clientes' ? resetPendientesCount
+      : href === '/sugerencias' ? sugerenciasNuevasCount
+      : 0;
+
+  // cerrar el menú del celular al navegar
   useEffect(() => {
     setOpen(false);
   }, [pathname]);
@@ -81,105 +91,161 @@ export default function Sidebar() {
   const isActive = (href: string) =>
     href === '/' ? pathname === '/' : pathname.startsWith(href);
 
+  const current = NAV.find((n) => isActive(n.href));
+  const inBottom = BOTTOM.some((h) => isActive(h));
+
   return (
     <>
-      <button
-        onClick={() => setOpen(true)}
-        className="md:hidden print:hidden fixed top-4 left-4 z-30 w-10 h-10 rounded-xl bg-white shadow-sm border border-gray-100 flex items-center justify-center text-gray-600"
-      >
-        <List size={20} weight="bold" />
-      </button>
+      {/* ---- escritorio (lateral completo) y tablet (columna de íconos) ---- */}
+      <aside className="hidden md:flex fixed top-0 left-0 z-40 h-screen w-[72px] lg:w-60 flex-col gap-4 overflow-y-auto bg-kr-navy px-2 lg:px-3 py-4 print:hidden">
+        <Brand compact />
+        <NavList items={NAV} isActive={isActive} badgeFor={badgeFor} rail />
+        <LogoutButton onClick={handleLogout} rail />
+      </aside>
 
+      {/* ---- celular: barra de arriba ---- */}
+      <header className="md:hidden fixed top-0 inset-x-0 z-40 flex h-[60px] items-center gap-2 bg-kr-navy px-2.5 text-white print:hidden">
+        <button type="button" onClick={() => setOpen(true)} aria-label="Abrir menú" className="flex h-11 w-11 items-center justify-center rounded-xl">
+          <List size={24} weight="bold" />
+        </button>
+        <span className="font-display text-[21px] leading-none truncate">{current?.label ?? 'Kiosco Kramer'}</span>
+      </header>
+
+      {/* ---- celular: barra de abajo ---- */}
+      <nav aria-label="Accesos rápidos" className="md:hidden fixed bottom-0 inset-x-0 z-40 flex h-16 border-t-[1.5px] border-kr-line bg-white print:hidden">
+        {BOTTOM.map((href) => {
+          const item = NAV.find((n) => n.href === href)!;
+          return (
+            <BottomItem key={href} href={href} label={item.label} icon={item.icon} active={isActive(href)} badge={badgeFor(href)} />
+          );
+        })}
+        <button
+          type="button"
+          onClick={() => setOpen(true)}
+          className={`relative flex flex-1 flex-col items-center justify-center gap-0.5 text-[11px] font-extrabold ${!inBottom ? 'text-kr-navy' : 'text-kr-muted'}`}
+        >
+          <span className={`flex items-center justify-center rounded-[10px] px-3 py-0.5 ${!inBottom ? 'bg-kr-yellow border-[1.5px] border-kr-navy' : 'border-[1.5px] border-transparent'}`}>
+            <DotsThreeOutline size={22} weight={!inBottom ? 'fill' : 'regular'} />
+          </span>
+          Más
+        </button>
+      </nav>
+
+      {/* ---- celular: menú completo ---- */}
       {open && (
-        <div className="md:hidden fixed inset-0 bg-black/40 z-40 animate-fadeIn" onClick={() => setOpen(false)} />
-      )}
-
-      <aside
-        className={`w-60 min-h-screen bg-white border-r border-gray-100 flex flex-col fixed top-0 left-0 z-50 shadow-sm transition-transform duration-200 md:translate-x-0 print:hidden ${
-          open ? 'translate-x-0' : '-translate-x-full'
-        }`}
-      >
-        <div className="px-5 py-6 border-b border-gray-100 flex items-center justify-between">
-          <div>
-            <p className="text-xs font-bold text-orange-500 uppercase tracking-widest">Admin</p>
-            <p className="text-lg font-extrabold text-gray-800 leading-tight">Kiosco Kramer</p>
-          </div>
-          <button
-            onClick={() => setOpen(false)}
-            className="md:hidden text-gray-400 hover:text-gray-600 transition-colors"
-          >
-            <X size={20} weight="bold" />
-          </button>
+        <div className="md:hidden fixed inset-0 z-50 print:hidden">
+          <div className="absolute inset-0 bg-kr-navy/50 animate-fadeIn" onClick={() => setOpen(false)} />
+          <aside className="absolute top-0 left-0 flex h-full w-72 max-w-[85vw] flex-col gap-4 overflow-y-auto bg-kr-navy px-3 py-4 animate-slideUp">
+            <div className="flex items-start justify-between gap-2">
+              <Brand />
+              <button type="button" onClick={() => setOpen(false)} aria-label="Cerrar menú" className="flex h-11 w-11 items-center justify-center rounded-xl text-kr-side-text">
+                <X size={22} weight="bold" />
+              </button>
+            </div>
+            <NavList items={NAV} isActive={isActive} badgeFor={badgeFor} />
+            <LogoutButton onClick={handleLogout} />
+          </aside>
         </div>
+      )}
+    </>
+  );
+}
 
-        <nav className="flex-1 px-3 py-4 flex flex-col gap-1.5 overflow-y-auto">
-          {NAV.map(({ href, label, icon: Icon, key }) => {
-            const active = isActive(href);
-            return (
-              <Link
-                key={href}
-                href={href}
-                title={key ? `${label} (${key})` : label}
-                className={`group relative flex items-center gap-3 pl-4 pr-3 py-2.5 rounded-2xl border transition-all duration-200 active:scale-[0.97] ${
-                  active
-                    ? 'bg-orange-50 border-orange-100 shadow-sm'
-                    : 'bg-white border-transparent hover:bg-gray-50 hover:border-gray-100'
+function Brand({ compact }: { compact?: boolean }) {
+  return (
+    <div className={`flex items-center gap-2.5 px-1 ${compact ? 'justify-center lg:justify-start' : ''}`}>
+      <span className="relative h-11 w-11 flex-shrink-0 -rotate-6 rounded-xl border-2 border-kr-yellow bg-white p-0.5">
+        <Image src="/logo.png" alt="Kiosco Kramer" fill sizes="44px" className="object-contain p-0.5" unoptimized />
+      </span>
+      <span className={`flex-col leading-tight text-white ${compact ? 'hidden lg:flex' : 'flex'}`}>
+        <span className="font-display text-[19px]">Kiosco Kramer</span>
+        <span className="text-xs font-bold text-kr-side-text">Panel de administración</span>
+      </span>
+    </div>
+  );
+}
+
+function NavList({ items, isActive, badgeFor, rail }: {
+  items: typeof NAV;
+  isActive: (href: string) => boolean;
+  badgeFor: (href: string) => number;
+  // en tablet el menú es una columna de íconos: el texto se oculta hasta lg
+  rail?: boolean;
+}) {
+  return (
+    <nav aria-label="Secciones" className="flex flex-1 flex-col gap-1">
+      {items.map(({ href, label, icon: Icon, key }) => {
+        const active = isActive(href);
+        const badge = badgeFor(href);
+        return (
+          <Link
+            key={href}
+            href={href}
+            title={key ? `${label} (${key})` : label}
+            aria-label={label}
+            aria-current={active ? 'page' : undefined}
+            className={`relative flex min-h-10 items-center gap-3 rounded-xl border-2 text-sm font-bold transition-colors ${
+              rail ? 'justify-center px-0 lg:justify-start lg:px-3' : 'px-3'
+            } ${
+              active
+                ? 'border-kr-navy-dark bg-kr-yellow text-kr-navy shadow-[2px_2px_0_0_#0A1230]'
+                : 'border-transparent text-kr-side-text hover:bg-white/[0.07] hover:text-white'
+            }`}
+          >
+            <Icon size={20} weight={active ? 'fill' : 'regular'} className="flex-shrink-0" />
+            <span className={`flex-1 ${rail ? 'hidden lg:inline' : ''}`}>{label}</span>
+            {badge > 0 && (
+              <span
+                className={`flex h-5 min-w-5 items-center justify-center rounded-full bg-kr-orange px-1.5 text-[11px] font-extrabold text-kr-navy ${
+                  rail ? 'absolute -top-1 -right-1 lg:static' : ''
                 }`}
               >
-                {/* barra de acento - marca de un vistazo en qué sección está parado el usuario,
-                    con transición suave al pasar de un ítem a otro */}
-                <span
-                  className={`absolute left-0 top-1/2 -translate-y-1/2 w-1 rounded-r-full bg-orange-500 transition-all duration-200 ${
-                    active ? 'h-6 opacity-100' : 'h-0 opacity-0'
-                  }`}
-                />
-                <div
-                  className={`w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0 transition-all duration-200 ${
-                    active
-                      ? 'bg-orange-500 text-white scale-105'
-                      : 'bg-gray-100 text-gray-500 group-hover:bg-orange-100 group-hover:text-orange-500 group-hover:scale-105'
-                  }`}
-                >
-                  <Icon size={18} weight={active ? 'fill' : 'regular'} />
-                </div>
-                <span className={`flex-1 text-sm font-bold transition-colors ${active ? 'text-gray-800' : 'text-gray-600 group-hover:text-gray-800'}`}>
-                  {label}
-                </span>
-                {href === '/clientes' && resetPendientesCount > 0 && (
-                  <span className="w-5 h-5 rounded-full bg-red-500 text-white text-[10px] font-bold flex items-center justify-center flex-shrink-0">
-                    {resetPendientesCount > 9 ? '9+' : resetPendientesCount}
-                  </span>
-                )}
-                {href === '/pedidos' && pedidosNuevosCount > 0 && (
-                  <span className="w-5 h-5 rounded-full bg-red-500 text-white text-[10px] font-bold flex items-center justify-center flex-shrink-0">
-                    {pedidosNuevosCount > 9 ? '9+' : pedidosNuevosCount}
-                  </span>
-                )}
-                {href === '/sugerencias' && sugerenciasNuevasCount > 0 && (
-                  <span className="w-5 h-5 rounded-full bg-red-500 text-white text-[10px] font-bold flex items-center justify-center flex-shrink-0">
-                    {sugerenciasNuevasCount > 9 ? '9+' : sugerenciasNuevasCount}
-                  </span>
-                )}
-                {key && (
-                  <kbd className="hidden md:inline text-[10px] font-semibold text-gray-300 font-sans flex-shrink-0">
-                    {key}
-                  </kbd>
-                )}
-              </Link>
-            );
-          })}
-        </nav>
+                {badge > 9 ? '9+' : badge}
+              </span>
+            )}
+            {key && badge === 0 && (
+              <kbd className={`font-sans text-[11px] font-bold opacity-60 ${rail ? 'hidden lg:inline' : 'hidden'}`}>{key}</kbd>
+            )}
+          </Link>
+        );
+      })}
+    </nav>
+  );
+}
 
-        <div className="px-3 py-4 border-t border-gray-100">
-          <button
-            onClick={handleLogout}
-            className="flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-semibold text-gray-500 hover:bg-red-50 hover:text-red-500 transition-colors w-full"
-          >
-            <SignOut size={18} />
-            Cerrar sesión
-          </button>
-        </div>
-      </aside>
-    </>
+function LogoutButton({ onClick, rail }: { onClick: () => void; rail?: boolean }) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      title="Cerrar sesión"
+      aria-label="Cerrar sesión"
+      className={`flex min-h-11 items-center gap-3 rounded-xl text-sm font-bold text-kr-side-text transition-colors hover:bg-white/[0.07] hover:text-white ${
+        rail ? 'justify-center lg:justify-start lg:px-3' : 'px-3'
+      }`}
+    >
+      <SignOut size={20} />
+      <span className={rail ? 'hidden lg:inline' : ''}>Cerrar sesión</span>
+    </button>
+  );
+}
+
+function BottomItem({ href, label, icon: Icon, active, badge }: { href: string; label: string; icon: Icon; active: boolean; badge: number }) {
+  return (
+    <Link
+      href={href}
+      aria-current={active ? 'page' : undefined}
+      className={`relative flex flex-1 flex-col items-center justify-center gap-0.5 text-[11px] font-extrabold ${active ? 'text-kr-navy' : 'text-kr-muted'}`}
+    >
+      <span className={`flex items-center justify-center rounded-[10px] px-3 py-0.5 ${active ? 'bg-kr-yellow border-[1.5px] border-kr-navy' : 'border-[1.5px] border-transparent'}`}>
+        <Icon size={22} weight={active ? 'fill' : 'regular'} />
+      </span>
+      {label}
+      {badge > 0 && (
+        <span className="absolute top-1 right-[calc(50%-24px)] flex h-5 min-w-5 items-center justify-center rounded-full bg-kr-orange px-1 text-[11px] font-extrabold text-kr-navy">
+          {badge > 9 ? '9+' : badge}
+        </span>
+      )}
+    </Link>
   );
 }

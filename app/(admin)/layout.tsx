@@ -36,7 +36,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
   if (checking) {
     return (
       <div className="min-h-screen flex items-center justify-center">
-        <div className="w-8 h-8 border-4 border-orange-500 border-t-transparent rounded-full animate-spin" />
+        <div className="w-8 h-8 border-4 border-kr-navy border-t-transparent rounded-full animate-spin" />
       </div>
     );
   }
@@ -44,7 +44,9 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
   return (
     <div className="flex min-h-screen">
       <Sidebar />
-      <main className="md:ml-60 flex-1 p-4 pt-20 sm:p-6 md:p-8 md:pt-8 animate-fadeIn min-w-0 print:ml-0 print:p-0">
+      {/* el margen izquierdo acompaña al menú: columna de íconos en tablet, lateral completo
+          desde lg; en celular el menú va arriba (60px) y abajo (64px) */}
+      <main className="md:ml-[72px] lg:ml-60 flex-1 flex flex-col gap-4 sm:gap-5 px-4 pt-[76px] pb-24 sm:px-6 md:px-8 md:pt-7 md:pb-8 animate-fadeIn min-w-0 print:ml-0 print:p-0">
         {children}
       </main>
       <PedidoNuevoAlerta />

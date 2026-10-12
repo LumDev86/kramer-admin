@@ -115,7 +115,7 @@ function HourSelect({ value, onChange, options = HOURS }: { value: number; onCha
   );
 }
 
-export default function DashboardPage() {
+export default function ConfiguracionPage() {
   const qc = useQueryClient();
 
   const { data: prodData }   = useQuery({ queryKey: ['products',    { limit: 1 }], queryFn: () => products.getAll({ limit: 1 }) });
@@ -209,8 +209,8 @@ export default function DashboardPage() {
 
       {/* Header */}
       <div>
-        <h1 className="text-2xl font-extrabold text-gray-800">Dashboard</h1>
-        <p className="text-sm text-gray-400 font-medium mt-0.5">Resumen y configuración del local</p>
+        <h1 className="font-display text-[28px] md:text-[34px] leading-none text-kr-navy">Configuración</h1>
+        <p className="text-sm text-gray-400 font-medium mt-0.5">Estado de la tienda, horarios, datos de cobro y ubicación.</p>
       </div>
 
       {/* Stats */}

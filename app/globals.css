@@ -1,5 +1,45 @@
 @import "tailwindcss";
 
+/* Identidad "Pop sobrio" (misma paleta que la tienda, client/src/app/globals.css): marino de
+   base, amarillo para lo activo, naranja para avisos. El contorno marino + sombra dura
+   (shadow-pop*) va solo en botones principales y bloques destacados, no en listas ni textos. */
+@theme {
+  --font-sans: var(--font-nunito);
+  --font-display: var(--font-lilita);
+
+  --color-kr-navy: #0F1A3C;
+  --color-kr-navy-dark: #0A1230;
+  --color-kr-orange: #F26B1D;
+  --color-kr-orange-dark: #C2410C;
+  --color-kr-yellow: #FFC61A;
+  --color-kr-yellow-soft: #FFF1C2;
+  --color-kr-blue: #1E5FBF;
+  --color-kr-blue-light: #4C8DF0;
+  --color-kr-blue-soft: #EAF1FB;
+  --color-kr-green: #3DDC84;
+  --color-kr-green-dark: #11713A;
+  --color-kr-green-soft: #E3F9EC;
+  --color-kr-cream: #FBF6EA;
+  --color-kr-paper: #FFFCF5;
+  --color-kr-sand: #F3ECDC;
+  --color-kr-muted: #5B6275;
+  --color-kr-line: #E2D6BF;
+  --color-kr-side-text: #C9CEDD;
+
+  --shadow-pop-sm: 2px 2px 0 0 var(--color-kr-navy);
+  --shadow-pop: 3px 3px 0 0 var(--color-kr-navy);
+  --shadow-pop-lg: 4px 4px 0 0 var(--color-kr-navy);
+}
+
+/* el botón "se hunde" al tocarlo: baja lo mismo que mide la sombra y la sombra desaparece */
+@utility pop-press {
+  transition: transform 80ms ease, box-shadow 80ms ease;
+  &:active:not(:disabled) {
+    transform: translate(3px, 3px);
+    box-shadow: none;
+  }
+}
+
 button:not(:disabled), a, [role="switch"], select, label[for] {
   cursor: pointer;
 }
