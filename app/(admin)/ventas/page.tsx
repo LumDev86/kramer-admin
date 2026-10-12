@@ -607,6 +607,7 @@ export default function VentasPage() {
       {toCancel && (
         <ConfirmModal
           message={`¿Cancelar el ticket? ${toCancel.items.length > 0 ? 'Se perderán los productos cargados.' : ''}`}
+          confirmLabel="Cancelar ticket"
           loading={cancelMutation.isPending}
           onConfirm={() => cancelMutation.mutate(toCancel.id)}
           onCancel={() => setToCancel(null)}

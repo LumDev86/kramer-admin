@@ -6,6 +6,7 @@ import { useQuery } from '@tanstack/react-query';
 import { Bell } from '@phosphor-icons/react';
 import { pedidos, Pedido } from '@/lib/api';
 import { money, PAYMENT_LABEL } from '@/lib/format';
+import { buttonClasses } from '@/components/ui/Button';
 
 // más rápido que el refetchInterval de la pantalla de Pedidos (15000) - el aviso sonoro tiene
 // que notarse apenas entra el pedido, no en cualquier momento dentro de una ventana de 15s
@@ -90,61 +91,55 @@ export default function PedidoNuevoAlerta() {
       <audio ref={audioRef} src="/sounds/pedido-nuevo.mp3" loop preload="auto" />
 
       {pedidoActual && (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/50 px-4 animate-fadeIn">
-          <div className="bg-white rounded-2xl shadow-xl w-full max-w-md animate-slideUp overflow-hidden">
-            <div className="bg-orange-500 px-6 py-4 flex items-center gap-3">
-              <div className="w-10 h-10 bg-white/20 rounded-full flex items-center justify-center flex-shrink-0">
-                <Bell size={20} weight="fill" className="text-white" />
-              </div>
-              <div className="flex-1 min-w-0">
-                <p className="text-white font-extrabold text-lg leading-tight">¡Pedido nuevo!</p>
-                <p className="text-orange-100 text-xs font-semibold">{pedidoActual.numero}</p>
+        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-kr-navy/60 px-4 animate-fadeIn">
+          <div role="alertdialog" aria-modal="true" aria-label="Pedido nuevo" className="w-full max-w-md overflow-hidden rounded-2xl border-2 border-kr-navy bg-white shadow-pop-lg animate-slideUp">
+            <div className="flex items-center gap-3 border-b-2 border-kr-navy bg-kr-yellow px-5 py-4">
+              <span className="flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-full border-2 border-kr-navy bg-white">
+                <Bell size={22} weight="fill" className="text-kr-orange-dark" />
+              </span>
+              <div className="min-w-0 flex-1">
+                <p className="font-display text-2xl leading-none">¡Pedido nuevo!</p>
+                <p className="text-sm font-extrabold">{pedidoActual.numero}</p>
               </div>
               {cola.length > 1 && (
-                <span className="text-xs font-bold text-white bg-white/20 rounded-full px-2 py-1 flex-shrink-0">
-                  +{cola.length - 1}
+                <span className="flex-shrink-0 rounded-full border-[1.5px] border-kr-navy bg-white px-2 py-0.5 text-xs font-extrabold">
+                  +{cola.length - 1} más
                 </span>
               )}
             </div>
 
-            <div className="p-6 flex flex-col gap-4 max-h-[60vh] overflow-y-auto">
+            <div className="flex max-h-[60vh] flex-col gap-4 overflow-y-auto p-5">
               <div>
-                <p className="text-xs font-bold text-gray-400 uppercase tracking-wide mb-1">Cliente</p>
-                <p className="font-semibold text-gray-800">{pedidoActual.nombreCliente}</p>
-                <p className="text-sm text-gray-500">{pedidoActual.telefonoCliente}</p>
-                <p className="text-sm text-gray-500 mt-1">{pedidoActual.direccion}</p>
-                {pedidoActual.notas && <p className="text-xs text-gray-400 mt-1">📝 {pedidoActual.notas}</p>}
+                <p className="mb-1 text-xs font-extrabold uppercase tracking-wide text-kr-muted">Cliente</p>
+                <p className="font-extrabold">{pedidoActual.nombreCliente}</p>
+                <p className="text-sm font-bold text-kr-muted">{pedidoActual.telefonoCliente}</p>
+                <p className="mt-1 text-sm font-bold">{pedidoActual.direccion}</p>
+                {pedidoActual.notas && <p className="mt-1 text-sm font-bold text-kr-muted">Nota: {pedidoActual.notas}</p>}
               </div>
 
-              <div className="border-t border-gray-100 pt-3">
-                <p className="text-xs font-bold text-gray-400 uppercase tracking-wide mb-2">Productos</p>
-                <div className="flex flex-col gap-1.5">
+              <div className="border-t border-kr-line pt-3">
+                <p className="mb-2 text-xs font-extrabold uppercase tracking-wide text-kr-muted">Productos</p>
+                <ul className="flex flex-col gap-1.5">
                   {pedidoActual.items.map((item) => (
-                    <div key={item.id} className="flex justify-between text-sm">
-                      <span className="text-gray-600">{item.quantity} × {item.name}</span>
-                      <span className="font-semibold text-gray-700">{money(item.subtotal)}</span>
-                    </div>
+                    <li key={item.id} className="flex justify-between gap-3 text-sm">
+                      <span className="font-bold">{item.quantity} × {item.name}</span>
+                      <span className="font-extrabold tabular-nums whitespace-nowrap">{money(item.subtotal)}</span>
+                    </li>
                   ))}
-                </div>
+                </ul>
               </div>
 
-              <div className="border-t border-gray-100 pt-3 flex items-center justify-between">
-                <p className="text-xs text-gray-400 font-semibold">{PAYMENT_LABEL[pedidoActual.paymentMethod]}</p>
-                <p className="text-xl font-extrabold text-orange-500">{money(pedidoActual.total)}</p>
+              <div className="flex items-center justify-between border-t border-kr-line pt-3">
+                <p className="text-sm font-extrabold text-kr-muted">{PAYMENT_LABEL[pedidoActual.paymentMethod]}</p>
+                <p className="font-display text-2xl leading-none tabular-nums">{money(pedidoActual.total)}</p>
               </div>
             </div>
 
             <div className="flex gap-3 p-4 pt-0">
-              <button
-                onClick={cerrar}
-                className="flex-1 py-3 rounded-xl border border-gray-200 text-sm font-bold text-gray-600 hover:bg-gray-50 transition-colors"
-              >
+              <button type="button" onClick={cerrar} className={buttonClasses('secondary', 'lg', 'flex-1')}>
                 Cerrar
               </button>
-              <button
-                onClick={verPedido}
-                className="flex-1 py-3 rounded-xl bg-orange-500 hover:bg-orange-600 text-white text-sm font-bold transition-colors"
-              >
+              <button type="button" onClick={verPedido} className={buttonClasses('primary', 'lg', 'flex-1')}>
                 Ver pedido
               </button>
             </div>

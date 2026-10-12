@@ -53,6 +53,8 @@ interface Props {
   onSelect?: (repartidorId: string) => void;
   onMapClick?: (lat: number, lng: number) => void;
   size?: number;
+  // ocupa todo el ancho de su tarjeta (alto fijo) en vez de ser un cuadrado de `size`
+  fill?: boolean;
 }
 
 export default function RepartidoresMap({
@@ -64,6 +66,7 @@ export default function RepartidoresMap({
   onSelect,
   onMapClick,
   size = 480,
+  fill,
 }: Props) {
   const conectados = useMemo(() => repartidores.filter(estaEnLinea), [repartidores]);
 
@@ -87,11 +90,11 @@ export default function RepartidoresMap({
 
   return (
     <div
-      style={{ width: size, height: size, maxWidth: '100%' }}
+      style={fill ? { width: '100%', height: 260 } : { width: size, height: size, maxWidth: '100%' }}
       // `isolate` contiene el z-index interno de Leaflet (sus controles llegan a z-index:1000)
       // dentro de este stacking context - sin esto, los controles del mapa quedaban por encima
       // de cualquier modal con z-index menor a 1000 (ej. ConfirmModal, z-50), tapándolo
-      className="mx-auto rounded-2xl overflow-hidden border border-gray-100 isolate"
+      className="mx-auto rounded-2xl overflow-hidden border-[1.5px] border-kr-line isolate"
     >
       {/* MapContainer solo aplica center/zoom en el mount inicial (react-leaflet no lo
           re-centra si el prop cambia después) - si la ubicación del local llega asíncrona
@@ -127,19 +130,19 @@ export default function RepartidoresMap({
             <Popup>
               <p className="font-bold">{r.nombre}</p>
               {storeLat !== null && storeLng !== null && (
-                <p className="text-xs text-gray-500">
+                <p className="text-xs text-kr-muted">
                   {distanciaKm(storeLat, storeLng, r.lat!, r.lng!).toFixed(1)} km del local
                 </p>
               )}
               {destino && (
-                <p className="text-xs text-gray-500">
+                <p className="text-xs text-kr-muted">
                   {distanciaKm(destino.lat, destino.lng, r.lat!, r.lng!).toFixed(1)} km del destino
                 </p>
               )}
               {onSelect && (
                 <button
                   onClick={() => onSelect(r.id)}
-                  className="mt-1 text-xs font-bold text-orange-600 hover:text-orange-700"
+                  className="mt-1 text-xs font-extrabold text-kr-blue hover:text-kr-navy"
                 >
                   Asignar a {r.nombre.split(' ')[0]}
                 </button>

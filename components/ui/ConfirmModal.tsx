@@ -9,9 +9,12 @@ interface Props {
   onCancel: () => void;
   loading?: boolean;
   error?: string;
+  // por defecto "Eliminar"; para acciones que no borran (cancelar un pedido, un ticket) conviene
+  // nombrar la acción, y entonces el otro botón pasa a decir "Volver" para no confundir
+  confirmLabel?: string;
 }
 
-export default function ConfirmModal({ message, onConfirm, onCancel, loading, error }: Props) {
+export default function ConfirmModal({ message, onConfirm, onCancel, loading, error, confirmLabel }: Props) {
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-kr-navy/50 px-4 animate-fadeIn">
       <div role="alertdialog" aria-modal="true" aria-label={message} className="bg-white rounded-2xl border-2 border-kr-navy shadow-pop-lg p-6 w-full max-w-sm animate-slideUp">
@@ -28,7 +31,7 @@ export default function ConfirmModal({ message, onConfirm, onCancel, loading, er
         </div>
         <div className="flex gap-3 mt-6">
           <button type="button" onClick={onCancel} className={buttonClasses('secondary', 'md', 'flex-1')}>
-            Cancelar
+            {confirmLabel ? 'Volver' : 'Cancelar'}
           </button>
           <button
             type="button"
@@ -36,7 +39,7 @@ export default function ConfirmModal({ message, onConfirm, onCancel, loading, er
             disabled={loading}
             className="flex-1 min-h-11 rounded-xl bg-kr-orange-dark hover:bg-[#A8380A] text-white text-sm font-extrabold border-2 border-kr-navy transition-colors disabled:opacity-60"
           >
-            {loading ? 'Eliminando...' : 'Eliminar'}
+            {loading ? (confirmLabel ? 'Un momento...' : 'Eliminando...') : (confirmLabel ?? 'Eliminar')}
           </button>
         </div>
       </div>

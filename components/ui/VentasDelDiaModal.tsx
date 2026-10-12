@@ -327,6 +327,7 @@ export default function VentasDelDiaModal({ currentSessionId, onClose }: Props) 
     {toCancel && (
       <ConfirmModal
         message="¿Cancelar este ticket ya cobrado? Se repondrá el stock de sus productos y dejará de contar en las ventas del turno."
+        confirmLabel="Cancelar venta"
         error={actionError}
         loading={cancelMutation.isPending}
         onConfirm={() => cancelMutation.mutate(toCancel.id)}
@@ -337,6 +338,7 @@ export default function VentasDelDiaModal({ currentSessionId, onClose }: Props) 
     {toRemoveItem && (
       <ConfirmModal
         message="¿Quitar este producto del ticket? Se repondrá su stock y se descontará del total cobrado."
+        confirmLabel="Devolver artículo"
         error={actionError}
         loading={removeItemMutation.isPending}
         onConfirm={() => removeItemMutation.mutate({ saleId: toRemoveItem.sale.id, itemId: toRemoveItem.itemId })}
