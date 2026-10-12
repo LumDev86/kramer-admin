@@ -2,6 +2,7 @@
 
 import { CurrentCashSession } from '@/lib/api';
 import { money } from '@/lib/format';
+import { buttonClasses } from '@/components/ui/Button';
 
 interface Props {
   session: CurrentCashSession;
@@ -22,42 +23,57 @@ export default function CerrarCajaModal({
   closing,
   onCancel,
 }: Props) {
+  const rows: [string, number | string][] = [
+    ['Inicial', session.openingAmount],
+    ['Ventas en efectivo', session.salesCash],
+    ['Ventas a crédito', session.salesCredit],
+  ];
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4 animate-fadeIn">
-      <div className="bg-white rounded-2xl shadow-xl p-6 w-full max-w-sm animate-slideUp flex flex-col gap-4">
-        <p className="text-sm font-bold text-gray-700">Cerrar caja</p>
-        <div className="flex flex-col gap-1.5 text-sm bg-gray-50 rounded-xl p-3">
-          <div className="flex justify-between"><span className="text-gray-500">Inicial</span><span className="font-semibold">{money(session.openingAmount)}</span></div>
-          <div className="flex justify-between"><span className="text-gray-500">Ventas efectivo</span><span className="font-semibold">{money(session.salesCash)}</span></div>
-          <div className="flex justify-between"><span className="text-gray-500">Ventas a crédito</span><span className="font-semibold">{money(session.salesCredit)}</span></div>
-          <div className="flex justify-between border-t border-gray-200 pt-1.5"><span className="text-gray-500">Esperado</span><span className="font-bold">{money(Number(session.openingAmount) + session.salesCash)}</span></div>
-        </div>
-        <input
-          type="number"
-          min="0"
-          step="0.01"
-          value={closingAmount}
-          onChange={(e) => onClosingAmountChange(e.target.value)}
-          placeholder="Monto contado"
-          className="border border-gray-200 rounded-xl px-3 py-2.5 text-sm outline-none focus:border-orange-400 font-semibold"
-        />
-        {error && <p className="text-xs text-red-500 font-semibold bg-red-50 rounded-lg px-3 py-2">{error}</p>}
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-kr-navy/50 px-4 animate-fadeIn">
+      <form
+        role="dialog"
+        aria-modal="true"
+        aria-label="Cerrar caja"
+        onSubmit={(e) => { e.preventDefault(); if (closingAmount && !closing) onConfirm(); }}
+        className="flex w-full max-w-sm flex-col gap-4 rounded-2xl border-2 border-kr-navy bg-white p-5 shadow-pop-lg animate-slideUp"
+      >
+        <p className="font-display text-2xl leading-none">Cerrar caja</p>
+        <dl className="flex flex-col gap-1.5 rounded-xl bg-kr-paper p-3 text-sm">
+          {rows.map(([label, value]) => (
+            <div key={label} className="flex justify-between gap-3">
+              <dt className="font-bold text-kr-muted">{label}</dt>
+              <dd className="font-extrabold tabular-nums">{money(value)}</dd>
+            </div>
+          ))}
+          <div className="flex justify-between gap-3 border-t border-kr-line pt-1.5">
+            <dt className="font-extrabold">Esperado en caja</dt>
+            <dd className="font-extrabold tabular-nums">{money(Number(session.openingAmount) + session.salesCash)}</dd>
+          </div>
+        </dl>
+        <label className="flex flex-col gap-1.5 text-sm font-extrabold text-kr-muted">
+          Efectivo contado
+          <input
+            type="number"
+            min="0"
+            step="0.01"
+            inputMode="decimal"
+            autoFocus
+            value={closingAmount}
+            onChange={(e) => onClosingAmountChange(e.target.value)}
+            placeholder="$0"
+            className="rounded-xl border-[1.5px] border-kr-line bg-kr-paper px-3 py-2.5 text-lg font-extrabold text-kr-navy tabular-nums outline-none focus:border-kr-blue"
+          />
+        </label>
+        {error && <p role="alert" className="rounded-xl bg-[#FFE7D6] px-3 py-2 text-sm font-bold text-kr-orange-dark">{error}</p>}
         <div className="flex gap-3">
-          <button
-            onClick={onCancel}
-            className="flex-1 py-2.5 rounded-xl border border-gray-200 text-sm font-semibold text-gray-600 hover:bg-gray-50 transition-colors"
-          >
+          <button type="button" onClick={onCancel} className={buttonClasses('secondary', 'md', 'flex-1')}>
             Cancelar
           </button>
-          <button
-            onClick={onConfirm}
-            disabled={!closingAmount || closing}
-            className="flex-1 py-2.5 rounded-xl bg-orange-500 hover:bg-orange-600 text-white text-sm font-bold transition-colors disabled:opacity-60"
-          >
+          <button type="submit" disabled={!closingAmount || closing} className={buttonClasses('primary', 'md', 'flex-1')}>
             {closing ? 'Cerrando...' : 'Confirmar cierre'}
           </button>
         </div>
-      </div>
+      </form>
     </div>
   );
 }

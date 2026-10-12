@@ -63,94 +63,102 @@ export default function ProductSearchModal({ onSelect, onClose, onCreateNew }: P
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-start justify-center bg-black/40 px-4 pt-24 animate-fadeIn"
+      className="fixed inset-0 z-50 flex items-start justify-center bg-kr-navy/50 px-3 pt-6 sm:px-4 sm:pt-20 animate-fadeIn"
       onClick={onClose}
     >
       <div
-        className="bg-white rounded-2xl shadow-xl w-full max-w-lg flex flex-col max-h-[70vh] animate-slideUp"
+        role="dialog"
+        aria-modal="true"
+        className="bg-white rounded-2xl border-2 border-kr-navy shadow-pop-lg w-full max-w-xl flex flex-col max-h-[85vh] sm:max-h-[75vh] overflow-hidden animate-slideUp"
         onClick={(e) => e.stopPropagation()}
       >
-        <div className="flex items-center gap-2 p-4 border-b border-gray-100 flex-shrink-0">
-          <MagnifyingGlass size={18} className="text-gray-400 flex-shrink-0" />
+        <div className="flex items-center gap-2 p-2 pl-4 border-b border-kr-line flex-shrink-0">
+          <MagnifyingGlass size={20} weight="bold" className="text-kr-blue flex-shrink-0" />
           <input
             ref={inputRef}
             type="text"
             value={search}
             onChange={(e) => { setSearch(e.target.value); setPage(1); }}
             placeholder="Buscar producto por nombre..."
-            className="flex-1 outline-none text-sm font-medium"
+            className="flex-1 min-w-0 min-h-11 outline-none text-base font-bold text-kr-navy placeholder:text-kr-muted/70"
           />
           <button
+            type="button"
             onClick={onClose}
-            className="w-7 h-7 flex items-center justify-center rounded-lg text-gray-400 hover:bg-gray-100 hover:text-gray-600 transition-colors flex-shrink-0"
+            aria-label="Cerrar"
+            className="w-11 h-11 flex items-center justify-center rounded-xl text-kr-muted hover:bg-kr-sand hover:text-kr-navy transition-colors flex-shrink-0"
           >
-            <X size={16} weight="bold" />
+            <X size={18} weight="bold" />
           </button>
         </div>
-        <p className="px-4 py-1.5 text-[11px] text-gray-400 font-medium border-b border-gray-50 flex-shrink-0">
+        <p className="hidden md:block px-4 py-1.5 text-xs text-kr-muted font-bold bg-kr-paper border-b border-kr-line flex-shrink-0">
           ↑↓ para moverte · Enter para elegir · Esc para cerrar
         </p>
         {onCreateNew && (
           <button
             onClick={onCreateNew}
-            className="flex items-center gap-1.5 px-4 py-2.5 text-xs font-bold text-orange-500 hover:bg-orange-50 border-b border-gray-50 transition-colors flex-shrink-0"
+            type="button"
+            className="flex items-center gap-1.5 px-4 min-h-11 text-sm font-extrabold text-kr-blue hover:bg-kr-blue-soft border-b border-kr-line transition-colors flex-shrink-0"
           >
             <Plus size={14} weight="bold" />
             Crear producto nuevo
           </button>
         )}
-        <div className="overflow-y-auto divide-y divide-gray-50">
+        <div className="overflow-y-auto divide-y divide-dashed divide-kr-line">
           {isFetching ? (
-            <p className="px-4 py-8 text-center text-sm text-gray-400 font-medium">Buscando...</p>
+            <p className="px-4 py-8 text-center text-sm text-kr-muted font-bold">Buscando...</p>
           ) : results.length === 0 ? (
-            <p className="px-4 py-8 text-center text-sm text-gray-400 font-medium">
+            <p className="px-4 py-8 text-center text-sm text-kr-muted font-bold">
               {search ? 'Sin resultados.' : 'Escribí para buscar un producto.'}
             </p>
           ) : (
             results.map((product, i) => (
               <button
+                type="button"
                 key={product.id}
                 ref={(el) => { if (i === highlightedIndex) el?.scrollIntoView({ block: 'nearest' }); }}
                 onClick={() => onSelect(product)}
                 onMouseEnter={() => setHighlightedIndex(i)}
-                className={`w-full flex items-center gap-3 px-4 py-3 text-left transition-colors ${
-                  i === highlightedIndex ? 'bg-orange-50' : 'hover:bg-gray-50'
+                className={`w-full flex items-center gap-3 px-4 py-2.5 text-left transition-colors ${
+                  i === highlightedIndex ? 'bg-kr-yellow-soft shadow-[inset_4px_0_0_#F26B1D]' : 'hover:bg-kr-paper'
                 }`}
               >
-                <div className="relative w-10 h-10 flex-shrink-0 bg-gray-100 rounded-lg overflow-hidden">
+                <div className="relative w-11 h-11 flex-shrink-0 bg-kr-paper border border-kr-line rounded-lg overflow-hidden">
                   {product.imageUrl && (
                     <Image src={product.imageUrl} alt={product.title} fill sizes="40px" className="object-contain p-1" />
                   )}
                 </div>
                 <div className="min-w-0 flex-1">
-                  <p className="font-semibold text-gray-700 truncate">{product.title}</p>
-                  <p className="text-xs text-gray-400">
+                  <p className="font-extrabold text-kr-navy leading-snug break-words">{product.title}</p>
+                  <p className="text-xs font-bold text-kr-muted">
                     Stock: {product.stock}
                     {product.barcode ? ` · ${product.barcode}` : ''}
                   </p>
                 </div>
-                <p className="font-bold text-orange-500 flex-shrink-0">{money(product.price)}</p>
+                <p className="font-extrabold text-kr-navy tabular-nums whitespace-nowrap flex-shrink-0">{money(product.price)}</p>
               </button>
             ))
           )}
         </div>
         {data && data.meta.totalPages > 1 && (
-          <div className="flex items-center justify-between px-4 py-3 border-t border-gray-100 flex-shrink-0">
-            <p className="text-xs text-gray-400 font-medium">
+          <div className="flex flex-wrap items-center justify-between gap-2 px-4 py-2.5 border-t border-kr-line bg-kr-paper flex-shrink-0">
+            <p className="text-xs text-kr-muted font-bold">
               Página {data.meta.page} de {data.meta.totalPages} · {data.meta.total} productos
             </p>
             <div className="flex gap-2">
               <button
+                type="button"
                 onClick={() => setPage((p) => p - 1)}
                 disabled={page === 1}
-                className="px-3 py-1.5 rounded-lg border border-gray-200 text-xs font-semibold text-gray-600 disabled:opacity-40 hover:bg-gray-50 transition-colors"
+                className="min-h-9 px-3 rounded-[10px] border-[1.5px] border-kr-line bg-white text-[13px] font-extrabold text-kr-navy disabled:opacity-40 hover:border-kr-navy/40 transition-colors"
               >
                 Anterior
               </button>
               <button
+                type="button"
                 onClick={() => setPage((p) => p + 1)}
                 disabled={page === data.meta.totalPages}
-                className="px-3 py-1.5 rounded-lg border border-gray-200 text-xs font-semibold text-gray-600 disabled:opacity-40 hover:bg-gray-50 transition-colors"
+                className="min-h-9 px-3 rounded-[10px] border-[1.5px] border-kr-line bg-white text-[13px] font-extrabold text-kr-navy disabled:opacity-40 hover:border-kr-navy/40 transition-colors"
               >
                 Siguiente
               </button>

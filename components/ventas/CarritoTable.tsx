@@ -1,7 +1,7 @@
 'use client';
 
 import { RefObject } from 'react';
-import { Trash } from '@phosphor-icons/react';
+import { Minus, Plus, X } from '@phosphor-icons/react';
 import { Sale, SaleItem } from '@/lib/api';
 import { money } from '@/lib/format';
 import { Section } from './types';
@@ -18,6 +18,11 @@ interface Props {
   onRemove: (item: SaleItem) => void;
 }
 
+// columnas: el producto se lleva todo el ancho que sobra (el nombre nunca se recorta, puede
+// ocupar dos líneas); cantidad, precio y subtotal van angostas y alineadas a la derecha.
+// En el celular cada fila se arma en dos renglones: nombre arriba, cantidad y subtotal abajo.
+const GRID = 'grid grid-cols-[minmax(0,1fr)_auto] sm:grid-cols-[minmax(0,1fr)_124px_92px_104px_40px] items-center gap-x-3 gap-y-2';
+
 export default function CarritoTable({
   cartContainerRef,
   section,
@@ -29,80 +34,98 @@ export default function CarritoTable({
   onDecrement,
   onRemove,
 }: Props) {
+  const items = activeSale?.items ?? [];
+  const focused = section === 'cart';
+
   return (
     <div
       ref={cartContainerRef}
       tabIndex={-1}
       onFocus={onFocusCart}
-      className={`bg-white rounded-2xl shadow-sm overflow-hidden outline-none transition-shadow ${
-        section === 'cart' ? 'ring-2 ring-orange-400' : ''
+      aria-label="Carrito"
+      className={`overflow-hidden rounded-2xl border bg-white outline-none transition-shadow ${
+        focused ? 'border-kr-navy shadow-[0_0_0_3px_#FFC61A]' : 'border-kr-line'
       }`}
     >
-      {!!activeSale && activeSale.items.length > 0 && (
-        <p className="px-4 py-2 text-[11px] text-gray-400 font-medium border-b border-gray-50">
-          Tab cambia de sección · acá: ↑↓ elegir producto · +/− cantidad · Supr eliminar
+      <div className={`${GRID} hidden sm:grid border-b border-kr-line bg-kr-paper px-4 py-2.5 text-xs font-extrabold uppercase tracking-wide text-kr-muted`}>
+        <span>Producto</span>
+        <span className="text-center">Cant.</span>
+        <span className="text-right">Precio</span>
+        <span className="text-right">Subtotal</span>
+        <span />
+      </div>
+
+      {items.length === 0 ? (
+        <p className="px-4 py-10 text-center text-sm font-bold text-kr-muted">
+          Sin productos todavía. Escaneá o buscá uno para empezar.
         </p>
-      )}
-      <table className="w-full text-sm">
-        <thead className="border-b border-gray-100">
-          <tr className="text-left">
-            <th className="px-4 py-3 text-xs font-bold text-gray-400 uppercase tracking-wide">Producto</th>
-            <th className="px-4 py-3 text-xs font-bold text-gray-400 uppercase tracking-wide w-32">Cantidad</th>
-            <th className="px-4 py-3 text-xs font-bold text-gray-400 uppercase tracking-wide">Subtotal</th>
-            <th className="px-4 py-3 w-10" />
-          </tr>
-        </thead>
-        <tbody className="divide-y divide-gray-50">
-          {!activeSale || activeSale.items.length === 0 ? (
-            <tr>
-              <td colSpan={4} className="px-4 py-8 text-center text-sm text-gray-400 font-medium">
-                Sin productos todavía. Escaneá o buscá uno para empezar.
-              </td>
-            </tr>
-          ) : (
-            activeSale.items.map((item, i) => (
-              <tr
+      ) : (
+        <ul>
+          {items.map((item, i) => {
+            const selected = focused && i === cartIndex;
+            return (
+              <li
                 key={item.id}
                 onMouseEnter={() => onHoverItem(i)}
-                className={`transition-colors ${
-                  section === 'cart' && i === cartIndex ? 'bg-orange-50' : 'hover:bg-gray-50'
+                className={`${GRID} border-b border-dashed border-kr-line px-3 py-3 last:border-b-0 sm:px-4 sm:py-2.5 transition-colors ${
+                  selected ? 'bg-kr-yellow-soft shadow-[inset_4px_0_0_#F26B1D]' : 'hover:bg-kr-paper'
                 }`}
               >
-                <td className="px-4 py-3">
-                  <p className="font-semibold text-gray-700">{item.name}</p>
-                  <p className="text-xs text-gray-400">{money(item.unitPrice)} c/u</p>
-                </td>
-                <td className="px-4 py-3">
-                  <div className="flex items-center gap-1">
+                <div className="col-span-2 sm:col-span-1 min-w-0">
+                  <p className="text-[15px] font-extrabold leading-snug break-words">{item.name}</p>
+                  <p className="mt-0.5 text-xs font-bold text-kr-muted sm:hidden">{money(item.unitPrice)} c/u</p>
+                  {!item.productId && <p className="mt-0.5 text-xs font-bold text-kr-muted">Producto manual</p>}
+                </div>
+
+                <div className="flex items-center gap-2 sm:justify-center">
+                  <div className="inline-flex items-center overflow-hidden rounded-xl border-[1.5px] border-kr-line bg-white">
                     <button
+                      type="button"
                       onClick={() => onDecrement(item)}
-                      className="w-6 h-6 rounded-lg border border-gray-200 text-gray-500 hover:bg-gray-100 flex items-center justify-center font-bold"
+                      disabled={item.quantity <= 1}
+                      aria-label={`Restar uno de ${item.name}`}
+                      className="flex h-10 w-10 items-center justify-center text-kr-navy hover:bg-kr-sand disabled:opacity-30"
                     >
-                      −
+                      <Minus size={16} weight="bold" />
                     </button>
-                    <span className="w-8 text-center font-semibold">{item.quantity}</span>
+                    <span className="min-w-8 text-center font-extrabold tabular-nums">{item.quantity}</span>
                     <button
+                      type="button"
                       onClick={() => onIncrement(item)}
-                      className="w-6 h-6 rounded-lg border border-gray-200 text-gray-500 hover:bg-gray-100 flex items-center justify-center font-bold"
+                      aria-label={`Sumar uno de ${item.name}`}
+                      className="flex h-10 w-10 items-center justify-center text-kr-navy hover:bg-kr-sand"
                     >
-                      +
+                      <Plus size={16} weight="bold" />
                     </button>
                   </div>
-                </td>
-                <td className="px-4 py-3 font-bold text-orange-500">{money(item.subtotal)}</td>
-                <td className="px-4 py-3">
-                  <button
-                    onClick={() => onRemove(item)}
-                    className="w-7 h-7 rounded-lg flex items-center justify-center text-gray-400 hover:bg-red-50 hover:text-red-500 transition-colors"
-                  >
-                    <Trash size={14} weight="bold" />
-                  </button>
-                </td>
-              </tr>
-            ))
-          )}
-        </tbody>
-      </table>
+                  {/* en el celular el botón de quitar va al lado de la cantidad */}
+                  <RemoveButton item={item} onRemove={onRemove} className="flex sm:hidden" />
+                </div>
+
+                <span className="hidden sm:block text-right text-sm font-bold text-kr-muted tabular-nums whitespace-nowrap">
+                  {money(item.unitPrice)}
+                </span>
+                <span className="text-right text-base font-extrabold tabular-nums whitespace-nowrap">{money(item.subtotal)}</span>
+                <RemoveButton item={item} onRemove={onRemove} className="hidden sm:flex" />
+              </li>
+            );
+          })}
+        </ul>
+      )}
     </div>
+  );
+}
+
+function RemoveButton({ item, onRemove, className }: { item: SaleItem; onRemove: (item: SaleItem) => void; className: string }) {
+  return (
+    <button
+      type="button"
+      onClick={() => onRemove(item)}
+      aria-label={`Quitar ${item.name}`}
+      title="Quitar (Supr)"
+      className={`h-10 w-10 items-center justify-center rounded-[10px] text-kr-muted hover:bg-[#FFE7D6] hover:text-kr-orange-dark transition-colors ${className}`}
+    >
+      <X size={18} weight="bold" />
+    </button>
   );
 }

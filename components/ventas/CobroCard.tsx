@@ -1,13 +1,16 @@
 'use client';
 
 import { RefObject } from 'react';
+import { UserCircle } from '@phosphor-icons/react';
 import { Cliente, PaymentMethod } from '@/lib/api';
 import { money } from '@/lib/format';
+import { buttonClasses } from '@/components/ui/Button';
 import { Section } from './types';
 
 interface Props {
   section: Section;
   total: number;
+  itemCount: number;
   paymentMethod: PaymentMethod;
   onClickEfectivo: () => void;
   onClickCredito: () => void;
@@ -27,9 +30,20 @@ interface Props {
   payButtonRef: RefObject<HTMLButtonElement | null>;
 }
 
+// billetes "redondos" por encima del total, para cargar el "paga con" de un toque
+function montosRapidos(total: number): number[] {
+  const out: number[] = [];
+  for (const step of [1000, 5000, 10000, 20000]) {
+    const v = Math.ceil(total / step) * step;
+    if (v > total && !out.includes(v)) out.push(v);
+  }
+  return out.slice(0, 3);
+}
+
 export default function CobroCard({
   section,
   total,
+  itemCount,
   paymentMethod,
   onClickEfectivo,
   onClickCredito,
@@ -48,88 +62,115 @@ export default function CobroCard({
   creditoBtnRef,
   payButtonRef,
 }: Props) {
+  const isCash = paymentMethod === 'CASH';
+  const methodCls = (on: boolean) =>
+    `flex min-h-12 flex-col items-center justify-center rounded-xl text-sm font-extrabold leading-tight outline-none transition-colors focus-visible:shadow-[0_0_0_3px_#FFC61A] ${
+      on ? 'bg-kr-yellow-soft border-2 border-kr-navy shadow-pop-sm' : 'bg-white border-[1.5px] border-kr-line hover:border-kr-navy/40'
+    }`;
+
   return (
-    <div
-      className={`bg-white rounded-2xl shadow-sm p-5 flex flex-col gap-4 transition-shadow ${
-        section === 'payment' ? 'ring-2 ring-orange-400' : ''
+    // menos de xl: queda fija abajo de la pantalla y se arma en dos columnas para ocupar poca
+    // altura; en xl va en su propia columna a la derecha del carrito
+    <section
+      aria-label="Cobro"
+      className={`grid grid-cols-2 items-end gap-x-3 gap-y-2.5 rounded-2xl border-2 border-kr-navy bg-white p-3 shadow-pop-lg sm:p-4 xl:flex xl:flex-col xl:items-stretch xl:gap-4 xl:p-5 ${
+        section === 'payment' ? 'outline outline-3 outline-kr-yellow' : ''
       }`}
     >
-      <div className="flex items-center justify-between">
-        <p className="text-sm font-bold text-gray-500 uppercase tracking-wide">Total</p>
-        <p className="text-2xl font-extrabold text-gray-800">{money(total)}</p>
+      <div className="min-w-0">
+        <p className="text-xs font-extrabold uppercase tracking-wide text-kr-muted">
+          Total · {itemCount} {itemCount === 1 ? 'producto' : 'productos'}
+        </p>
+        <p className="font-display text-[34px] leading-none tabular-nums sm:text-[40px] xl:text-5xl">{money(total)}</p>
       </div>
 
-      <div className="flex gap-2">
-        <button
-          ref={efectivoBtnRef}
-          onClick={onClickEfectivo}
-          onFocus={onFocusPayment}
-          className={`flex-1 py-2.5 rounded-xl text-sm font-bold transition-colors outline-none focus:ring-2 focus:ring-orange-300 ${
-            paymentMethod === 'CASH' ? 'bg-orange-500 text-white' : 'bg-gray-50 text-gray-500 hover:bg-gray-100'
-          }`}
-        >
-          Efectivo <span className="opacity-60 font-medium">· F2</span>
+      <div className="grid grid-cols-2 gap-2">
+        <button ref={efectivoBtnRef} type="button" onClick={onClickEfectivo} onFocus={onFocusPayment} aria-pressed={isCash} className={methodCls(isCash)}>
+          Efectivo
+          <small className="text-[11px] font-bold text-kr-muted">F2</small>
         </button>
-        <button
-          ref={creditoBtnRef}
-          onClick={onClickCredito}
-          onFocus={onFocusPayment}
-          className={`flex-1 py-2.5 rounded-xl text-sm font-bold transition-colors outline-none focus:ring-2 focus:ring-orange-300 ${
-            paymentMethod === 'CREDIT' ? 'bg-orange-500 text-white' : 'bg-gray-50 text-gray-500 hover:bg-gray-100'
-          }`}
-        >
-          Crédito <span className="opacity-60 font-medium">· F1</span>
+        <button ref={creditoBtnRef} type="button" onClick={onClickCredito} onFocus={onFocusPayment} aria-pressed={!isCash} className={methodCls(!isCash)}>
+          Crédito
+          <small className="text-[11px] font-bold text-kr-muted">F1</small>
         </button>
       </div>
 
-      {paymentMethod === 'CREDIT' && (
-        <div className="flex items-center justify-between gap-3 bg-gray-50 rounded-xl px-3 py-2.5">
-          <p className="text-sm font-semibold text-gray-700 truncate">
-            {selectedCliente ? `${selectedCliente.nombre} ${selectedCliente.apellido}` : 'Sin cliente seleccionado'}
-          </p>
-          <button
-            onClick={onOpenClienteSearch}
-            className="flex-shrink-0 text-xs font-bold text-orange-500 hover:text-orange-600 transition-colors"
+      {isCash && (
+        <>
+          <label className="flex min-w-0 flex-col gap-1 text-xs font-extrabold text-kr-muted">
+            Paga con (opcional)
+            <input
+              type="number"
+              min="0"
+              step="0.01"
+              inputMode="decimal"
+              value={paidAmount}
+              onChange={(e) => onPaidAmountChange(e.target.value)}
+              placeholder="Justo"
+              className="min-w-0 rounded-xl border-[1.5px] border-kr-line bg-kr-paper px-3 py-2 text-lg font-extrabold text-kr-navy tabular-nums outline-none focus:border-kr-blue xl:text-xl"
+            />
+          </label>
+          <div
+            className={`flex min-h-[46px] items-baseline justify-between gap-2 rounded-xl px-3 py-2 font-extrabold ${
+              paidAmount !== '' && change < 0 ? 'bg-[#FFE7D6] text-kr-orange-dark' : 'bg-kr-green-soft text-kr-green-dark'
+            }`}
           >
-            {selectedCliente ? 'Cambiar' : 'Elegir cliente'}
-          </button>
-        </div>
+            <span className="text-sm">{paidAmount !== '' && change < 0 ? 'Falta' : 'Vuelto'}</span>
+            <b className="font-display text-2xl font-normal tabular-nums">
+              {paidAmount === '' ? '—' : money(Math.abs(change))}
+            </b>
+          </div>
+          <div className="col-span-2 hidden flex-wrap gap-1.5 sm:flex">
+            <button type="button" onClick={() => onPaidAmountChange('')} className={buttonClasses('secondary', 'sm')}>
+              Justo
+            </button>
+            {montosRapidos(total).map((v) => (
+              <button key={v} type="button" onClick={() => onPaidAmountChange(String(v))} className={buttonClasses('secondary', 'sm', 'tabular-nums')}>
+                {money(v)}
+              </button>
+            ))}
+          </div>
+        </>
       )}
 
-      {paymentMethod === 'CASH' && (
-        <div className="flex items-center gap-3">
-          <input
-            type="number"
-            min="0"
-            step="0.01"
-            value={paidAmount}
-            onChange={(e) => onPaidAmountChange(e.target.value)}
-            placeholder="Paga con... (opcional)"
-            className="flex-1 border border-gray-200 rounded-xl px-3 py-2.5 text-sm outline-none focus:border-orange-400 font-medium"
-          />
-          <p className={`text-sm font-bold ${change >= 0 ? 'text-green-600' : 'text-gray-300'}`}>
-            Vuelto: {paidAmount !== '' && change >= 0 ? money(change) : '—'}
-          </p>
-        </div>
+      {!isCash && (
+        <button
+          type="button"
+          onClick={onOpenClienteSearch}
+          className={`col-span-2 flex min-h-12 items-center gap-2.5 rounded-xl px-3 py-2 text-left font-extrabold ${
+            selectedCliente
+              ? 'border-[1.5px] border-kr-line bg-kr-paper text-kr-navy'
+              : 'border-[1.5px] border-dashed border-kr-blue bg-kr-blue-soft text-kr-blue'
+          }`}
+        >
+          <UserCircle size={24} weight={selectedCliente ? 'fill' : 'regular'} className="flex-shrink-0" />
+          <span className="min-w-0 flex-1 break-words">
+            {selectedCliente ? `${selectedCliente.nombre} ${selectedCliente.apellido}` : 'Elegir cliente'}
+          </span>
+          {selectedCliente && <span className="text-xs text-kr-blue">Cambiar</span>}
+        </button>
       )}
 
-      {payError && <p className="text-xs text-red-500 font-semibold bg-red-50 rounded-lg px-3 py-2">{payError}</p>}
+      {payError && (
+        <p role="alert" className="col-span-2 rounded-xl bg-[#FFE7D6] px-3 py-2 text-sm font-bold text-kr-orange-dark">
+          {payError}
+        </p>
+      )}
 
       <button
         ref={payButtonRef}
+        type="button"
         onClick={onPay}
         onFocus={onFocusConfirm}
         disabled={!canPay || paying}
-        className="w-full py-3 rounded-xl bg-green-600 hover:bg-green-700 text-white text-sm font-extrabold transition-colors disabled:opacity-50 outline-none focus:ring-2 focus:ring-green-300"
+        className={buttonClasses('success', 'lg', 'col-span-2 w-full min-h-13 text-lg outline-none focus-visible:shadow-[0_0_0_3px_#FFC61A]')}
       >
         {paying
           ? 'Cobrando...'
-          : paymentMethod === 'CREDIT' && !selectedCliente
-          ? 'F1 · Elegir cliente'
-          : paymentMethod === 'CREDIT'
-          ? `F2 · Cobrar ${money(total)} a crédito`
-          : `F2 · Cobrar ${money(total)} en efectivo`}
+          : !isCash && !selectedCliente
+          ? 'Elegí un cliente (F1)'
+          : <>Cobrar {money(total)} {isCash ? 'en efectivo' : 'a crédito'} <kbd className="hidden sm:inline font-sans text-xs opacity-70">F2</kbd></>}
       </button>
-    </div>
+    </section>
   );
 }

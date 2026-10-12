@@ -2,14 +2,14 @@
 
 import { useEffect, useRef, useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import Link from 'next/link';
 import { sales, products, cashSessions, Sale, Cliente, PaymentMethod, CashSession, Product } from '@/lib/api';
-import { Wallet, ChartBar, CalendarBlank } from '@phosphor-icons/react';
+import { CalendarBlank, LockSimple } from '@phosphor-icons/react';
 import ConfirmModal from '@/components/ui/ConfirmModal';
 import ProductSearchModal from '@/components/ui/ProductSearchModal';
 import ClienteSearchModal from '@/components/ui/ClienteSearchModal';
 import VentasDelDiaModal from '@/components/ui/VentasDelDiaModal';
 import { money } from '@/lib/format';
+import { buttonClasses } from '@/components/ui/Button';
 import { Section } from '@/components/ventas/types';
 import AbrirCajaScreen from '@/components/ventas/AbrirCajaScreen';
 import CerrarCajaModal from '@/components/ventas/CerrarCajaModal';
@@ -18,6 +18,17 @@ import EscaneoYManualCard from '@/components/ventas/EscaneoYManualCard';
 import CarritoTable from '@/components/ventas/CarritoTable';
 import CobroCard from '@/components/ventas/CobroCard';
 import VentaCobradaCard from '@/components/ventas/VentaCobradaCard';
+
+// ayuda de teclado abajo de la pantalla (solo en escritorio, donde hay teclado y lector)
+const KEY_HELP: [string[], string][] = [
+  [['F2'], 'Efectivo'],
+  [['F1'], 'Crédito'],
+  [['F10'], 'Buscar producto'],
+  [['Tab'], 'Cambiar de sección'],
+  [['↑', '↓'], 'Moverse en el carrito'],
+  [['+', '−'], 'Cantidad'],
+  [['Supr'], 'Quitar'],
+];
 
 export default function VentasPage() {
   const qc = useQueryClient();
@@ -422,7 +433,7 @@ export default function VentasPage() {
   handleF2Ref.current = handleF2;
 
   if (sessionLoading) {
-    return <div className="w-8 h-8 border-4 border-orange-500 border-t-transparent rounded-full animate-spin" />;
+    return <div className="w-8 h-8 border-4 border-kr-orange border-t-transparent rounded-full animate-spin" />;
   }
 
   if (!currentSession) {
@@ -441,136 +452,143 @@ export default function VentasPage() {
     );
   }
 
+  const itemCount = activeSale ? activeSale.items.reduce((s, i) => s + i.quantity, 0) : 0;
+
   return (
-    <div className="flex flex-col gap-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-extrabold text-gray-800">Ventas</h1>
-          <p className="text-sm text-gray-400 font-medium mt-0.5">Registrá ventas escaneando productos</p>
-        </div>
-        <div className="flex items-center gap-4">
-          <button
-            onClick={() => setVentasDelDiaOpen(true)}
-            className="flex items-center gap-2 text-sm font-semibold text-gray-500 hover:text-orange-500 transition-colors"
-          >
-            <CalendarBlank size={18} weight="bold" />
-            Ventas del día
-          </button>
-          <Link
-            href="/reportes"
-            className="flex items-center gap-2 text-sm font-semibold text-gray-500 hover:text-orange-500 transition-colors"
-          >
-            <ChartBar size={18} weight="bold" />
-            Ver reportes
-          </Link>
-        </div>
-      </div>
+    <>
+      <h1 className="hidden md:block font-display text-[34px] leading-none">Ventas</h1>
 
-      <div className="bg-white rounded-2xl shadow-sm p-4 flex items-center justify-between">
-        <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-xl bg-green-50 flex items-center justify-center flex-shrink-0">
-            <Wallet size={18} weight="fill" className="text-green-600" />
+      {/* dos columnas desde xl: carrito a la izquierda, cobro fijo a la derecha. Más angosto, una
+          sola columna con el cobro pegado abajo de la pantalla (ver CobroCard) */}
+      <div className="grid grid-cols-1 items-start gap-4 xl:grid-cols-[minmax(0,1fr)_340px] xl:gap-5">
+        <div className="flex min-w-0 flex-col gap-3.5">
+          <div className="flex flex-wrap items-center gap-x-3 gap-y-2 rounded-2xl border border-kr-line bg-white px-3.5 py-2.5">
+            <span className="h-2.5 w-2.5 flex-shrink-0 rounded-full bg-kr-green-dark" aria-hidden="true" />
+            <b className="font-extrabold">Caja abierta</b>
+            <span className="text-sm font-bold text-kr-muted">
+              desde {new Date(currentSession.openedAt).toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit' })}
+              <span className="hidden sm:inline"> · inicial {money(currentSession.openingAmount)} · efectivo del turno {money(currentSession.salesCash)}</span>
+            </span>
+            <span className="flex-1" />
+            <div className="flex gap-2">
+              <button type="button" onClick={() => setVentasDelDiaOpen(true)} className={buttonClasses('secondary', 'sm', 'min-h-10')}>
+                <CalendarBlank size={16} weight="bold" />
+                Ventas del día
+              </button>
+              <button type="button" onClick={() => setCloseModalOpen(true)} className={buttonClasses('secondary', 'sm', 'min-h-10')}>
+                <LockSimple size={16} weight="bold" />
+                Cerrar caja
+              </button>
+            </div>
           </div>
-          <div>
-            <p className="text-sm font-bold text-gray-700">
-              Caja abierta desde {new Date(currentSession.openedAt).toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit' })}
-            </p>
-            <p className="text-xs text-gray-400">
-              Inicial: {money(currentSession.openingAmount)} · Efectivo del turno: {money(currentSession.salesCash)}
-            </p>
-          </div>
-        </div>
-        <button
-          onClick={() => setCloseModalOpen(true)}
-          className="py-2 px-4 rounded-xl border border-gray-200 text-sm font-semibold text-gray-600 hover:bg-gray-50 transition-colors"
-        >
-          Cerrar caja
-        </button>
-      </div>
 
-      <div className="flex flex-col gap-4">
-        <TicketsTabs
-          tickets={tickets}
-          activeSaleId={activeSale?.id}
-          onSelect={setActiveSaleId}
-          onCancel={setToCancel}
-          onNew={() => createSaleMutation.mutate()}
-          creating={createSaleMutation.isPending}
-        />
+          <TicketsTabs
+            tickets={tickets}
+            activeSaleId={activeSale?.id}
+            onSelect={setActiveSaleId}
+            onCancel={setToCancel}
+            onNew={() => createSaleMutation.mutate()}
+            creating={createSaleMutation.isPending}
+          />
 
-        <EscaneoYManualCard
-          scanInputRef={scanInputRef}
-          query={query}
-          onQueryChange={setQuery}
-          onScanKeyDown={handleScanKeyDown}
-          onFocusScan={() => setSection('scan')}
-          onOpenProductSearch={() => setProductSearchOpen(true)}
-          scanError={scanError}
-          manualOpen={manualOpen}
-          onOpenManual={() => setManualOpen(true)}
-          manualName={manualName}
-          onManualNameChange={setManualName}
-          manualPrice={manualPrice}
-          onManualPriceChange={setManualPrice}
-          onCancelManual={() => { setManualOpen(false); setManualName(''); setManualPrice(''); }}
-          onAddManual={handleAddManual}
-        />
+          <EscaneoYManualCard
+            scanInputRef={scanInputRef}
+            query={query}
+            onQueryChange={setQuery}
+            onScanKeyDown={handleScanKeyDown}
+            onFocusScan={() => setSection('scan')}
+            onOpenProductSearch={() => setProductSearchOpen(true)}
+            scanError={scanError}
+            manualOpen={manualOpen}
+            onOpenManual={() => setManualOpen(true)}
+            manualName={manualName}
+            onManualNameChange={setManualName}
+            manualPrice={manualPrice}
+            onManualPriceChange={setManualPrice}
+            onCancelManual={() => { setManualOpen(false); setManualName(''); setManualPrice(''); }}
+            onAddManual={handleAddManual}
+          />
 
-        <CarritoTable
-          cartContainerRef={cartContainerRef}
-          section={section}
-          onFocusCart={() => setSection('cart')}
-          activeSale={activeSale}
-          cartIndex={cartIndex}
-          onHoverItem={setCartIndex}
-          onIncrement={(item) =>
-            activeSale &&
-            updateItemMutation.mutate({ saleId: activeSale.id, itemId: item.id, quantity: item.quantity + 1 })
-          }
-          onDecrement={(item) =>
-            activeSale &&
-            updateItemMutation.mutate({ saleId: activeSale.id, itemId: item.id, quantity: Math.max(1, item.quantity - 1) })
-          }
-          onRemove={(item) => activeSale && removeItemMutation.mutate({ saleId: activeSale.id, itemId: item.id })}
-        />
-
-        {activeSale && activeSale.items.length > 0 && (
-          <CobroCard
+          <CarritoTable
+            cartContainerRef={cartContainerRef}
             section={section}
-            total={total}
-            paymentMethod={paymentMethod}
-            onClickEfectivo={() => setPaymentMethod('CASH')}
-            onClickCredito={() => { setPaymentMethod('CREDIT'); if (!selectedCliente) setClienteSearchOpen(true); }}
-            onFocusPayment={() => setSection('payment')}
-            selectedCliente={selectedCliente}
-            onOpenClienteSearch={() => setClienteSearchOpen(true)}
-            paidAmount={paidAmount}
-            onPaidAmountChange={setPaidAmount}
-            change={change}
-            payError={payError}
-            onPay={handlePay}
-            canPay={canPay}
-            paying={payMutation.isPending}
-            onFocusConfirm={() => setSection('confirm')}
-            efectivoBtnRef={efectivoBtnRef}
-            creditoBtnRef={creditoBtnRef}
-            payButtonRef={payButtonRef}
+            onFocusCart={() => setSection('cart')}
+            activeSale={activeSale}
+            cartIndex={cartIndex}
+            onHoverItem={setCartIndex}
+            onIncrement={(item) =>
+              activeSale &&
+              updateItemMutation.mutate({ saleId: activeSale.id, itemId: item.id, quantity: item.quantity + 1 })
+            }
+            onDecrement={(item) =>
+              activeSale &&
+              updateItemMutation.mutate({ saleId: activeSale.id, itemId: item.id, quantity: Math.max(1, item.quantity - 1) })
+            }
+            onRemove={(item) => activeSale && removeItemMutation.mutate({ saleId: activeSale.id, itemId: item.id })}
           />
-        )}
+        </div>
 
-        {/* Cartel post-cobro: opcional, no bloquea la próxima venta (se limpia solo
-            apenas se arranca otra en ensureActiveSale) */}
-        {!activeSale && lastPaidSale && (
-          <VentaCobradaCard
-            lastPaidSale={lastPaidSale}
-            sendWaOpen={sendWaOpen}
-            waPhone={waPhone}
-            onWaPhoneChange={setWaPhone}
-            onOpenSendWa={() => { setWaPhone(lastPaidSale.telefonoSugerido); setSendWaOpen(true); }}
-            onDismiss={() => { setLastPaidSale(null); setSendWaOpen(false); }}
-          />
-        )}
+        <aside className="sticky bottom-[76px] z-10 flex flex-col gap-3 md:bottom-4 xl:top-7 xl:bottom-auto">
+          {activeSale && activeSale.items.length > 0 ? (
+            <CobroCard
+              section={section}
+              total={total}
+              itemCount={itemCount}
+              paymentMethod={paymentMethod}
+              onClickEfectivo={() => setPaymentMethod('CASH')}
+              onClickCredito={() => { setPaymentMethod('CREDIT'); if (!selectedCliente) setClienteSearchOpen(true); }}
+              onFocusPayment={() => setSection('payment')}
+              selectedCliente={selectedCliente}
+              onOpenClienteSearch={() => setClienteSearchOpen(true)}
+              paidAmount={paidAmount}
+              onPaidAmountChange={setPaidAmount}
+              change={change}
+              payError={payError}
+              onPay={handlePay}
+              canPay={canPay}
+              paying={payMutation.isPending}
+              onFocusConfirm={() => setSection('confirm')}
+              efectivoBtnRef={efectivoBtnRef}
+              creditoBtnRef={creditoBtnRef}
+              payButtonRef={payButtonRef}
+            />
+          ) : (
+            // sin productos todavía: en xl la columna de cobro muestra el total en cero para que
+            // la pantalla no "salte" al agregar el primero; más angosto no ocupa lugar
+            !lastPaidSale && (
+              <section aria-label="Cobro" className="hidden xl:flex flex-col gap-2 rounded-2xl border-[1.5px] border-dashed border-kr-line bg-white/60 p-5">
+                <p className="text-xs font-extrabold uppercase tracking-wide text-kr-muted">Total</p>
+                <p className="font-display text-5xl leading-none text-kr-muted/50">{money(0)}</p>
+                <p className="text-sm font-bold text-kr-muted">Escaneá un producto para empezar a cobrar.</p>
+              </section>
+            )
+          )}
+
+          {/* Cartel post-cobro: opcional, no bloquea la próxima venta (se limpia solo
+              apenas se arranca otra en ensureActiveSale) */}
+          {!activeSale && lastPaidSale && (
+            <VentaCobradaCard
+              lastPaidSale={lastPaidSale}
+              sendWaOpen={sendWaOpen}
+              waPhone={waPhone}
+              onWaPhoneChange={setWaPhone}
+              onOpenSendWa={() => { setWaPhone(lastPaidSale.telefonoSugerido); setSendWaOpen(true); }}
+              onDismiss={() => { setLastPaidSale(null); setSendWaOpen(false); }}
+            />
+          )}
+        </aside>
       </div>
+
+      <p className="hidden xl:flex flex-wrap gap-x-4 gap-y-2 text-xs font-bold text-kr-muted">
+        {KEY_HELP.map(([keys, label]) => (
+          <span key={label} className="inline-flex items-center gap-1">
+            {keys.map((k) => (
+              <kbd key={k} className="rounded-md border-[1.5px] border-b-[3px] border-kr-line bg-white px-1.5 font-sans text-[11px] font-extrabold text-kr-navy">{k}</kbd>
+            ))}
+            {label}
+          </span>
+        ))}
+      </p>
 
       {productSearchOpen && (
         <ProductSearchModal
@@ -610,6 +628,6 @@ export default function VentasPage() {
           onCancel={() => { setCloseModalOpen(false); setClosingAmount(''); setCloseError(''); }}
         />
       )}
-    </div>
+    </>
   );
 }
