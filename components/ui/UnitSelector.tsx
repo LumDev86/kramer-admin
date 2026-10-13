@@ -31,9 +31,12 @@ const UNIT_GROUPS = [
 interface Props {
   value: string;
   onChange: (value: string) => void;
+  id?: string;
+  // ancho del disparador; por defecto fijo, en el formulario de producto ocupa su columna
+  className?: string;
 }
 
-export default function UnitSelector({ value, onChange }: Props) {
+export default function UnitSelector({ value, onChange, id, className = 'w-36' }: Props) {
   const [open, setOpen] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
 
@@ -55,42 +58,28 @@ export default function UnitSelector({ value, onChange }: Props) {
   };
 
   return (
-    <div ref={containerRef} className="relative w-36">
-      {/* Trigger */}
+    <div ref={containerRef} className={`relative ${className}`}>
       <button
+        id={id}
         type="button"
+        aria-haspopup="dialog"
+        aria-expanded={open}
         onClick={() => setOpen((o) => !o)}
-        className={`w-full flex items-center justify-between gap-2 px-3 py-2.5 rounded-xl border text-sm font-semibold transition-colors ${
-          open
-            ? 'border-orange-400 bg-orange-50 text-orange-600'
-            : value
-            ? 'border-orange-300 bg-orange-50 text-orange-600'
-            : 'border-gray-200 bg-white text-gray-500 hover:border-orange-300'
-        }`}
+        onKeyDown={(e) => { if (e.key === 'Escape') setOpen(false); }}
+        className={`box-border flex min-h-11 w-full items-center justify-between gap-2 rounded-xl border-[1.5px] bg-kr-paper px-3 py-2 text-[15px] font-bold transition-colors ${
+          open ? 'border-kr-blue' : 'border-kr-line hover:border-kr-navy/40'
+        } ${selected ? 'text-kr-navy' : 'text-kr-muted'}`}
       >
         <span>{selected ? selected.display : 'Unidad'}</span>
-        <CaretDown
-          size={14}
-          weight="bold"
-          className={`flex-shrink-0 transition-transform duration-200 ${open ? 'rotate-180' : ''}`}
-        />
+        <CaretDown size={14} weight="bold" className={`flex-shrink-0 transition-transform duration-200 ${open ? 'rotate-180' : ''}`} />
       </button>
 
-      {/* Dropdown */}
       {open && (
-        <div className="absolute top-full mt-2 right-0 z-50 w-64 bg-white rounded-2xl shadow-xl border border-gray-100 overflow-hidden animate-slideUp">
-          <div className="px-4 pt-3 pb-1">
-            <p className="text-xs font-extrabold text-gray-400 uppercase tracking-widest">
-              Seleccioná una unidad
-            </p>
-          </div>
-
-          <div className="px-3 pb-3 flex flex-col gap-3 mt-2">
+        <div className="absolute right-0 top-full z-50 mt-2 w-64 overflow-hidden rounded-2xl border-2 border-kr-navy bg-white shadow-pop animate-fadeIn">
+          <div className="flex flex-col gap-3 p-3">
             {UNIT_GROUPS.map((group) => (
               <div key={group.label}>
-                <p className="text-[10px] font-bold text-gray-300 uppercase tracking-widest px-1 mb-1.5">
-                  {group.label}
-                </p>
+                <p className="mb-1.5 px-1 text-[11px] font-extrabold uppercase tracking-wide text-kr-muted">{group.label}</p>
                 <div className="flex flex-wrap gap-1.5">
                   {group.units.map((unit) => {
                     const isSelected = value === unit.value;
@@ -98,18 +87,17 @@ export default function UnitSelector({ value, onChange }: Props) {
                       <button
                         key={unit.value}
                         type="button"
+                        aria-pressed={isSelected}
                         onClick={() => handleSelect(unit.value)}
-                        className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold border transition-all ${
+                        className={`flex min-h-9 items-center gap-1.5 rounded-xl border-[1.5px] px-3 py-1.5 text-[13px] font-bold transition-colors ${
                           isSelected
-                            ? 'bg-orange-500 text-white border-orange-500 shadow-sm'
-                            : 'bg-gray-50 text-gray-600 border-gray-100 hover:bg-orange-50 hover:text-orange-600 hover:border-orange-200'
+                            ? 'border-kr-navy bg-kr-yellow text-kr-navy'
+                            : 'border-kr-line bg-kr-paper text-kr-navy hover:border-kr-navy/40'
                         }`}
                       >
-                        {isSelected && <Check size={11} weight="bold" />}
+                        {isSelected && <Check size={12} weight="bold" />}
                         <span className="font-extrabold">{unit.display}</span>
-                        <span className={`font-medium ${isSelected ? 'text-orange-100' : 'text-gray-400'}`}>
-                          {unit.description}
-                        </span>
+                        <span className={isSelected ? 'text-kr-navy/80' : 'text-kr-muted'}>{unit.description}</span>
                       </button>
                     );
                   })}
@@ -119,11 +107,11 @@ export default function UnitSelector({ value, onChange }: Props) {
           </div>
 
           {value && (
-            <div className="border-t border-gray-100 px-3 py-2">
+            <div className="border-t border-kr-line px-3 py-2">
               <button
                 type="button"
                 onClick={() => { onChange(''); setOpen(false); }}
-                className="w-full text-xs font-semibold text-gray-400 hover:text-red-400 transition-colors py-1"
+                className="min-h-9 w-full rounded-lg text-[13px] font-extrabold text-kr-muted hover:bg-kr-sand hover:text-kr-orange-dark"
               >
                 Quitar unidad
               </button>

@@ -1,17 +1,23 @@
 'use client';
 
-import { useRef, useState } from 'react';
+import { useRef, useState, type ReactNode } from 'react';
 import Image from 'next/image';
-import { UploadSimple, X, Eraser, SpinnerGap } from '@phosphor-icons/react';
+import { UploadSimple, X, Eraser, SpinnerGap, CheckCircle } from '@phosphor-icons/react';
+import { buttonClasses } from './Button';
 
 interface Props {
   currentUrl?: string | null;
   onChange: (file: File | null) => void;
   required?: boolean;
   withBgRemoval?: boolean;
+  // compacta: foto chica con los botones al costado (formulario de producto).
+  // Por defecto: recuadro grande para soltar la imagen (categorías, banners).
+  compact?: boolean;
+  // botones extra al lado de "Subir foto" (ej. "Buscar foto con IA"), solo en la compacta
+  extraActions?: ReactNode;
 }
 
-export default function ImageUpload({ currentUrl, onChange, required, withBgRemoval }: Props) {
+export default function ImageUpload({ currentUrl, onChange, required, withBgRemoval, compact, extraActions }: Props) {
   const inputRef = useRef<HTMLInputElement>(null);
   const [preview, setPreview] = useState<string | null>(null);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
@@ -53,74 +59,103 @@ export default function ImageUpload({ currentUrl, onChange, required, withBgRemo
 
   const displayUrl = preview ?? currentUrl;
   const canRemoveBg = withBgRemoval && !!selectedFile && !removing && !bgRemoved;
+  const abrir = () => !removing && inputRef.current?.click();
+
+  const caja = (
+    <div
+      role="button"
+      tabIndex={0}
+      aria-label={displayUrl ? 'Cambiar la foto' : 'Elegir una foto'}
+      onClick={abrir}
+      onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); abrir(); } }}
+      className={`relative flex flex-shrink-0 items-center justify-center overflow-hidden rounded-2xl border-[1.5px] border-dashed border-[#B9AE97] bg-kr-sand transition-colors hover:border-kr-blue focus-visible:outline-2 focus-visible:outline-kr-blue ${
+        compact ? 'h-24 w-24 sm:h-30 sm:w-30' : 'h-52 w-full'
+      }`}
+      style={{ backgroundImage: bgRemoved ? 'repeating-conic-gradient(#E2D6BF 0% 25%, white 0% 50%) 0 0 / 16px 16px' : undefined }}
+    >
+      {displayUrl ? (
+        <>
+          <Image src={displayUrl} alt="Foto elegida" fill sizes={compact ? '120px' : '600px'} className="object-contain p-2" unoptimized={bgRemoved} />
+          {!removing && (
+            <button
+              type="button"
+              aria-label="Quitar la foto"
+              onClick={(e) => { e.stopPropagation(); handleClear(); }}
+              className="absolute right-1.5 top-1.5 z-10 flex h-7 w-7 items-center justify-center rounded-full border-[1.5px] border-kr-navy bg-white hover:bg-[#FFE7D6]"
+            >
+              <X size={14} weight="bold" />
+            </button>
+          )}
+        </>
+      ) : (
+        <div className="pointer-events-none flex flex-col items-center gap-1.5 px-2 text-center text-kr-muted">
+          <UploadSimple size={compact ? 26 : 30} weight="bold" />
+          {!compact && (
+            <>
+              <p className="text-sm font-extrabold">Tocá para elegir una imagen</p>
+              <p className="text-xs font-bold">JPG, PNG o WebP</p>
+            </>
+          )}
+        </div>
+      )}
+
+      {removing && (
+        <div className="absolute inset-0 z-20 flex flex-col items-center justify-center gap-1.5 bg-white/85 px-2 text-center">
+          <SpinnerGap size={26} className="animate-spin text-kr-blue" />
+          <p className="text-xs font-extrabold text-kr-navy">Quitando el fondo…</p>
+        </div>
+      )}
+    </div>
+  );
+
+  const botonFondo = withBgRemoval && selectedFile && (
+    <button
+      type="button"
+      onClick={handleRemoveBg}
+      disabled={!canRemoveBg}
+      className={buttonClasses('secondary', 'sm', bgRemoved ? '!border-kr-green-dark !text-kr-green-dark' : '')}
+    >
+      {bgRemoved ? <CheckCircle size={16} weight="fill" /> : <Eraser size={16} weight="bold" />}
+      {bgRemoved ? 'Fondo quitado' : removing ? 'Quitando…' : 'Quitar fondo'}
+    </button>
+  );
+
+  const input = (
+    <input
+      ref={inputRef}
+      type="file"
+      accept="image/jpeg,image/png,image/webp"
+      required={required && !displayUrl}
+      // el input está oculto: si falta la foto, el aviso del navegador no se ve; con sr-only sí
+      className="sr-only"
+      tabIndex={-1}
+      aria-hidden="true"
+      onChange={(e) => { const f = e.target.files?.[0]; if (f) handleFile(f); }}
+    />
+  );
+
+  if (compact) {
+    return (
+      <div className="flex items-center gap-3.5">
+        {caja}
+        <div className="flex min-w-0 flex-col items-start gap-2">
+          <button type="button" onClick={abrir} className={buttonClasses('secondary', 'sm')}>
+            <UploadSimple size={16} weight="bold" />
+            {displayUrl ? 'Cambiar foto' : 'Subir foto'}
+          </button>
+          {extraActions}
+          {botonFondo}
+        </div>
+        {input}
+      </div>
+    );
+  }
 
   return (
     <div className="flex flex-col gap-2">
-      <div
-        className="relative w-full h-52 border-2 border-dashed border-gray-200 rounded-xl overflow-hidden bg-gray-50 cursor-pointer hover:border-orange-400 transition-colors flex items-center justify-center"
-        style={{ backgroundImage: bgRemoved ? 'repeating-conic-gradient(#e5e7eb 0% 25%, white 0% 50%) 0 0 / 16px 16px' : undefined }}
-        onClick={() => !removing && inputRef.current?.click()}
-      >
-        {displayUrl ? (
-          <>
-            <Image src={displayUrl} alt="preview" fill className="object-contain p-2" unoptimized={bgRemoved} />
-            {!removing && (
-              <button
-                type="button"
-                onClick={(e) => { e.stopPropagation(); handleClear(); }}
-                className="absolute top-2 right-2 w-7 h-7 bg-white rounded-full shadow flex items-center justify-center hover:bg-red-50 transition-colors z-10"
-              >
-                <X size={14} weight="bold" className="text-gray-500" />
-              </button>
-            )}
-          </>
-        ) : (
-          <div className="flex flex-col items-center gap-2 text-gray-400 pointer-events-none">
-            <UploadSimple size={28} />
-            <p className="text-xs font-semibold">Clic para seleccionar imagen</p>
-            <p className="text-xs">JPG, PNG, WebP</p>
-          </div>
-        )}
-
-        {removing && (
-          <div className="absolute inset-0 bg-white/80 flex flex-col items-center justify-center gap-2 z-20">
-            <SpinnerGap size={28} className="text-orange-500 animate-spin" />
-            <p className="text-xs font-bold text-gray-600">Eliminando fondo...</p>
-            <p className="text-xs text-gray-400">Puede tardar unos segundos</p>
-          </div>
-        )}
-      </div>
-
-      {withBgRemoval && (
-        <button
-          type="button"
-          onClick={handleRemoveBg}
-          disabled={!canRemoveBg}
-          className={`flex items-center justify-center gap-2 py-2 rounded-xl text-xs font-bold border transition-colors ${
-            bgRemoved
-              ? 'border-green-200 bg-green-50 text-green-600'
-              : canRemoveBg
-              ? 'border-orange-200 bg-orange-50 text-orange-600 hover:bg-orange-100'
-              : 'border-gray-100 bg-gray-50 text-gray-300 cursor-not-allowed'
-          }`}
-        >
-          <Eraser size={14} weight="bold" />
-          {bgRemoved ? '✓ Fondo eliminado' : 'Eliminar fondo'}
-        </button>
-      )}
-
-      {withBgRemoval && !selectedFile && (
-        <p className="text-xs text-gray-400 text-center">Seleccioná una imagen nueva para usar esta función</p>
-      )}
-
-      <input
-        ref={inputRef}
-        type="file"
-        accept="image/jpeg,image/png,image/webp"
-        required={required && !displayUrl}
-        className="hidden"
-        onChange={(e) => { const f = e.target.files?.[0]; if (f) handleFile(f); }}
-      />
+      {caja}
+      {botonFondo}
+      {input}
     </div>
   );
 }

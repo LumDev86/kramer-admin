@@ -2,7 +2,7 @@
 
 import { useState, useRef, useEffect } from 'react';
 import Image from 'next/image';
-import { CaretDown, Check, MagnifyingGlass, X } from '@phosphor-icons/react';
+import { CaretDown, Check, MagnifyingGlass, Tag, X } from '@phosphor-icons/react';
 import { Category } from '@/lib/api';
 
 interface Props {
@@ -10,6 +10,7 @@ interface Props {
   onChange: (value: string) => void;
   categories: Category[]; // top-level con children incluidos
   loading?: boolean;
+  id?: string;
 }
 
 type FlatItem = {
@@ -19,7 +20,15 @@ type FlatItem = {
   parentName?: string; // si es subcategoría
 };
 
-export default function CategorySelector({ value, onChange, categories, loading }: Props) {
+function Miniatura({ url, size }: { url: string | null; size: number }) {
+  return (
+    <span className="flex flex-shrink-0 items-center justify-center overflow-hidden rounded-lg bg-kr-sand text-kr-muted" style={{ width: size, height: size }}>
+      {url ? <Image src={url} alt="" width={size} height={size} className="h-full w-full object-cover" /> : <Tag size={size * 0.55} weight="bold" />}
+    </span>
+  );
+}
+
+export default function CategorySelector({ value, onChange, categories, loading, id }: Props) {
   const [open, setOpen] = useState(false);
   const [search, setSearch] = useState('');
   const containerRef = useRef<HTMLDivElement>(null);
@@ -73,116 +82,95 @@ export default function CategorySelector({ value, onChange, categories, loading 
     onChange('');
   };
 
+  const opcion = (isSelected: boolean, extra = '') =>
+    `flex w-full items-center gap-2.5 px-3 py-2 text-left text-sm font-bold transition-colors ${
+      isSelected ? 'bg-kr-yellow-soft text-kr-navy' : 'text-kr-navy hover:bg-kr-paper'
+    } ${extra}`;
+
   return (
     <div ref={containerRef} className="relative">
       {/* Trigger */}
       <div
+        id={id}
         role="button"
         tabIndex={0}
+        aria-haspopup="listbox"
+        aria-expanded={open}
         onClick={() => setOpen((o) => !o)}
-        onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setOpen((o) => !o); } }}
-        className={`w-full flex items-center gap-2 px-3 py-2.5 rounded-xl border text-sm font-semibold transition-colors text-left cursor-pointer select-none ${
-          open
-            ? 'border-orange-400 bg-orange-50'
-            : selected
-            ? 'border-orange-300 bg-orange-50'
-            : 'border-gray-200 bg-white hover:border-orange-300'
+        onKeyDown={(e) => {
+          if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setOpen((o) => !o); }
+          if (e.key === 'Escape') setOpen(false);
+        }}
+        className={`box-border flex min-h-11 w-full cursor-pointer select-none items-center gap-2 rounded-xl border-[1.5px] bg-kr-paper px-3 py-2 text-left text-[15px] font-bold text-kr-navy transition-colors ${
+          open ? 'border-kr-blue' : 'border-kr-line hover:border-kr-navy/40'
         }`}
       >
         {selected ? (
           <>
-            <div className="w-6 h-6 rounded-lg overflow-hidden bg-gray-100 flex-shrink-0">
-              {selected.imageUrl ? (
-                <Image src={selected.imageUrl} alt={selected.name} width={24} height={24} className="object-cover w-full h-full" />
-              ) : (
-                <div className="w-full h-full bg-orange-100 flex items-center justify-center text-[10px]">🏷️</div>
-              )}
-            </div>
-            <div className="flex-1 min-w-0">
-              <span className="truncate text-orange-600 block">{selected.name}</span>
-              {selectedParentName && (
-                <span className="text-[10px] text-orange-400 block truncate">↳ {selectedParentName}</span>
-              )}
-            </div>
-            <button type="button" onClick={handleClear} className="flex-shrink-0 text-orange-400 hover:text-orange-600 transition-colors">
-              <X size={13} weight="bold" />
+            <Miniatura url={selected.imageUrl} size={24} />
+            <span className="min-w-0 flex-1 leading-tight">
+              {selectedParentName && <span className="text-kr-muted">{selectedParentName} › </span>}
+              {selected.name}
+            </span>
+            <button type="button" onClick={handleClear} aria-label="Quitar categoría" className="flex-shrink-0 rounded-md p-1 text-kr-muted hover:bg-kr-sand hover:text-kr-navy">
+              <X size={14} weight="bold" />
             </button>
           </>
         ) : (
           <>
-            <span className="flex-1 text-gray-400">{loading ? 'Cargando...' : 'Sin categoría'}</span>
-            <CaretDown
-              size={14}
-              weight="bold"
-              className={`flex-shrink-0 text-gray-400 transition-transform duration-200 ${open ? 'rotate-180' : ''}`}
-            />
+            <span className="flex-1 text-kr-muted">{loading ? 'Cargando…' : 'Sin categoría'}</span>
+            <CaretDown size={14} weight="bold" className={`flex-shrink-0 text-kr-muted transition-transform duration-200 ${open ? 'rotate-180' : ''}`} />
           </>
         )}
       </div>
 
       {/* Dropdown */}
       {open && (
-        <div className="absolute top-full mt-2 left-0 right-0 z-50 bg-white rounded-2xl shadow-xl border border-gray-100 overflow-hidden animate-slideUp min-w-[220px]">
-          {/* Search */}
-          <div className="p-2 border-b border-gray-100">
-            <div className="relative">
-              <MagnifyingGlass size={14} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-gray-400" />
+        <div className="absolute left-0 right-0 top-full z-50 mt-2 min-w-[240px] overflow-hidden rounded-2xl border-2 border-kr-navy bg-white shadow-pop animate-fadeIn">
+          <div className="border-b border-kr-line p-2">
+            <label className="flex items-center gap-2 rounded-xl border-[1.5px] border-kr-line bg-kr-paper px-2.5 focus-within:border-kr-blue">
+              <MagnifyingGlass size={15} weight="bold" className="text-kr-muted" />
               <input
                 ref={searchRef}
                 type="text"
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
-                placeholder="Buscar categoría..."
-                className="w-full pl-8 pr-3 py-2 text-xs font-medium outline-none bg-gray-50 rounded-xl focus:bg-orange-50 focus:ring-1 focus:ring-orange-300 transition-colors"
+                onKeyDown={(e) => {
+                  if (e.key === 'Escape') { setOpen(false); setSearch(''); }
+                  // Enter no tiene que mandar el formulario de afuera
+                  if (e.key === 'Enter') {
+                    e.preventDefault();
+                    if (search && filteredFlat.length === 1) handleSelect(filteredFlat[0].id);
+                  }
+                }}
+                aria-label="Buscar categoría"
+                placeholder="Buscar categoría…"
+                className="min-h-10 min-w-0 flex-1 bg-transparent text-sm font-bold outline-none"
               />
-            </div>
+            </label>
           </div>
 
-          <div className="max-h-64 overflow-y-auto py-1.5">
-            {/* Sin categoría */}
-            <button
-              type="button"
-              onClick={() => handleSelect('')}
-              className={`w-full flex items-center gap-2.5 px-3 py-2 text-xs font-semibold transition-colors ${
-                !value ? 'bg-orange-50 text-orange-600' : 'text-gray-500 hover:bg-gray-50'
-              }`}
-            >
-              <div className="w-7 h-7 rounded-lg bg-gray-100 flex items-center justify-center text-sm flex-shrink-0">—</div>
-              <span className="flex-1 text-left">Sin categoría</span>
-              {!value && <Check size={13} weight="bold" className="text-orange-500 flex-shrink-0" />}
+          <div role="listbox" className="max-h-72 overflow-y-auto py-1.5">
+            <button type="button" onClick={() => handleSelect('')} className={opcion(!value, 'text-kr-muted')}>
+              <span className="flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-lg bg-kr-sand">—</span>
+              <span className="flex-1">Sin categoría</span>
+              {!value && <Check size={14} weight="bold" className="flex-shrink-0" />}
             </button>
 
             {search ? (
               /* Modo búsqueda: lista plana con contexto del padre */
               <>
-                {filteredFlat.length === 0 && (
-                  <p className="text-xs text-gray-400 text-center py-4 font-medium">Sin resultados</p>
-                )}
+                {filteredFlat.length === 0 && <p className="py-4 text-center text-sm font-bold text-kr-muted">Sin resultados</p>}
                 {filteredFlat.map((item) => {
                   const isSelected = value === item.id;
                   return (
-                    <button
-                      key={item.id}
-                      type="button"
-                      onClick={() => handleSelect(item.id)}
-                      className={`w-full flex items-center gap-2.5 px-3 py-2 text-xs font-semibold transition-colors ${
-                        isSelected ? 'bg-orange-50 text-orange-600' : 'text-gray-700 hover:bg-gray-50'
-                      }`}
-                    >
-                      <div className="w-7 h-7 rounded-lg overflow-hidden bg-gray-100 flex-shrink-0">
-                        {item.imageUrl ? (
-                          <Image src={item.imageUrl} alt={item.name} width={28} height={28} className="object-cover w-full h-full" />
-                        ) : (
-                          <div className="w-full h-full bg-orange-100 flex items-center justify-center text-sm">🏷️</div>
-                        )}
-                      </div>
-                      <div className="flex-1 text-left min-w-0">
-                        <span className="block truncate">{item.name}</span>
-                        {item.parentName && (
-                          <span className="block text-[10px] text-gray-400 truncate">↳ {item.parentName}</span>
-                        )}
-                      </div>
-                      {isSelected && <Check size={13} weight="bold" className="text-orange-500 flex-shrink-0" />}
+                    <button key={item.id} type="button" onClick={() => handleSelect(item.id)} className={opcion(isSelected)}>
+                      <Miniatura url={item.imageUrl} size={28} />
+                      <span className="min-w-0 flex-1">
+                        <span className="block">{item.name}</span>
+                        {item.parentName && <span className="block text-xs text-kr-muted">en {item.parentName}</span>}
+                      </span>
+                      {isSelected && <Check size={14} weight="bold" className="flex-shrink-0" />}
                     </button>
                   );
                 })}
@@ -190,47 +178,23 @@ export default function CategorySelector({ value, onChange, categories, loading 
             ) : (
               /* Modo normal: vista jerárquica */
               <>
-                {categories.length === 0 && (
-                  <p className="text-xs text-gray-400 text-center py-4 font-medium">Sin categorías</p>
-                )}
+                {categories.length === 0 && <p className="py-4 text-center text-sm font-bold text-kr-muted">Sin categorías</p>}
                 {categories.map((cat) => {
-                  const hasChildren = cat.children.length > 0;
-
-                  if (hasChildren) {
+                  if (cat.children.length > 0) {
                     return (
                       <div key={cat.id}>
                         {/* Header no seleccionable */}
-                        <div className="flex items-center gap-2.5 px-3 py-2 text-[10px] font-bold text-gray-400 uppercase tracking-wide">
-                          <div className="w-5 h-5 rounded-md overflow-hidden bg-gray-100 flex-shrink-0">
-                            {cat.imageUrl ? (
-                              <Image src={cat.imageUrl} alt={cat.name} width={20} height={20} className="object-cover w-full h-full" />
-                            ) : (
-                              <div className="w-full h-full bg-orange-100 flex items-center justify-center text-[8px]">🏷️</div>
-                            )}
-                          </div>
-                          <span className="truncate">{cat.name}</span>
+                        <div className="flex items-center gap-2.5 px-3 pb-1 pt-2.5 text-[11px] font-extrabold uppercase tracking-wide text-kr-muted">
+                          <Miniatura url={cat.imageUrl} size={20} />
+                          <span>{cat.name}</span>
                         </div>
-                        {/* Subcategorías */}
                         {cat.children.map((sub) => {
                           const isSelected = value === sub.id;
                           return (
-                            <button
-                              key={sub.id}
-                              type="button"
-                              onClick={() => handleSelect(sub.id)}
-                              className={`w-full flex items-center gap-2.5 pl-8 pr-3 py-2 text-xs font-semibold transition-colors ${
-                                isSelected ? 'bg-orange-50 text-orange-600' : 'text-gray-700 hover:bg-gray-50'
-                              }`}
-                            >
-                              <div className="w-6 h-6 rounded-lg overflow-hidden bg-gray-100 flex-shrink-0">
-                                {sub.imageUrl ? (
-                                  <Image src={sub.imageUrl} alt={sub.name} width={24} height={24} className="object-cover w-full h-full" />
-                                ) : (
-                                  <div className="w-full h-full bg-orange-100 flex items-center justify-center text-sm">·</div>
-                                )}
-                              </div>
-                              <span className="flex-1 text-left truncate">{sub.name}</span>
-                              {isSelected && <Check size={13} weight="bold" className="text-orange-500 flex-shrink-0" />}
+                            <button key={sub.id} type="button" onClick={() => handleSelect(sub.id)} className={opcion(isSelected, 'pl-8')}>
+                              <Miniatura url={sub.imageUrl} size={24} />
+                              <span className="flex-1">{sub.name}</span>
+                              {isSelected && <Check size={14} weight="bold" className="flex-shrink-0" />}
                             </button>
                           );
                         })}
@@ -241,23 +205,10 @@ export default function CategorySelector({ value, onChange, categories, loading 
                   // Top-level sin subcategorías → directamente seleccionable
                   const isSelected = value === cat.id;
                   return (
-                    <button
-                      key={cat.id}
-                      type="button"
-                      onClick={() => handleSelect(cat.id)}
-                      className={`w-full flex items-center gap-2.5 px-3 py-2 text-xs font-semibold transition-colors ${
-                        isSelected ? 'bg-orange-50 text-orange-600' : 'text-gray-700 hover:bg-gray-50'
-                      }`}
-                    >
-                      <div className="w-7 h-7 rounded-lg overflow-hidden bg-gray-100 flex-shrink-0">
-                        {cat.imageUrl ? (
-                          <Image src={cat.imageUrl} alt={cat.name} width={28} height={28} className="object-cover w-full h-full" />
-                        ) : (
-                          <div className="w-full h-full bg-orange-100 flex items-center justify-center text-sm">🏷️</div>
-                        )}
-                      </div>
-                      <span className="flex-1 text-left truncate">{cat.name}</span>
-                      {isSelected && <Check size={13} weight="bold" className="text-orange-500 flex-shrink-0" />}
+                    <button key={cat.id} type="button" onClick={() => handleSelect(cat.id)} className={opcion(isSelected)}>
+                      <Miniatura url={cat.imageUrl} size={28} />
+                      <span className="flex-1">{cat.name}</span>
+                      {isSelected && <Check size={14} weight="bold" className="flex-shrink-0" />}
                     </button>
                   );
                 })}

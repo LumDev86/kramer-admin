@@ -1,37 +1,72 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import Link from 'next/link';
 import Image from 'next/image';
-import { products, categories, Product, Category } from '@/lib/api';
-import { Plus, PencilSimple, Trash, MagnifyingGlass } from '@phosphor-icons/react';
+import { CaretLeft, CaretRight, DotsThree, Package, Plus } from '@phosphor-icons/react';
+import { products, categories, Product, Category, PaginatedResponse } from '@/lib/api';
 import ConfirmModal from '@/components/ui/ConfirmModal';
-import ToggleSwitch from '@/components/ui/ToggleSwitch';
+import PageHeader from '@/components/ui/PageHeader';
+import SearchInput from '@/components/ui/SearchInput';
+import Chip from '@/components/ui/Chip';
+import { buttonClasses } from '@/components/ui/Button';
+import { inputClasses } from '@/components/ui/Field';
+import { useToast } from '@/components/ui/Toast';
+import CeldaNumero from '@/components/productos/CeldaNumero';
+import { gananciaPct, pctValor, precioConGanancia, precioManteniendoMargen } from '@/components/productos/precio';
 
 const LIMIT = 20;
 
+// celular: nombre arriba a lo ancho y costo/precio/ganancia abajo en tres columnas.
+// tablet: una fila, la categoría va debajo del nombre. escritorio: la categoría tiene columna propia.
+// La columna Producto se queda con todo el ancho que sobra: los nombres no se recortan nunca.
+const FILA =
+  "grid items-center gap-x-2 gap-y-2.5 px-3 py-3 grid-cols-[repeat(3,minmax(0,1fr))_44px] [grid-template-areas:'n_n_n_x'_'c_p_g_g'] " +
+  "md:gap-x-3 md:px-4 md:py-2.5 md:grid-cols-[minmax(0,1fr)_96px_96px_76px_44px] md:[grid-template-areas:'n_c_p_g_x'] " +
+  "xl:grid-cols-[minmax(0,1fr)_170px_104px_104px_84px_44px] xl:[grid-template-areas:'n_k_c_p_g_x']";
+
+// el buscador del server mira nombre y descripción; si lo tipeado es un código de barras
+// (solo números, largo), se busca por código, así funciona también con el lector
+const esCodigo = (s: string) => /^\d{6,}$/.test(s);
+
+type CampoEditado = 'costo' | 'precio' | 'ganancia';
+type ProductFieldEdit = { product: Product; field: CampoEditado; data: { price?: number; cost?: number | null } };
+
+const CAMPO_LABEL: Record<CampoEditado, string> = { costo: 'el costo', precio: 'el precio', ganancia: 'la ganancia' };
+
 export default function ProductosPage() {
   const qc = useQueryClient();
+  const toast = useToast();
+  const [searchInput, setSearchInput] = useState('');
   const [search, setSearch] = useState('');
   const [categoryId, setCategoryId] = useState('');
   const [subcategoryId, setSubcategoryId] = useState('');
   const [page, setPage] = useState(1);
+  const [menuId, setMenuId] = useState<string | null>(null);
   const [toDelete, setToDelete] = useState<Product | null>(null);
   const [deleteError, setDeleteError] = useState('');
-  const [priceError, setPriceError] = useState<{ id: string; message: string } | null>(null);
-  const [costError, setCostError] = useState<{ id: string; message: string } | null>(null);
-  const [gananciaError, setGananciaError] = useState<{ id: string; message: string } | null>(null);
+
+  // espera a que se termine de tipear para no pedir una búsqueda por letra
+  useEffect(() => {
+    const t = setTimeout(() => { setSearch(searchInput.trim()); setPage(1); }, 300);
+    return () => clearTimeout(t);
+  }, [searchInput]);
 
   const { data: allCategories } = useQuery({
     queryKey: ['categories-all'],
     queryFn: () => categories.getAll({ limit: 200 }),
   });
 
-  const parentCategories = allCategories?.data.filter((c: Category) => c.parentId === null) ?? [];
-  const subcategories = categoryId
-    ? (allCategories?.data.filter((c: Category) => c.parentId === categoryId) ?? [])
-    : [];
+  const allCats = allCategories?.data ?? [];
+  const parentCategories = allCats.filter((c: Category) => c.parentId === null);
+  const subcategories = categoryId ? allCats.filter((c: Category) => c.parentId === categoryId) : [];
+  // el producto trae su categoría sin el padre: se arma "Bebidas › Gaseosas" con la lista completa
+  const rutaCategoria = (p: Product) => {
+    if (!p.category) return null;
+    const cat = allCats.find((c) => c.id === p.category!.id);
+    return cat?.parent ? `${cat.parent.name} › ${p.category.name}` : p.category.name;
+  };
 
   const productFilter = subcategoryId
     ? { categoryId: subcategoryId }
@@ -45,13 +80,20 @@ export default function ProductosPage() {
 
   const { data, isLoading } = useQuery({
     queryKey: productsKey,
-    queryFn: () => products.getAll({ search: search || undefined, page, limit: LIMIT, ...productFilter }),
+    queryFn: async (): Promise<PaginatedResponse<Product>> => {
+      if (esCodigo(search)) {
+        const p = await products.getByBarcode(search);
+        return { data: p ? [p] : [], meta: { total: p ? 1 : 0, page: 1, limit: LIMIT, totalPages: 1 } };
+      }
+      return products.getAll({ search: search || undefined, page, limit: LIMIT, ...productFilter });
+    },
   });
 
   const deleteMutation = useMutation({
     mutationFn: (id: string) => products.delete(id),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['products'] });
+      toast.show(`Se eliminó "${toDelete?.title}"`);
       setToDelete(null);
       setDeleteError('');
     },
@@ -74,7 +116,7 @@ export default function ProductosPage() {
       }));
       return { id, previousValue, key: productsKey };
     },
-    onError: (_err, _id, context) => {
+    onError: (err: any, _id, context) => {
       if (context?.previousValue !== undefined) {
         qc.setQueryData(context.key, (old: any) => old && ({
           ...old,
@@ -83,77 +125,68 @@ export default function ProductosPage() {
           ),
         }));
       }
+      toast.show(err.message ?? 'No se pudo cambiar el estado', 'error');
     },
     onSettled: () => qc.invalidateQueries({ queryKey: ['products'] }),
   });
 
-  // Costo, Precio y Ganancia son tres campos vinculados por price = cost * (1 + pct/100):
-  // tocar cualquiera de los tres manda un único PUT parcial con los campos que corresponda,
-  // y el que se editó decide qué mensaje de error mostrar (ver field más abajo)
-  type ProductFieldEdit = { id: string; field: 'price' | 'cost' | 'ganancia'; data: { price?: number; cost?: number | null } };
-
-  const fieldErrorSetters = { price: setPriceError, cost: setCostError, ganancia: setGananciaError };
-
+  // Costo, Precio y Ganancia son tres campos vinculados (ver components/productos/precio.ts):
+  // tocar cualquiera de los tres manda un único PUT parcial con los campos que corresponda
   const updateProductMutation = useMutation({
-    mutationFn: ({ id, data }: ProductFieldEdit) => {
+    mutationFn: ({ product, data }: ProductFieldEdit) => {
       const form = new FormData();
       if (data.price !== undefined) form.append('price', String(data.price));
       if (data.cost !== undefined) form.append('cost', data.cost === null ? '' : String(data.cost));
-      return products.update(id, form);
+      return products.update(product.id, form);
     },
-    onSuccess: (_product, { id, field }) => {
-      qc.invalidateQueries({ queryKey: ['products'] });
-      fieldErrorSetters[field]((e) => (e?.id === id ? null : e));
-    },
-    onError: (err: any, { id, field }) => {
-      fieldErrorSetters[field]({ id, message: err.message ?? 'No se pudo actualizar' });
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['products'] }),
+    onError: (err: any, { product, field }) => {
+      toast.show(`No se pudo guardar ${CAMPO_LABEL[field]} de "${product.title}": ${err.message ?? 'error'}`, 'error');
     },
   });
 
+  const total = data?.meta.total ?? 0;
+  const desde = total === 0 ? 0 : (page - 1) * LIMIT + 1;
+  const hasta = Math.min(page * LIMIT, total);
+
   return (
-    <div className="flex flex-col gap-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-extrabold text-gray-800">Productos</h1>
-          <p className="text-sm text-gray-400 font-medium mt-0.5">{data?.meta.total ?? 0} productos</p>
-        </div>
-        <Link
-          href="/productos/nuevo"
-          className="flex items-center gap-2 bg-orange-500 hover:bg-orange-600 text-white font-bold px-4 py-2.5 rounded-xl text-sm transition-colors"
-        >
-          <Plus size={16} weight="bold" />
-          Nuevo producto
-        </Link>
-      </div>
+    <>
+      <PageHeader
+        title="Productos"
+        subtitle={data ? `${total.toLocaleString('es-AR')} productos` : undefined}
+        actions={
+          <Link href="/productos/nuevo" className={buttonClasses('primary', 'md')}>
+            <Plus size={18} weight="bold" />
+            Nuevo producto
+          </Link>
+        }
+      />
 
-      <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
-        <div className="relative flex-1">
-          <MagnifyingGlass size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
-          <input
-            type="text"
-            value={search}
-            onChange={(e) => { setSearch(e.target.value); setPage(1); }}
-            placeholder="Buscar productos..."
-            className="w-full pl-9 pr-4 py-2.5 bg-white border border-gray-200 rounded-xl text-sm outline-none focus:border-orange-400 font-medium"
-          />
-        </div>
-
+      <div className="flex flex-wrap items-center gap-2.5">
+        <SearchInput
+          label="Buscar producto"
+          placeholder="Buscar por nombre o código de barras"
+          value={searchInput}
+          onChange={(e) => setSearchInput(e.target.value)}
+          className="basis-full md:basis-72"
+        />
         <select
+          aria-label="Categoría"
           value={categoryId}
           onChange={(e) => { setCategoryId(e.target.value); setSubcategoryId(''); setPage(1); }}
-          className="py-2.5 px-3 bg-white border border-gray-200 rounded-xl text-sm outline-none focus:border-orange-400 font-medium text-gray-600 min-w-40"
+          className={inputClasses('flex-1 !w-auto bg-white md:flex-none md:min-w-48')}
         >
           <option value="">Todas las categorías</option>
           {parentCategories.map((c: Category) => (
             <option key={c.id} value={c.id}>{c.name}</option>
           ))}
         </select>
-
         {subcategories.length > 0 && (
           <select
+            aria-label="Subcategoría"
             value={subcategoryId}
             onChange={(e) => { setSubcategoryId(e.target.value); setPage(1); }}
-            className="py-2.5 px-3 bg-white border border-gray-200 rounded-xl text-sm outline-none focus:border-orange-400 font-medium text-gray-600 min-w-40 animate-fadeIn"
+            className={inputClasses('flex-1 !w-auto bg-white md:flex-none md:min-w-48 animate-fadeIn')}
           >
             <option value="">Todas las subcategorías</option>
             {subcategories.map((c: Category) => (
@@ -162,206 +195,167 @@ export default function ProductosPage() {
           </select>
         )}
       </div>
+      {esCodigo(search) && (categoryId || subcategoryId) && (
+        <p className="-mt-2 text-xs font-bold text-kr-muted">Buscando por código de barras: el filtro de categoría no se aplica.</p>
+      )}
 
-      <div className="bg-white rounded-2xl shadow-sm overflow-hidden">
-        <table className="w-full text-sm">
-          <thead className="border-b border-gray-100">
-            <tr className="text-left">
-              <th className="px-4 py-3 text-xs font-bold text-gray-400 uppercase tracking-wide">Producto</th>
-              <th className="px-4 py-3 text-xs font-bold text-gray-400 uppercase tracking-wide">Categoría</th>
-              <th className="px-4 py-3 text-xs font-bold text-gray-400 uppercase tracking-wide">Costo</th>
-              <th className="px-4 py-3 text-xs font-bold text-gray-400 uppercase tracking-wide">Precio</th>
-              <th className="px-4 py-3 text-xs font-bold text-gray-400 uppercase tracking-wide w-24">Ganancia</th>
-              <th className="px-4 py-3 text-xs font-bold text-gray-400 uppercase tracking-wide w-20">Activo</th>
-              <th className="px-4 py-3 text-xs font-bold text-gray-400 uppercase tracking-wide w-24">Acciones</th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-gray-50">
-            {isLoading ? (
-              Array.from({ length: 8 }).map((_, i) => (
-                <tr key={i}>
-                  <td colSpan={7} className="px-4 py-3">
-                    <div className="h-5 bg-gray-100 rounded animate-pulse" />
-                  </td>
-                </tr>
-              ))
-            ) : data?.data.map((product) => (
-              <tr key={product.id} className="hover:bg-gray-50 transition-colors">
-                <td className="px-4 py-3">
-                  <div className="flex items-center gap-3">
-                    <div className={`relative w-10 h-10 flex-shrink-0 bg-gray-100 rounded-lg overflow-hidden ${!product.isActive ? 'opacity-40' : ''}`}>
-                      <Image src={product.imageUrl} alt={product.title} fill sizes="40px" className="object-contain p-1" />
-                    </div>
-                    <span className={`font-semibold truncate max-w-xs ${product.isActive ? 'text-gray-800' : 'text-gray-400'}`}>
-                      {product.title}
-                    </span>
-                  </div>
-                </td>
-                <td className="px-4 py-3 text-gray-500">{product.category?.name ?? '—'}</td>
-                {(() => {
-                  const costNum = product.cost ? parseFloat(product.cost) : null;
-                  const priceNum = parseFloat(product.price);
-                  const pct = costNum ? ((priceNum - costNum) / costNum) * 100 : null;
-                  const rowBusy = updateProductMutation.isPending && updateProductMutation.variables?.id === product.id;
+      {/* sin overflow-hidden: el menú de "más acciones" de las últimas filas tiene que poder asomar */}
+      <section aria-label="Lista de productos" className="rounded-2xl border border-kr-line bg-white">
+        <div className={`${FILA} hidden md:grid rounded-t-2xl border-b border-kr-line bg-kr-paper text-xs font-extrabold uppercase tracking-wide text-kr-muted`}>
+          <span className="[grid-area:n]">Producto</span>
+          <span className="hidden xl:block [grid-area:k]">Categoría</span>
+          <span className="text-right [grid-area:c]">Costo</span>
+          <span className="text-right [grid-area:p]">Precio</span>
+          <span className="text-right [grid-area:g]">Ganancia</span>
+        </div>
 
-                  return (
-                    <>
-                      <td className="px-4 py-3">
-                        <div className="flex items-center gap-1">
-                          <span className="font-bold text-gray-500">$</span>
-                          <input
-                            key={product.cost ?? ''}
-                            type="number"
-                            step="0.01"
-                            defaultValue={product.cost ?? ''}
-                            placeholder="—"
-                            disabled={rowBusy}
-                            onBlur={(e) => {
-                              const raw = e.target.value;
-                              const newCost = raw === '' ? null : parseFloat(raw);
-                              if (newCost !== null && (isNaN(newCost) || newCost < 0)) {
-                                e.target.value = product.cost ?? '';
-                                return;
-                              }
-                              if (newCost === costNum) return;
-
-                              // mantiene el % de ganancia actual: si ya había costo y precio
-                              // cargados, el precio nuevo se recalcula para conservar ese
-                              // mismo margen en vez de quedar desalineado con el costo nuevo
-                              let newPrice: number | undefined;
-                              if (costNum && newCost !== null) {
-                                const currentPct = (priceNum - costNum) / costNum;
-                                newPrice = parseFloat((newCost * (1 + currentPct)).toFixed(2));
-                              }
-
-                              updateProductMutation.mutate({
-                                id: product.id,
-                                field: 'cost',
-                                data: { cost: newCost, ...(newPrice !== undefined && { price: newPrice }) },
-                              });
-                            }}
-                            className="w-24 font-bold text-gray-500 bg-transparent outline-none border-b border-transparent focus:border-orange-300 disabled:opacity-50"
-                          />
-                        </div>
-                        {costError?.id === product.id && (
-                          <p className="text-[11px] font-semibold text-red-500 mt-0.5">{costError.message}</p>
-                        )}
-                      </td>
-                      <td className="px-4 py-3">
-                        <div className="flex items-center gap-1">
-                          <span className="font-bold text-orange-500">$</span>
-                          <input
-                            key={product.price}
-                            type="number"
-                            step="0.01"
-                            defaultValue={product.price}
-                            disabled={rowBusy}
-                            onBlur={(e) => {
-                              const newPrice = parseFloat(e.target.value);
-                              if (isNaN(newPrice) || newPrice <= 0) {
-                                e.target.value = product.price;
-                                return;
-                              }
-                              if (newPrice === priceNum) return;
-                              updateProductMutation.mutate({ id: product.id, field: 'price', data: { price: newPrice } });
-                            }}
-                            className="w-24 font-bold text-orange-500 bg-transparent outline-none border-b border-transparent focus:border-orange-300 disabled:opacity-50"
-                          />
-                        </div>
-                        {priceError?.id === product.id && (
-                          <p className="text-[11px] font-semibold text-red-500 mt-0.5">{priceError.message}</p>
-                        )}
-                      </td>
-                      <td className="px-4 py-3">
-                        <div className="flex items-center gap-0.5">
-                          <input
-                            key={`${product.cost ?? ''}-${product.price}`}
-                            type="number"
-                            step="0.1"
-                            defaultValue={pct !== null ? pct.toFixed(1) : ''}
-                            placeholder="—"
-                            disabled={!costNum || rowBusy}
-                            onBlur={(e) => {
-                              if (!costNum) return;
-                              const raw = e.target.value;
-                              const newPct = parseFloat(raw);
-                              if (raw === '' || isNaN(newPct)) {
-                                e.target.value = pct !== null ? pct.toFixed(1) : '';
-                                return;
-                              }
-                              if (pct !== null && Math.abs(newPct - pct) < 0.05) return;
-                              const newPrice = parseFloat((costNum * (1 + newPct / 100)).toFixed(2));
-                              if (newPrice <= 0) {
-                                e.target.value = pct !== null ? pct.toFixed(1) : '';
-                                return;
-                              }
-                              updateProductMutation.mutate({ id: product.id, field: 'ganancia', data: { price: newPrice } });
-                            }}
-                            className={`w-14 text-xs font-bold bg-transparent outline-none border-b border-transparent focus:border-orange-300 disabled:opacity-50 ${
-                              pct === null ? 'text-gray-300' : pct >= 0 ? 'text-green-600' : 'text-red-500'
-                            }`}
-                          />
-                          <span className="text-xs font-bold text-gray-300">%</span>
-                        </div>
-                        {gananciaError?.id === product.id && (
-                          <p className="text-[11px] font-semibold text-red-500 mt-0.5">{gananciaError.message}</p>
-                        )}
-                      </td>
-                    </>
-                  );
-                })()}
-                <td className="px-4 py-3">
-                  <ToggleSwitch
-                    checked={product.isActive}
-                    loading={toggleMutation.isPending && toggleMutation.variables === product.id}
-                    onChange={() => toggleMutation.mutate(product.id)}
-                  />
-                </td>
-                <td className="px-4 py-3">
-                  <div className="flex gap-1">
-                    <Link
-                      href={`/productos/${product.id}/editar`}
-                      className="w-8 h-8 rounded-lg flex items-center justify-center text-gray-400 hover:bg-orange-50 hover:text-orange-500 transition-colors"
-                    >
-                      <PencilSimple size={15} weight="bold" />
-                    </Link>
-                    <button
-                      onClick={() => setToDelete(product)}
-                      className="w-8 h-8 rounded-lg flex items-center justify-center text-gray-400 hover:bg-red-50 hover:text-red-500 transition-colors"
-                    >
-                      <Trash size={15} weight="bold" />
-                    </button>
-                  </div>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-
-        {data && data.meta.totalPages > 1 && (
-          <div className="flex items-center justify-between px-4 py-3 border-t border-gray-100">
-            <p className="text-xs text-gray-400 font-medium">
-              Página {data.meta.page} de {data.meta.totalPages}
-            </p>
-            <div className="flex gap-2">
-              <button
-                onClick={() => setPage((p) => p - 1)}
-                disabled={page === 1}
-                className="px-3 py-1.5 rounded-lg border border-gray-200 text-xs font-semibold text-gray-600 disabled:opacity-40 hover:bg-gray-50 transition-colors"
-              >
-                Anterior
-              </button>
-              <button
-                onClick={() => setPage((p) => p + 1)}
-                disabled={page === data.meta.totalPages}
-                className="px-3 py-1.5 rounded-lg border border-gray-200 text-xs font-semibold text-gray-600 disabled:opacity-40 hover:bg-gray-50 transition-colors"
-              >
-                Siguiente
-              </button>
-            </div>
+        {isLoading ? (
+          <div className="flex flex-col gap-3 p-4">
+            {Array.from({ length: 8 }).map((_, i) => <div key={i} className="h-10 animate-pulse rounded-lg bg-kr-sand" />)}
           </div>
+        ) : !data || data.data.length === 0 ? (
+          <p className="px-4 py-12 text-center text-sm font-bold text-kr-muted">
+            {search ? `No hay productos que coincidan con "${search}".` : 'No hay productos para mostrar.'}
+          </p>
+        ) : (
+          <ul>
+            {data.data.map((product) => {
+              const costNum = product.cost ? parseFloat(product.cost) : null;
+              const priceNum = parseFloat(product.price);
+              const pct = gananciaPct(costNum, priceNum);
+              const rowBusy = updateProductMutation.isPending && updateProductMutation.variables?.product.id === product.id;
+              const ruta = rutaCategoria(product);
+
+              return (
+                <li key={product.id} className={`${FILA} border-b border-dashed border-kr-line last:border-b-0`}>
+                  <div className="flex min-w-0 items-start gap-3 [grid-area:n] md:items-center">
+                    <div className={`relative h-10 w-10 flex-shrink-0 overflow-hidden rounded-xl border border-kr-line bg-kr-sand md:h-12 md:w-12 ${!product.isActive ? 'opacity-50' : ''}`}>
+                      {product.imageUrl ? (
+                        <Image src={product.imageUrl} alt="" fill sizes="48px" className="object-contain p-1" />
+                      ) : (
+                        <Package size={22} className="absolute inset-0 m-auto text-kr-muted" />
+                      )}
+                    </div>
+                    <div className="min-w-0">
+                      <Link
+                        href={`/productos/${product.id}/editar`}
+                        className={`font-extrabold leading-snug hover:text-kr-blue ${product.isActive ? 'text-kr-navy' : 'text-kr-muted'}`}
+                      >
+                        {product.title}
+                      </Link>
+                      <div className="mt-0.5 flex flex-wrap items-center gap-1.5 text-xs font-bold text-kr-muted">
+                        {product.barcode ? <span className="tabular-nums">{product.barcode}</span> : <Chip tone="bad">Sin código</Chip>}
+                        {!product.isActive && <Chip tone="off">Sin stock en la tienda</Chip>}
+                        {ruta && <span className="xl:hidden">· {ruta}</span>}
+                      </div>
+                    </div>
+                  </div>
+
+                  <span className="hidden min-w-0 text-sm font-bold text-kr-muted [grid-area:k] xl:block">{ruta ?? '—'}</span>
+
+                  <div className="flex min-w-0 flex-col gap-0.5 text-kr-muted [grid-area:c] md:items-end">
+                    <span className="text-[11px] font-extrabold uppercase md:hidden">Costo</span>
+                    <CeldaNumero
+                      label={`Costo de ${product.title}`}
+                      prefix="$"
+                      value={product.cost ?? ''}
+                      disabled={rowBusy}
+                      onCommit={(raw) => {
+                        const newCost = raw === '' ? null : parseFloat(raw);
+                        if (newCost !== null && (isNaN(newCost) || newCost < 0)) return false;
+                        if (newCost === costNum) return;
+                        // mantiene el % de ganancia actual: si ya había costo y precio cargados,
+                        // el precio se recalcula para no quedar desalineado con el costo nuevo
+                        const newPrice = costNum && newCost !== null ? precioManteniendoMargen(costNum, priceNum, newCost) : undefined;
+                        updateProductMutation.mutate({
+                          product,
+                          field: 'costo',
+                          data: { cost: newCost, ...(newPrice !== undefined && { price: newPrice }) },
+                        });
+                      }}
+                    />
+                  </div>
+
+                  <div className="flex min-w-0 flex-col gap-0.5 [grid-area:p] md:items-end">
+                    <span className="text-[11px] font-extrabold uppercase text-kr-muted md:hidden">Precio</span>
+                    <CeldaNumero
+                      label={`Precio de ${product.title}`}
+                      prefix="$"
+                      value={product.price}
+                      disabled={rowBusy}
+                      onCommit={(raw) => {
+                        const newPrice = parseFloat(raw);
+                        if (isNaN(newPrice) || newPrice <= 0) return false;
+                        if (newPrice === priceNum) return;
+                        updateProductMutation.mutate({ product, field: 'precio', data: { price: newPrice } });
+                      }}
+                    />
+                  </div>
+
+                  <div className={`flex min-w-0 flex-col gap-0.5 [grid-area:g] md:items-end ${pct === null ? 'text-kr-muted' : pct >= 0 ? 'text-kr-green-dark' : 'text-kr-orange-dark'}`}>
+                    <span className="text-[11px] font-extrabold uppercase text-kr-muted md:hidden">Ganancia</span>
+                    {costNum ? (
+                      <CeldaNumero
+                        label={`Porcentaje de ganancia de ${product.title}`}
+                        suffix="%"
+                        step="0.1"
+                        value={pct !== null ? pctValor(pct) : ''}
+                        disabled={rowBusy}
+                        onCommit={(raw) => {
+                          const newPct = parseFloat(raw);
+                          if (raw === '' || isNaN(newPct)) return false;
+                          if (pct !== null && Math.abs(newPct - pct) < 0.05) return;
+                          const newPrice = precioConGanancia(costNum, newPct);
+                          if (newPrice <= 0) return false;
+                          updateProductMutation.mutate({ product, field: 'ganancia', data: { price: newPrice } });
+                        }}
+                        className="max-w-[72px]"
+                      />
+                    ) : (
+                      <span title="Cargá el costo para ver la ganancia" className="font-extrabold">—</span>
+                    )}
+                  </div>
+
+                  <MenuFila
+                    open={menuId === product.id}
+                    onToggle={() => setMenuId((id) => (id === product.id ? null : product.id))}
+                    onClose={() => setMenuId(null)}
+                    product={product}
+                    onToggleActive={() => { setMenuId(null); toggleMutation.mutate(product.id); }}
+                    onDelete={() => { setMenuId(null); setToDelete(product); setDeleteError(''); }}
+                  />
+                </li>
+              );
+            })}
+          </ul>
         )}
-      </div>
+      </section>
+
+      {data && total > 0 && (
+        <div className="flex items-center justify-end gap-2.5 text-sm font-extrabold text-kr-muted">
+          <span className="tabular-nums">
+            {desde.toLocaleString('es-AR')}–{hasta.toLocaleString('es-AR')} de {total.toLocaleString('es-AR')}
+          </span>
+          <button
+            type="button"
+            onClick={() => setPage((p) => p - 1)}
+            disabled={page <= 1}
+            aria-label="Página anterior"
+            className={buttonClasses('secondary', 'md', 'w-11 !px-0')}
+          >
+            <CaretLeft size={18} weight="bold" />
+          </button>
+          <button
+            type="button"
+            onClick={() => setPage((p) => p + 1)}
+            disabled={page >= data.meta.totalPages}
+            aria-label="Página siguiente"
+            className={buttonClasses('secondary', 'md', 'w-11 !px-0')}
+          >
+            <CaretRight size={18} weight="bold" />
+          </button>
+        </div>
+      )}
 
       {toDelete && (
         <ConfirmModal
@@ -371,6 +365,60 @@ export default function ProductosPage() {
           onConfirm={() => deleteMutation.mutate(toDelete.id)}
           onCancel={() => { setToDelete(null); setDeleteError(''); }}
         />
+      )}
+    </>
+  );
+}
+
+function MenuFila({ open, onToggle, onClose, product, onToggleActive, onDelete }: {
+  open: boolean;
+  onToggle: () => void;
+  onClose: () => void;
+  product: Product;
+  onToggleActive: () => void;
+  onDelete: () => void;
+}) {
+  const ref = useRef<HTMLDivElement>(null);
+
+  // se cierra tocando afuera o con Escape
+  useEffect(() => {
+    if (!open) return;
+    const onDown = (e: MouseEvent) => { if (!ref.current?.contains(e.target as Node)) onClose(); };
+    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose(); };
+    document.addEventListener('mousedown', onDown);
+    document.addEventListener('keydown', onKey);
+    return () => {
+      document.removeEventListener('mousedown', onDown);
+      document.removeEventListener('keydown', onKey);
+    };
+  }, [open, onClose]);
+
+  const item = 'min-h-10 whitespace-nowrap rounded-lg px-3 py-2.5 text-left text-sm font-extrabold hover:bg-kr-yellow-soft';
+
+  return (
+    <div ref={ref} className="relative justify-self-end self-start [grid-area:x] md:self-center">
+      <button
+        type="button"
+        onClick={onToggle}
+        aria-label={`Más acciones para ${product.title}`}
+        aria-expanded={open}
+        aria-haspopup="menu"
+        className="flex h-11 w-11 items-center justify-center rounded-xl text-kr-navy hover:bg-kr-sand"
+      >
+        <DotsThree size={24} weight="bold" />
+      </button>
+      {open && (
+        <div role="menu" className="absolute right-0 top-[calc(100%+6px)] z-30 flex min-w-[220px] flex-col rounded-xl border-2 border-kr-navy bg-white p-1 shadow-pop animate-fadeIn">
+          <Link role="menuitem" href={`/productos/${product.id}/editar`} className={`${item} text-kr-navy`}>
+            Editar
+          </Link>
+          <button role="menuitem" type="button" onClick={onToggleActive} className={`${item} text-kr-navy`}>
+            {product.isActive ? 'Marcar sin stock en la tienda' : 'Volver a mostrar con stock'}
+          </button>
+          <button role="menuitem" type="button" onClick={onDelete} className={`${item} text-kr-orange-dark`}>
+            Eliminar
+          </button>
+        </div>
       )}
     </div>
   );

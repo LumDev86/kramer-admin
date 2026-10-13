@@ -40,6 +40,16 @@
   }
 }
 
+/* inputs numéricos sin las flechitas del navegador (precios, cantidades) */
+@utility no-spin {
+  -moz-appearance: textfield;
+  &::-webkit-outer-spin-button,
+  &::-webkit-inner-spin-button {
+    -webkit-appearance: none;
+    margin: 0;
+  }
+}
+
 button:not(:disabled), a, [role="switch"], select, label[for] {
   cursor: pointer;
 }

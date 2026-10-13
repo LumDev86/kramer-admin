@@ -4,32 +4,43 @@ import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import Link from 'next/link';
 import Image from 'next/image';
+import { CaretRight, PencilSimple, Plus, Tag, Trash } from '@phosphor-icons/react';
 import { categories, Category } from '@/lib/api';
-import { Plus, PencilSimple, Trash, CaretLeft, CaretRight } from '@phosphor-icons/react';
 import ConfirmModal from '@/components/ui/ConfirmModal';
-
-const LIMIT = 16;
+import PageHeader from '@/components/ui/PageHeader';
+import SearchInput from '@/components/ui/SearchInput';
+import { buttonClasses } from '@/components/ui/Button';
+import { useToast } from '@/components/ui/Toast';
 
 type ToDelete = { id: string; name: string };
 
+// fondo de la miniatura cuando la categoría no tiene imagen, para distinguirlas de un vistazo
+const TINTES = ['#DCEAFF', '#FFF1C2', '#FFE0EC', '#FFE7D6', '#E3F9EC', '#EEE9DE'];
+
+const normalizar = (s: string) => s.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '');
+
+const iconBtn = 'flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-xl text-kr-navy hover:bg-kr-sand';
+
 export default function CategoriasPage() {
   const qc = useQueryClient();
-  const [page, setPage] = useState(1);
+  const toast = useToast();
+  const [search, setSearch] = useState('');
+  const [abiertas, setAbiertas] = useState<Record<string, boolean>>({});
   const [toDelete, setToDelete] = useState<ToDelete | null>(null);
   const [deleteError, setDeleteError] = useState('');
 
-  // Solo top-level; cada una trae su array children
+  // Solo top-level; cada una trae su array children. Son pocas: se traen todas (el server
+  // corta en 100) y el buscador filtra acá mismo
   const { data, isLoading } = useQuery({
-    queryKey: ['categories', { page, parentId: 'null' }],
-    queryFn: () => categories.getAll({ limit: LIMIT, page, parentId: 'null' }),
+    queryKey: ['categories', { parentId: 'null', limit: 100 }],
+    queryFn: () => categories.getAll({ parentId: 'null', limit: 100 }),
   });
-
-  const totalPages = data?.meta.totalPages ?? 1;
 
   const deleteMutation = useMutation({
     mutationFn: (id: string) => categories.delete(id),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['categories'] });
+      toast.show(`Se eliminó "${toDelete?.name}"`);
       setToDelete(null);
       setDeleteError('');
     },
@@ -38,124 +49,134 @@ export default function CategoriasPage() {
     },
   });
 
+  const todas = data?.data ?? [];
+  const totalSubs = todas.reduce((s, c) => s + c.children.length, 0);
+  const q = normalizar(search.trim());
+
+  // buscando: quedan las categorías que coinciden o que tienen alguna subcategoría que coincide,
+  // y se abren solas para mostrar dónde está
+  const visibles: { cat: Category; subs: Category['children']; abierta: boolean }[] = todas.flatMap((cat) => {
+    if (!q) return [{ cat, subs: cat.children, abierta: !!abiertas[cat.id] }];
+    const coincidePadre = normalizar(cat.name).includes(q);
+    const subs = coincidePadre ? cat.children : cat.children.filter((s) => normalizar(s.name).includes(q));
+    if (!coincidePadre && subs.length === 0) return [];
+    return [{ cat, subs, abierta: subs.length > 0 }];
+  });
+
+  const toggle = (id: string) => setAbiertas((a) => ({ ...a, [id]: !a[id] }));
+
   return (
-    <div className="flex flex-col gap-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-extrabold text-gray-800">Categorías</h1>
-          <p className="text-sm text-gray-400 font-medium mt-0.5">{data?.meta.total ?? 0} categorías</p>
-        </div>
-        <Link
-          href="/categorias/nueva"
-          className="flex items-center gap-2 bg-orange-500 hover:bg-orange-600 text-white font-bold px-4 py-2.5 rounded-xl text-sm transition-colors"
-        >
-          <Plus size={16} weight="bold" />
-          Nueva categoría
-        </Link>
-      </div>
+    <>
+      <PageHeader
+        title="Categorías"
+        subtitle={data ? `${todas.length} categorías · ${totalSubs} subcategorías` : undefined}
+        actions={
+          <Link href="/categorias/nueva" className={buttonClasses('primary', 'md')}>
+            <Plus size={18} weight="bold" />
+            Nueva categoría
+          </Link>
+        }
+      />
 
-      {isLoading ? (
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          {Array.from({ length: 6 }).map((_, i) => (
-            <div key={i} className="bg-white rounded-2xl h-48 animate-pulse" />
-          ))}
-        </div>
-      ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          {data?.data.map((cat) => (
-            <div key={cat.id} className="bg-white rounded-2xl shadow-sm overflow-hidden animate-slideUp">
+      <SearchInput
+        label="Buscar categoría"
+        placeholder="Buscar categoría o subcategoría"
+        value={search}
+        onChange={(e) => setSearch(e.target.value)}
+        className="flex-none basis-auto md:max-w-md"
+      />
 
-              {/* Cabecera de la categoría */}
-              <div className="flex items-center gap-3 p-3 border-b border-gray-100">
-                <div className="relative w-12 h-12 flex-shrink-0 rounded-xl overflow-hidden bg-gray-100">
-                  {cat.imageUrl ? (
-                    <Image src={cat.imageUrl} alt={cat.name} fill className="object-cover" />
-                  ) : (
-                    <div className="w-full h-full bg-orange-100 flex items-center justify-center text-xl">🏷️</div>
-                  )}
-                </div>
-                <p className="text-sm font-extrabold text-gray-800 flex-1 truncate">{cat.name}</p>
-                <div className="flex gap-1 shrink-0">
-                  <Link
-                    href={`/categorias/nueva?parentId=${cat.id}`}
-                    title="Nueva subcategoría"
-                    className="w-7 h-7 rounded-lg flex items-center justify-center text-gray-400 hover:bg-green-50 hover:text-green-500 transition-colors"
-                  >
-                    <Plus size={14} weight="bold" />
-                  </Link>
-                  <Link
-                    href={`/categorias/${cat.id}/editar`}
-                    className="w-7 h-7 rounded-lg flex items-center justify-center text-gray-400 hover:bg-orange-50 hover:text-orange-500 transition-colors"
-                  >
-                    <PencilSimple size={14} weight="bold" />
-                  </Link>
+      <section aria-label="Árbol de categorías" className="overflow-hidden rounded-2xl border border-kr-line bg-white">
+        {isLoading ? (
+          <div className="flex flex-col gap-3 p-4">
+            {Array.from({ length: 6 }).map((_, i) => <div key={i} className="h-14 animate-pulse rounded-xl bg-kr-sand" />)}
+          </div>
+        ) : visibles.length === 0 ? (
+          <p className="px-4 py-12 text-center text-sm font-bold text-kr-muted">
+            {q ? `No hay categorías que coincidan con "${search.trim()}".` : 'Todavía no hay categorías.'}
+          </p>
+        ) : (
+          <ul>
+            {visibles.map(({ cat, subs, abierta }, i) => (
+              <li key={cat.id} className="border-b border-dashed border-kr-line last:border-b-0">
+                <div className="flex items-center gap-2 py-2.5 pl-1 pr-2.5 sm:gap-3 sm:py-3 sm:pl-2 sm:pr-4">
                   <button
-                    onClick={() => { setToDelete({ id: cat.id, name: cat.name }); setDeleteError(''); }}
-                    className="w-7 h-7 rounded-lg flex items-center justify-center text-gray-400 hover:bg-red-50 hover:text-red-500 transition-colors"
+                    type="button"
+                    onClick={() => toggle(cat.id)}
+                    disabled={cat.children.length === 0 || !!q}
+                    aria-expanded={abierta}
+                    aria-label={`${abierta ? 'Ocultar' : 'Ver'} subcategorías de ${cat.name}`}
+                    className={`${iconBtn} disabled:opacity-30 ${cat.children.length === 0 ? 'invisible' : ''}`}
                   >
-                    <Trash size={14} weight="bold" />
+                    <CaretRight size={18} weight="bold" className={`transition-transform duration-150 ${abierta ? 'rotate-90' : ''}`} />
                   </button>
+                  <span
+                    className="relative flex h-11 w-11 flex-shrink-0 items-center justify-center overflow-hidden rounded-[14px] border-[1.5px] border-kr-navy sm:h-14 sm:w-14"
+                    style={{ background: TINTES[i % TINTES.length] }}
+                  >
+                    {cat.imageUrl ? (
+                      <Image src={cat.imageUrl} alt="" fill sizes="56px" className="object-cover" />
+                    ) : (
+                      <Tag size={24} weight="bold" />
+                    )}
+                  </span>
+                  <button type="button" onClick={() => !q && cat.children.length > 0 && toggle(cat.id)} className="min-w-0 flex-1 text-left">
+                    <span className="block text-base font-extrabold leading-snug">{cat.name}</span>
+                    <span className="block text-xs font-bold text-kr-muted">
+                      {cat.children.length === 0 ? 'Sin subcategorías' : `${cat.children.length} ${cat.children.length === 1 ? 'subcategoría' : 'subcategorías'}`}
+                    </span>
+                  </button>
+                  <div className="flex items-center gap-1 sm:gap-2">
+                    <Link
+                      href={`/categorias/nueva?parentId=${cat.id}`}
+                      aria-label={`Nueva subcategoría en ${cat.name}`}
+                      className={buttonClasses('secondary', 'sm', 'w-10 !px-0 sm:w-auto sm:!px-3')}
+                    >
+                      <Plus size={16} weight="bold" />
+                      <span className="hidden sm:inline">Subcategoría</span>
+                    </Link>
+                    <Link href={`/categorias/${cat.id}/editar`} aria-label={`Editar ${cat.name}`} className={iconBtn}>
+                      <PencilSimple size={18} weight="bold" />
+                    </Link>
+                    <button
+                      type="button"
+                      onClick={() => { setToDelete({ id: cat.id, name: cat.name }); setDeleteError(''); }}
+                      aria-label={`Eliminar ${cat.name}`}
+                      className={`${iconBtn} text-kr-orange-dark hover:bg-[#FFE7D6]`}
+                    >
+                      <Trash size={18} weight="bold" />
+                    </button>
+                  </div>
                 </div>
-              </div>
 
-              {/* Lista de subcategorías */}
-              <div className="p-3 flex flex-col gap-1">
-                {cat.children.length === 0 ? (
-                  <p className="text-xs text-gray-400 font-medium py-1">Sin subcategorías</p>
-                ) : (
-                  cat.children.map((sub) => (
-                    <div key={sub.id} className="flex items-center gap-2 px-2 py-1.5 rounded-lg hover:bg-gray-50 group">
-                      <div className="relative w-7 h-7 flex-shrink-0 rounded-lg overflow-hidden bg-gray-100">
-                        {sub.imageUrl ? (
-                          <Image src={sub.imageUrl} alt={sub.name} fill className="object-cover" />
-                        ) : (
-                          <div className="w-full h-full bg-orange-50 flex items-center justify-center text-sm">·</div>
-                        )}
-                      </div>
-                      <span className="text-xs font-semibold text-gray-700 flex-1 truncate">{sub.name}</span>
-                      <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity shrink-0">
-                        <Link
-                          href={`/categorias/${sub.id}/editar`}
-                          className="w-6 h-6 rounded-md flex items-center justify-center text-gray-400 hover:bg-orange-50 hover:text-orange-500 transition-colors"
-                        >
-                          <PencilSimple size={12} weight="bold" />
+                {abierta && subs.length > 0 && (
+                  <ul className="flex flex-col gap-1.5 pb-3 pl-6 pr-2.5 sm:pl-[76px] sm:pr-4">
+                    {subs.map((sub) => (
+                      <li key={sub.id} className="flex items-center gap-2.5 rounded-xl border border-[#F0E6D2] bg-kr-paper py-1.5 pl-2.5 pr-1.5">
+                        <span className="relative flex h-9 w-9 flex-shrink-0 items-center justify-center overflow-hidden rounded-[10px] bg-kr-sand text-kr-muted">
+                          {sub.imageUrl ? <Image src={sub.imageUrl} alt="" fill sizes="36px" className="object-cover" /> : <Tag size={18} weight="bold" />}
+                        </span>
+                        <span className="min-w-0 flex-1 font-extrabold">{sub.name}</span>
+                        <Link href={`/categorias/${sub.id}/editar`} aria-label={`Editar ${sub.name}`} className={iconBtn}>
+                          <PencilSimple size={18} weight="bold" />
                         </Link>
                         <button
+                          type="button"
                           onClick={() => { setToDelete({ id: sub.id, name: sub.name }); setDeleteError(''); }}
-                          className="w-6 h-6 rounded-md flex items-center justify-center text-gray-400 hover:bg-red-50 hover:text-red-500 transition-colors"
+                          aria-label={`Eliminar ${sub.name}`}
+                          className={`${iconBtn} text-kr-orange-dark hover:bg-[#FFE7D6]`}
                         >
-                          <Trash size={12} weight="bold" />
+                          <Trash size={18} weight="bold" />
                         </button>
-                      </div>
-                    </div>
-                  ))
+                      </li>
+                    ))}
+                  </ul>
                 )}
-              </div>
-
-            </div>
-          ))}
-        </div>
-      )}
-
-      {totalPages > 1 && (
-        <div className="flex items-center justify-center gap-3">
-          <button
-            onClick={() => setPage((p) => Math.max(1, p - 1))}
-            disabled={page === 1}
-            className="w-9 h-9 flex items-center justify-center rounded-xl border border-gray-200 text-gray-500 hover:bg-gray-50 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
-          >
-            <CaretLeft size={16} weight="bold" />
-          </button>
-          <span className="text-sm font-semibold text-gray-600">{page} de {totalPages}</span>
-          <button
-            onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
-            disabled={page === totalPages}
-            className="w-9 h-9 flex items-center justify-center rounded-xl border border-gray-200 text-gray-500 hover:bg-gray-50 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
-          >
-            <CaretRight size={16} weight="bold" />
-          </button>
-        </div>
-      )}
+              </li>
+            ))}
+          </ul>
+        )}
+      </section>
 
       {toDelete && (
         <ConfirmModal
@@ -166,6 +187,6 @@ export default function CategoriasPage() {
           onCancel={() => { setToDelete(null); setDeleteError(''); }}
         />
       )}
-    </div>
+    </>
   );
 }
