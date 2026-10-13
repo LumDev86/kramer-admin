@@ -217,7 +217,9 @@ function FacturaEditor() {
       ) : (
         <FacturaManualItemsTable
           facturaId={factura.id}
-          items={factura.items}
+          // el último que se agregó va arriba, pegado a la barra de "Agregar": se ve sin
+          // tener que bajar hasta el final de una factura larga (el server los manda del más viejo al más nuevo)
+          items={[...factura.items].reverse()}
           onChanged={invalidate}
           // el backend solo deja quitar líneas de una factura sin confirmar
           allowRemove={pendiente}
