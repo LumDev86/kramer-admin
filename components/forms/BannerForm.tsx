@@ -2,8 +2,14 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
+import { useQueryClient } from '@tanstack/react-query';
 import { Banner, banners } from '@/lib/api';
 import ImageUpload from '@/components/ui/ImageUpload';
+import ToggleSwitch from '@/components/ui/ToggleSwitch';
+import Card from '@/components/ui/Card';
+import Field, { inputClasses } from '@/components/ui/Field';
+import { buttonClasses } from '@/components/ui/Button';
+import { useToast } from '@/components/ui/Toast';
 
 interface Props {
   banner?: Banner;
@@ -11,6 +17,8 @@ interface Props {
 
 export default function BannerForm({ banner }: Props) {
   const router = useRouter();
+  const qc = useQueryClient();
+  const toast = useToast();
   const isEdit = !!banner;
 
   const [form, setForm] = useState({
@@ -21,11 +29,9 @@ export default function BannerForm({ banner }: Props) {
   });
   const [image, setImage] = useState<File | null>(null);
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState('');
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setError('');
     setLoading(true);
     try {
       const fd = new FormData();
@@ -40,92 +46,57 @@ export default function BannerForm({ banner }: Props) {
       } else {
         await banners.create(fd);
       }
+      qc.invalidateQueries({ queryKey: ['banners'] });
+      if (banner) qc.invalidateQueries({ queryKey: ['banner', banner.id] });
+      toast.show(isEdit ? 'Cambios guardados' : 'Banner creado');
       router.push('/banners');
-      router.refresh();
     } catch (err: any) {
-      setError(err.message ?? 'Error al guardar');
+      toast.show(err.message ?? 'Error al guardar', 'error');
     } finally {
       setLoading(false);
     }
   };
 
-  const set = (field: string, value: string | boolean) =>
-    setForm((f) => ({ ...f, [field]: value }));
+  const set = (field: string, value: string | boolean) => setForm((f) => ({ ...f, [field]: value }));
 
   return (
-    <form onSubmit={handleSubmit} className="bg-white rounded-2xl shadow-sm p-6 flex flex-col gap-5 max-w-xl">
-      <div className="flex flex-col gap-1">
-        <label className="text-xs font-semibold text-gray-500">Imagen {!isEdit && '*'}</label>
-        <ImageUpload currentUrl={banner?.imageUrl} onChange={setImage} required={!isEdit} />
-        <p className="text-xs text-gray-400">Tamaño recomendado: 1200×600px</p>
-      </div>
+    <form onSubmit={handleSubmit} className="w-full max-w-xl">
+      <Card className="gap-4">
+        <Field label={<>Imagen {isEdit && <span className="font-bold">(tocá para cambiarla)</span>}</>} hint="Tamaño recomendado: 1200 × 600 px.">
+          <ImageUpload currentUrl={banner?.imageUrl} onChange={setImage} required={!isEdit} />
+        </Field>
 
-      <div className="flex flex-col gap-1">
-        <label className="text-xs font-semibold text-gray-500">Título</label>
-        <input
-          type="text"
-          value={form.title}
-          onChange={(e) => set('title', e.target.value)}
-          placeholder="Título del banner (opcional)"
-          className="border border-gray-200 rounded-xl px-3 py-2.5 text-sm outline-none focus:border-orange-400 font-medium"
-        />
-      </div>
+        <Field label="Título (opcional)" htmlFor="bf-titulo">
+          <input id="bf-titulo" type="text" value={form.title} onChange={(e) => set('title', e.target.value)} placeholder="Para reconocerlo en el panel" className={inputClasses()} />
+        </Field>
 
-      <div className="flex flex-col gap-1">
-        <label className="text-xs font-semibold text-gray-500">URL de destino</label>
-        <input
-          type="text"
-          value={form.linkUrl}
-          onChange={(e) => set('linkUrl', e.target.value)}
-          placeholder="https://... (opcional)"
-          className="border border-gray-200 rounded-xl px-3 py-2.5 text-sm outline-none focus:border-orange-400 font-medium"
-        />
-      </div>
+        <Field label="A dónde lleva al tocarlo (opcional)" htmlFor="bf-link">
+          <input id="bf-link" type="text" value={form.linkUrl} onChange={(e) => set('linkUrl', e.target.value)} placeholder="https://…" className={inputClasses()} />
+        </Field>
 
-      <div className="grid grid-cols-2 gap-4">
-        <div className="flex flex-col gap-1">
-          <label className="text-xs font-semibold text-gray-500">Orden</label>
-          <input
-            type="number"
-            min="0"
-            value={form.order}
-            onChange={(e) => set('order', e.target.value)}
-            className="border border-gray-200 rounded-xl px-3 py-2.5 text-sm outline-none focus:border-orange-400 font-medium"
-          />
+        <div className="grid grid-cols-2 gap-3">
+          <Field label="Posición" htmlFor="bf-orden" hint="También se ordena arrastrando en la lista.">
+            <input id="bf-orden" type="number" inputMode="numeric" min="0" value={form.order} onChange={(e) => set('order', e.target.value)} className={inputClasses('no-spin')} />
+          </Field>
+          <div className="flex flex-col gap-1.5">
+            <span className="text-[13px] font-extrabold text-kr-muted">Se ve en la tienda</span>
+            <div className="flex min-h-11 items-center gap-2.5">
+              <ToggleSwitch label="Se ve en la tienda" checked={form.isActive} onChange={() => set('isActive', !form.isActive)} />
+              <span className="text-sm font-extrabold">{form.isActive ? 'Sí' : 'No, oculto'}</span>
+            </div>
+          </div>
         </div>
 
-        <div className="flex flex-col gap-1">
-          <label className="text-xs font-semibold text-gray-500">Estado</label>
-          <label className="flex items-center gap-2 h-10 cursor-pointer">
-            <input
-              type="checkbox"
-              checked={form.isActive}
-              onChange={(e) => set('isActive', e.target.checked)}
-              className="accent-orange-500 w-4 h-4"
-            />
-            <span className="text-sm font-semibold text-gray-700">Activo</span>
-          </label>
+        <div className="flex gap-2.5 pt-1">
+          <span className="flex-1" />
+          <button type="button" onClick={() => router.back()} className={buttonClasses('secondary', 'md')}>
+            Cancelar
+          </button>
+          <button type="submit" disabled={loading} className={buttonClasses('primary', 'md', 'min-w-36')}>
+            {loading ? 'Guardando…' : isEdit ? 'Guardar cambios' : 'Crear banner'}
+          </button>
         </div>
-      </div>
-
-      {error && <p className="text-xs text-red-500 font-semibold bg-red-50 rounded-lg px-3 py-2">{error}</p>}
-
-      <div className="flex gap-3">
-        <button
-          type="button"
-          onClick={() => router.back()}
-          className="flex-1 py-2.5 rounded-xl border border-gray-200 text-sm font-semibold text-gray-600 hover:bg-gray-50 transition-colors"
-        >
-          Cancelar
-        </button>
-        <button
-          type="submit"
-          disabled={loading}
-          className="flex-1 py-2.5 rounded-xl bg-orange-500 hover:bg-orange-600 text-white text-sm font-bold transition-colors disabled:opacity-60"
-        >
-          {loading ? 'Guardando...' : isEdit ? 'Guardar cambios' : 'Crear banner'}
-        </button>
-      </div>
+      </Card>
     </form>
   );
 }

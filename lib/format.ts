@@ -36,8 +36,8 @@ export const SUGERENCIA_ESTADO_LABEL: Record<SugerenciaEstado, string> = {
 };
 
 export const SUGERENCIA_ESTADO_COLOR: Record<SugerenciaEstado, string> = {
-  NUEVA: 'bg-orange-50 text-orange-600 border-orange-200',
-  CONSIGUIENDO: 'bg-blue-50 text-blue-600 border-blue-200',
-  AGREGADA: 'bg-green-50 text-green-600 border-green-200',
-  DESCARTADA: 'bg-gray-50 text-gray-500 border-gray-200',
+  NUEVA: 'bg-kr-yellow-soft text-kr-navy border-kr-navy',
+  CONSIGUIENDO: 'bg-kr-blue-soft text-kr-blue border-kr-blue/50',
+  AGREGADA: 'bg-kr-green-soft text-kr-green-dark border-kr-green-dark/50',
+  DESCARTADA: 'bg-[#EEE9DE] text-kr-muted border-kr-line',
 };

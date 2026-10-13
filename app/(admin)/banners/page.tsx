@@ -4,25 +4,40 @@ import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import Link from 'next/link';
 import Image from 'next/image';
+import {
+  DndContext, closestCenter, KeyboardSensor, PointerSensor, TouchSensor, useSensor, useSensors, type DragEndEvent,
+} from '@dnd-kit/core';
+import { arrayMove, SortableContext, sortableKeyboardCoordinates, rectSortingStrategy, useSortable } from '@dnd-kit/sortable';
+import { CSS } from '@dnd-kit/utilities';
+import { ArrowDown, ArrowUp, DotsSixVertical, PencilSimple, Plus, Trash } from '@phosphor-icons/react';
 import { banners, Banner } from '@/lib/api';
-import { Plus, PencilSimple, Trash } from '@phosphor-icons/react';
 import ConfirmModal from '@/components/ui/ConfirmModal';
+import PageHeader from '@/components/ui/PageHeader';
+import ToggleSwitch from '@/components/ui/ToggleSwitch';
+import { buttonClasses } from '@/components/ui/Button';
+import { useToast } from '@/components/ui/Toast';
+
+const ordenar = (lista: Banner[]) => [...lista].sort((a, b) => a.order - b.order || a.createdAt.localeCompare(b.createdAt));
 
 export default function BannersPage() {
   const qc = useQueryClient();
+  const toast = useToast();
   const [toDelete, setToDelete] = useState<Banner | null>(null);
 
   const { data: bannerList, isLoading } = useQuery({
     queryKey: ['banners'],
     queryFn: () => banners.getAll(),
+    select: ordenar,
   });
 
   const deleteMutation = useMutation({
     mutationFn: (id: string) => banners.delete(id),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['banners'] });
+      toast.show('Banner eliminado');
       setToDelete(null);
     },
+    onError: (err: any) => toast.show(err.message ?? 'No se pudo eliminar', 'error'),
   });
 
   const toggleMutation = useMutation({
@@ -32,75 +47,93 @@ export default function BannersPage() {
       return banners.update(id, fd);
     },
     onSuccess: () => qc.invalidateQueries({ queryKey: ['banners'] }),
+    onError: (err: any) => toast.show(err.message ?? 'No se pudo cambiar el estado', 'error'),
   });
 
+  // guarda el orden nuevo: cada banner que cambió de lugar recibe su posición (0, 1, 2…) con
+  // el mismo PUT de editar, mandando solo "order". Se muestra al instante y, si algo falla,
+  // se vuelve a pedir la lista para no quedar con un orden que no es el real
+  const ordenMutation = useMutation({
+    mutationFn: async (nuevo: Banner[]) => {
+      const cambios = nuevo.map((b, i) => ({ b, i })).filter(({ b, i }) => b.order !== i);
+      await Promise.all(
+        cambios.map(({ b, i }) => {
+          const fd = new FormData();
+          fd.append('order', String(i));
+          return banners.update(b.id, fd);
+        })
+      );
+    },
+    onMutate: async (nuevo) => {
+      await qc.cancelQueries({ queryKey: ['banners'] });
+      qc.setQueryData<Banner[]>(['banners'], nuevo.map((b, i) => ({ ...b, order: i })));
+    },
+    onSuccess: () => toast.show('Orden guardado'),
+    onError: (err: any) => toast.show(err.message ?? 'No se pudo guardar el orden', 'error'),
+    onSettled: () => qc.invalidateQueries({ queryKey: ['banners'] }),
+  });
+
+  const sensors = useSensors(
+    // el mouse arrastra recién después de moverse un poco, así un clic en los botones no arrastra
+    useSensor(PointerSensor, { activationConstraint: { distance: 6 } }),
+    // en el celular hay que mantener apretado un momento, para no pelear con el scroll
+    useSensor(TouchSensor, { activationConstraint: { delay: 180, tolerance: 6 } }),
+    useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates })
+  );
+
+  const lista = bannerList ?? [];
+
+  const mover = (desde: number, hasta: number) => {
+    if (hasta < 0 || hasta >= lista.length || desde === hasta) return;
+    ordenMutation.mutate(arrayMove(lista, desde, hasta));
+  };
+
+  const onDragEnd = ({ active, over }: DragEndEvent) => {
+    if (!over || active.id === over.id) return;
+    mover(lista.findIndex((b) => b.id === active.id), lista.findIndex((b) => b.id === over.id));
+  };
+
   return (
-    <div className="flex flex-col gap-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-extrabold text-gray-800">Banners</h1>
-          <p className="text-sm text-gray-400 font-medium mt-0.5">{bannerList?.length ?? 0} banners</p>
-        </div>
-        <Link
-          href="/banners/nuevo"
-          className="flex items-center gap-2 bg-orange-500 hover:bg-orange-600 text-white font-bold px-4 py-2.5 rounded-xl text-sm transition-colors"
-        >
-          <Plus size={16} weight="bold" />
-          Nuevo banner
-        </Link>
-      </div>
+    <>
+      <PageHeader
+        title="Banners"
+        subtitle="Arrastralos (o usá Subir / Bajar) para cambiar el orden del carrusel de la tienda."
+        actions={
+          <Link href="/banners/nuevo" className={buttonClasses('primary', 'md')}>
+            <Plus size={18} weight="bold" />
+            Nuevo banner
+          </Link>
+        }
+      />
 
       {isLoading ? (
-        <div className="flex flex-col gap-4">
-          {Array.from({ length: 3 }).map((_, i) => (
-            <div key={i} className="bg-white rounded-2xl h-32 animate-pulse" />
-          ))}
+        <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+          {Array.from({ length: 3 }).map((_, i) => <div key={i} className="h-64 animate-pulse rounded-2xl bg-white" />)}
         </div>
+      ) : lista.length === 0 ? (
+        <p className="rounded-2xl border border-kr-line bg-white px-4 py-10 text-center text-sm font-bold text-kr-muted">Todavía no hay banners.</p>
       ) : (
-        <div className="flex flex-col gap-4">
-          {bannerList?.map((banner) => (
-            <div key={banner.id} className="bg-white rounded-2xl shadow-sm overflow-hidden animate-slideUp">
-              <div className="flex items-center gap-4 p-4">
-                <div className="relative w-40 h-20 flex-shrink-0 bg-gray-100 rounded-xl overflow-hidden">
-                  <Image src={banner.imageUrl} alt={banner.title ?? 'Banner'} fill className="object-cover" />
-                </div>
-                <div className="flex-1 min-w-0">
-                  <p className="font-bold text-gray-800 truncate">{banner.title ?? 'Sin título'}</p>
-                  {banner.linkUrl && (
-                    <p className="text-xs text-gray-400 truncate mt-0.5">{banner.linkUrl}</p>
-                  )}
-                  <div className="flex items-center gap-3 mt-2">
-                    <span className="text-xs text-gray-400 font-medium">Orden: {banner.order}</span>
-                    <button
-                      onClick={() => toggleMutation.mutate({ id: banner.id, isActive: banner.isActive })}
-                      className={`text-xs font-bold px-2.5 py-1 rounded-full transition-colors ${
-                        banner.isActive
-                          ? 'bg-green-100 text-green-600 hover:bg-green-200'
-                          : 'bg-gray-100 text-gray-400 hover:bg-gray-200'
-                      }`}
-                    >
-                      {banner.isActive ? 'Activo' : 'Inactivo'}
-                    </button>
-                  </div>
-                </div>
-                <div className="flex gap-1 flex-shrink-0">
-                  <Link
-                    href={`/banners/${banner.id}/editar`}
-                    className="w-8 h-8 rounded-lg flex items-center justify-center text-gray-400 hover:bg-orange-50 hover:text-orange-500 transition-colors"
-                  >
-                    <PencilSimple size={15} weight="bold" />
-                  </Link>
-                  <button
-                    onClick={() => setToDelete(banner)}
-                    className="w-8 h-8 rounded-lg flex items-center justify-center text-gray-400 hover:bg-red-50 hover:text-red-500 transition-colors"
-                  >
-                    <Trash size={15} weight="bold" />
-                  </button>
-                </div>
-              </div>
-            </div>
-          ))}
-        </div>
+        <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={onDragEnd}>
+          <SortableContext items={lista.map((b) => b.id)} strategy={rectSortingStrategy}>
+            <ol className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+              {lista.map((b, i) => (
+                <BannerCard
+                  key={b.id}
+                  banner={b}
+                  pos={i + 1}
+                  esPrimero={i === 0}
+                  esUltimo={i === lista.length - 1}
+                  ocupado={ordenMutation.isPending}
+                  onSubir={() => mover(i, i - 1)}
+                  onBajar={() => mover(i, i + 1)}
+                  onToggle={() => toggleMutation.mutate({ id: b.id, isActive: b.isActive })}
+                  toggling={toggleMutation.isPending && toggleMutation.variables?.id === b.id}
+                  onDelete={() => setToDelete(b)}
+                />
+              ))}
+            </ol>
+          </SortableContext>
+        </DndContext>
       )}
 
       {toDelete && (
@@ -111,6 +144,80 @@ export default function BannersPage() {
           onCancel={() => setToDelete(null)}
         />
       )}
-    </div>
+    </>
+  );
+}
+
+function BannerCard({
+  banner: b, pos, esPrimero, esUltimo, ocupado, onSubir, onBajar, onToggle, toggling, onDelete,
+}: {
+  banner: Banner;
+  pos: number;
+  esPrimero: boolean;
+  esUltimo: boolean;
+  ocupado: boolean;
+  onSubir: () => void;
+  onBajar: () => void;
+  onToggle: () => void;
+  toggling: boolean;
+  onDelete: () => void;
+}) {
+  const { attributes, listeners, setNodeRef, setActivatorNodeRef, transform, transition, isDragging } = useSortable({ id: b.id });
+
+  return (
+    <li
+      ref={setNodeRef}
+      style={{ transform: CSS.Transform.toString(transform), transition }}
+      className={`flex min-w-0 flex-col overflow-hidden rounded-2xl bg-white ${
+        isDragging ? 'relative z-10 border-2 border-kr-navy shadow-pop-lg' : 'border border-kr-line'
+      } ${b.isActive ? '' : 'opacity-70'}`}
+    >
+      <div className="flex items-center gap-2 border-b border-kr-line px-2 py-2">
+        <button
+          ref={setActivatorNodeRef}
+          type="button"
+          aria-label={`Arrastrar para mover el banner ${pos}`}
+          className="flex h-10 w-10 cursor-grab touch-none items-center justify-center rounded-xl text-kr-muted hover:bg-kr-sand active:cursor-grabbing"
+          {...attributes}
+          {...listeners}
+        >
+          <DotsSixVertical size={22} weight="bold" />
+        </button>
+        <span className="flex h-7 min-w-7 items-center justify-center rounded-lg bg-kr-navy px-1.5 font-display text-sm text-white">{pos}</span>
+        <span className={`text-[13px] font-extrabold ${b.isActive ? 'text-kr-green-dark' : 'text-kr-muted'}`}>
+          {b.isActive ? 'Se ve en la tienda' : 'Oculto'}
+        </span>
+        <span className="flex-1" />
+        <ToggleSwitch label={`Banner ${pos} visible`} checked={b.isActive} loading={toggling} onChange={onToggle} />
+      </div>
+
+      <div className="relative aspect-[2/1] w-full bg-kr-sand">
+        <Image src={b.imageUrl} alt={b.title ?? `Banner ${pos}`} fill sizes="(min-width: 1280px) 33vw, (min-width: 768px) 50vw, 100vw" className="object-cover" />
+      </div>
+
+      <div className="flex items-start gap-2 px-3 py-2.5">
+        <div className="min-w-0 flex-1">
+          <p className="font-extrabold leading-snug">{b.title ?? 'Sin título'}</p>
+          {b.linkUrl && <p className="break-all text-xs font-bold text-kr-muted">{b.linkUrl}</p>}
+        </div>
+        <Link href={`/banners/${b.id}/editar`} aria-label="Editar banner" className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-xl hover:bg-kr-sand">
+          <PencilSimple size={18} weight="bold" />
+        </Link>
+        <button type="button" onClick={onDelete} aria-label="Eliminar banner" className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-xl text-kr-orange-dark hover:bg-[#FFE7D6]">
+          <Trash size={18} weight="bold" />
+        </button>
+      </div>
+
+      <div className="mt-auto grid grid-cols-2 gap-2 border-t border-dashed border-kr-line px-3 py-2.5">
+        <button type="button" onClick={onSubir} disabled={esPrimero || ocupado} className={buttonClasses('secondary', 'sm')}>
+          <ArrowUp size={14} weight="bold" />
+          Subir
+        </button>
+        <button type="button" onClick={onBajar} disabled={esUltimo || ocupado} className={buttonClasses('secondary', 'sm')}>
+          <ArrowDown size={14} weight="bold" />
+          Bajar
+        </button>
+      </div>
+    </li>
   );
 }

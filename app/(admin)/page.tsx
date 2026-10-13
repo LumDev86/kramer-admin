@@ -3,11 +3,14 @@
 import { useEffect, useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import dynamic from 'next/dynamic';
-import { products, categories, banners, config, StoreScheduleDay, StoreConfig } from '@/lib/api';
-import {
-  Package, Tag, Image, CheckCircle, XCircle, CalendarBlank,
-  HourglassMedium, Clock, Check, WhatsappLogo, Bank, IdentificationCard, Copy, MapPin,
-} from '@phosphor-icons/react';
+import { config, StoreScheduleDay, StoreConfig } from '@/lib/api';
+import { CalendarBlank, Check, CheckCircle, Clock, Copy, HourglassMedium, XCircle } from '@phosphor-icons/react';
+import PageHeader from '@/components/ui/PageHeader';
+import Card, { CardTitle } from '@/components/ui/Card';
+import Field, { inputClasses } from '@/components/ui/Field';
+import ToggleSwitch from '@/components/ui/ToggleSwitch';
+import { buttonClasses } from '@/components/ui/Button';
+import { useToast } from '@/components/ui/Toast';
 
 const RepartidoresMap = dynamic(() => import('@/components/maps/RepartidoresMap'), { ssr: false });
 
@@ -18,97 +21,36 @@ const HOURS = Array.from({ length: 24 }, (_, i) => i);
 // 01:00 del día siguiente) - hasta 29 (05:00) cubre bien los horarios nocturnos reales
 const CLOSE_HOURS = Array.from({ length: 30 }, (_, i) => i);
 
-// mismas 4 opciones que ya tiene configuracion/page.tsx - este selector es un duplicado
-// (por eso "Automático" faltaba acá, quedó desincronizado cuando se agregó allá)
-const STATUS_OPTIONS = [
-  {
-    value: 'auto',
-    label: 'Automático',
-    sub: 'Sigue el horario de atención',
-    icon: CalendarBlank,
-    ring: 'ring-blue-400',
-    bg: 'bg-blue-50',
-    iconColor: 'text-blue-500',
-    badge: 'bg-blue-100 text-blue-700',
-  },
-  {
-    value: 'open',
-    label: 'Abierto',
-    sub: 'Acepta pedidos normalmente',
-    icon: CheckCircle,
-    ring: 'ring-green-400',
-    bg: 'bg-green-50',
-    iconColor: 'text-green-500',
-    badge: 'bg-green-100 text-green-700',
-  },
-  {
-    value: 'busy',
-    label: 'Ocupado',
-    sub: 'Acepta con demora',
-    icon: HourglassMedium,
-    ring: 'ring-yellow-400',
-    bg: 'bg-yellow-50',
-    iconColor: 'text-yellow-500',
-    badge: 'bg-yellow-100 text-yellow-700',
-  },
-  {
-    value: 'closed',
-    label: 'Cerrado',
-    sub: 'No acepta pedidos',
-    icon: XCircle,
-    ring: 'ring-gray-300',
-    bg: 'bg-gray-50',
-    iconColor: 'text-gray-400',
-    badge: 'bg-gray-100 text-gray-500',
-  },
+const horaTexto = (h: number) => `${String(h % 24).padStart(2, '0')}:00`;
+
+const STATUS_OPTIONS: { value: StoreConfig['status']; label: string; sub: string; icon: typeof CheckCircle; on: string }[] = [
+  { value: 'auto', label: 'Automático', sub: 'Sigue el horario de atención', icon: CalendarBlank, on: 'bg-kr-blue-soft text-kr-blue' },
+  { value: 'open', label: 'Abierta', sub: 'Acepta pedidos normalmente', icon: CheckCircle, on: 'bg-kr-green-soft text-kr-green-dark' },
+  { value: 'busy', label: 'Ocupada', sub: 'Acepta pedidos con demora', icon: HourglassMedium, on: 'bg-kr-yellow-soft text-kr-navy' },
+  { value: 'closed', label: 'Cerrada', sub: 'No acepta pedidos', icon: XCircle, on: 'bg-[#EEE9DE] text-kr-muted' },
 ];
 
-function StatCard({ label, value, icon: Icon, color }: {
-  label: string; value: number | string; icon: any; color: string;
-}) {
-  return (
-    <div className="bg-white rounded-2xl p-5 shadow-sm flex items-center gap-4">
-      <div className={`w-11 h-11 rounded-xl flex items-center justify-center ${color}`}>
-        <Icon size={22} weight="fill" className="text-white" />
-      </div>
-      <div>
-        <p className="text-2xl font-extrabold text-gray-800">{value}</p>
-        <p className="text-xs text-gray-400 font-semibold">{label}</p>
-      </div>
-    </div>
-  );
+// en modo automático: ¿el horario de hoy (o el de ayer que cruza la medianoche) incluye esta hora?
+function abiertaPorHorario(schedule: StoreScheduleDay[], now: Date): { abierta: boolean; cierra?: number } {
+  const h = now.getHours();
+  const hoy = schedule.find((d) => d.dayOfWeek === now.getDay());
+  if (hoy?.isOpen && h >= hoy.openHour && h < hoy.closeHour) return { abierta: true, cierra: hoy.closeHour };
+  const ayer = schedule.find((d) => d.dayOfWeek === (now.getDay() + 6) % 7);
+  if (ayer?.isOpen && ayer.closeHour > 24 && h < ayer.closeHour - 24) return { abierta: true, cierra: ayer.closeHour };
+  return { abierta: false };
 }
 
-function Toggle({ checked, onChange }: { checked: boolean; onChange: (v: boolean) => void }) {
-  return (
-    <button
-      type="button"
-      role="switch"
-      aria-checked={checked}
-      onClick={() => onChange(!checked)}
-      className={`relative w-11 h-6 rounded-full transition-colors duration-200 focus:outline-none flex-shrink-0 ${
-        checked ? 'bg-green-400' : 'bg-gray-200'
-      }`}
-    >
-      <span
-        className={`absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full shadow-sm transition-transform duration-200 ${
-          checked ? 'translate-x-5' : 'translate-x-0'
-        }`}
-      />
-    </button>
-  );
-}
-
-function HourSelect({ value, onChange, options = HOURS }: { value: number; onChange: (v: number) => void; options?: number[] }) {
+function HourSelect({ value, onChange, options = HOURS, label }: { value: number; onChange: (v: number) => void; options?: number[]; label: string }) {
   return (
     <select
+      aria-label={label}
       value={value}
       onChange={(e) => onChange(parseInt(e.target.value))}
-      className="border border-gray-200 rounded-lg px-2 py-1.5 text-sm font-bold text-gray-700 outline-none focus:border-orange-400 bg-white cursor-pointer"
+      className="min-h-10 rounded-[10px] border-[1.5px] border-kr-line bg-kr-paper px-2 text-sm font-extrabold tabular-nums text-kr-navy outline-none focus:border-kr-blue"
     >
       {options.map((h) => (
         <option key={h} value={h}>
-          {h < 24 ? `${String(h).padStart(2, '0')}:00` : `${String(h - 24).padStart(2, '0')}:00 (+1 día)`}
+          {h < 24 ? horaTexto(h) : `${horaTexto(h)} (+1 día)`}
         </option>
       ))}
     </select>
@@ -117,31 +59,19 @@ function HourSelect({ value, onChange, options = HOURS }: { value: number; onCha
 
 export default function ConfiguracionPage() {
   const qc = useQueryClient();
+  const toast = useToast();
 
-  const { data: prodData }   = useQuery({ queryKey: ['products',    { limit: 1 }], queryFn: () => products.getAll({ limit: 1 }) });
-  const { data: catData }    = useQuery({ queryKey: ['categories',  { limit: 1 }], queryFn: () => categories.getAll({ limit: 1 }) });
-  const { data: banData }    = useQuery({ queryKey: ['banners'],         queryFn: () => banners.getAll() });
   const { data: storeData, isLoading: loadingConfig } = useQuery({
     queryKey: ['store-config'],
     queryFn: () => config.get(),
   });
 
-  const [status, setStatus]     = useState<StoreConfig['status']>('open');
+  const [status, setStatus] = useState<StoreConfig['status']>('open');
   const [busyTime, setBusyTime] = useState<number>(60);
   const [schedule, setSchedule] = useState<StoreScheduleDay[]>([]);
-  const [contact, setContact]   = useState({ whatsappNumber: '', cbu: '', alias: '', titular: '' });
+  const [contact, setContact] = useState({ whatsappNumber: '', cbu: '', alias: '', titular: '' });
   const [ubicacion, setUbicacion] = useState<{ lat: number; lng: number } | null>(null);
-  const [statusSaved, setStatusSaved]     = useState(false);
-  const [scheduleSaved, setScheduleSaved] = useState(false);
-  const [contactSaved, setContactSaved]   = useState(false);
-  const [ubicacionSaved, setUbicacionSaved] = useState(false);
-  const [copiedPreview, setCopiedPreview] = useState<'cbu' | 'alias' | null>(null);
-
-  const handleCopyPreview = (text: string, field: 'cbu' | 'alias') => {
-    navigator.clipboard.writeText(text);
-    setCopiedPreview(field);
-    setTimeout(() => setCopiedPreview(null), 2000);
-  };
+  const [copiado, setCopiado] = useState(false);
 
   useEffect(() => {
     if (storeData) {
@@ -150,409 +80,249 @@ export default function ConfiguracionPage() {
       setSchedule(storeData.schedule);
       setContact({
         whatsappNumber: storeData.whatsappNumber ?? '',
-        cbu:            storeData.cbu            ?? '',
-        alias:          storeData.alias          ?? '',
-        titular:        storeData.titular        ?? '',
+        cbu: storeData.cbu ?? '',
+        alias: storeData.alias ?? '',
+        titular: storeData.titular ?? '',
       });
       setUbicacion(storeData.lat !== null && storeData.lng !== null ? { lat: storeData.lat, lng: storeData.lng } : null);
     }
   }, [storeData]);
 
+  const guardado = (msg: string) => () => {
+    qc.invalidateQueries({ queryKey: ['store-config'] });
+    toast.show(msg);
+  };
+  const fallo = (err: any) => toast.show(err.message ?? 'No se pudo guardar', 'error');
+
   const statusMutation = useMutation({
     mutationFn: () => config.updateStatus(status, status === 'busy' ? busyTime : null),
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ['store-config'] });
-      setStatusSaved(true);
-      setTimeout(() => setStatusSaved(false), 2500);
-    },
+    onSuccess: guardado('Estado de la tienda guardado'),
+    onError: fallo,
   });
-
   const scheduleMutation = useMutation({
     mutationFn: () => config.updateSchedule(schedule),
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ['store-config'] });
-      setScheduleSaved(true);
-      setTimeout(() => setScheduleSaved(false), 2500);
-    },
+    onSuccess: guardado('Horarios guardados'),
+    onError: fallo,
   });
-
   const contactMutation = useMutation({
     mutationFn: () => config.updateContact(contact),
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ['store-config'] });
-      setContactSaved(true);
-      setTimeout(() => setContactSaved(false), 2500);
-    },
+    onSuccess: guardado('Datos de contacto y cobro guardados'),
+    onError: fallo,
   });
-
   const ubicacionMutation = useMutation({
     mutationFn: () => config.updateUbicacion(ubicacion!.lat, ubicacion!.lng),
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ['store-config'] });
-      setUbicacionSaved(true);
-      setTimeout(() => setUbicacionSaved(false), 2500);
-    },
+    onSuccess: guardado('Ubicación guardada'),
+    onError: fallo,
   });
 
   const updateDay = (dayOfWeek: number, field: keyof StoreScheduleDay, value: boolean | number) => {
-    setSchedule((prev) =>
-      prev.map((d) => (d.dayOfWeek === dayOfWeek ? { ...d, [field]: value } : d))
-    );
+    setSchedule((prev) => prev.map((d) => (d.dayOfWeek === dayOfWeek ? { ...d, [field]: value } : d)));
   };
 
-  const totalProducts   = prodData?.meta.total ?? '—';
-  const totalCategories = catData?.meta.total  ?? '—';
-  const activeBanners   = banData?.filter((b) => b.isActive).length ?? '—';
+  // el estado que ve hoy el cliente, según lo guardado (no lo que se está editando)
+  const estadoActual = (() => {
+    if (!storeData) return null;
+    if (storeData.status === 'open') return { texto: 'Abierta ahora', tono: 'bg-kr-green-soft text-kr-green-dark' };
+    if (storeData.status === 'busy') return { texto: `Ocupada · demora ${storeData.busyTime ?? 60} min`, tono: 'bg-kr-yellow-soft text-kr-navy' };
+    if (storeData.status === 'closed') return { texto: 'Cerrada', tono: 'bg-[#EEE9DE] text-kr-muted' };
+    const r = abiertaPorHorario(storeData.schedule, new Date());
+    return r.abierta
+      ? { texto: `Abierta ahora · cierra ${horaTexto(r.cierra!)}`, tono: 'bg-kr-green-soft text-kr-green-dark' }
+      : { texto: 'Cerrada ahora (por horario)', tono: 'bg-[#EEE9DE] text-kr-muted' };
+  })();
+
+  const copiarAlias = () => {
+    if (!contact.alias) return;
+    navigator.clipboard.writeText(contact.alias);
+    setCopiado(true);
+    setTimeout(() => setCopiado(false), 2000);
+  };
 
   return (
-    <div className="flex flex-col gap-7 animate-fadeIn">
+    <>
+      <PageHeader
+        title="Configuración"
+        subtitle="Estado de la tienda, horarios, datos de cobro y ubicación."
+        badges={
+          estadoActual && (
+            <span className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-[13px] font-extrabold ${estadoActual.tono}`}>
+              <span className="h-2 w-2 rounded-full bg-current" aria-hidden="true" />
+              {estadoActual.texto}
+            </span>
+          )
+        }
+      />
 
-      {/* Header */}
-      <div>
-        <h1 className="font-display text-[28px] md:text-[34px] leading-none text-kr-navy">Configuración</h1>
-        <p className="text-sm text-gray-400 font-medium mt-0.5">Estado de la tienda, horarios, datos de cobro y ubicación.</p>
-      </div>
-
-      {/* Stats */}
-      <div className="grid grid-cols-3 gap-4">
-        <StatCard label="Productos"      value={totalProducts}   icon={Package} color="bg-orange-500" />
-        <StatCard label="Categorías"     value={totalCategories} icon={Tag}     color="bg-blue-500"   />
-        <StatCard label="Banners activos" value={activeBanners}  icon={Image}   color="bg-green-500"  />
-      </div>
-
-      <div className="grid grid-cols-2 gap-6">
-
-        {/* Estado del local */}
-        <div className="bg-white rounded-2xl shadow-sm p-6 flex flex-col gap-5">
-          <h2 className="text-base font-extrabold text-gray-700">Estado del local</h2>
-
-          <div className="flex flex-col gap-2">
-            {STATUS_OPTIONS.map((opt) => {
-              const Icon = opt.icon;
-              const isSelected = status === opt.value;
-              return (
-                <button
-                  key={opt.value}
-                  type="button"
-                  onClick={() => setStatus(opt.value as typeof status)}
-                  className={`flex items-center gap-3 px-4 py-3 rounded-xl border-2 transition-all text-left ${
-                    isSelected
-                      ? `${opt.bg} ring-2 ${opt.ring} border-transparent`
-                      : 'border-gray-100 hover:border-gray-200 bg-white'
-                  }`}
-                >
-                  <Icon size={22} weight="fill" className={isSelected ? opt.iconColor : 'text-gray-300'} />
-                  <div className="flex-1 min-w-0">
-                    <p className={`text-sm font-extrabold ${isSelected ? 'text-gray-800' : 'text-gray-400'}`}>
-                      {opt.label}
-                    </p>
-                    <p className="text-xs text-gray-400 font-medium">{opt.sub}</p>
-                  </div>
-                  {isSelected && (
-                    <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${opt.badge}`}>
-                      Activo
-                    </span>
-                  )}
-                </button>
-              );
-            })}
+      <Card aria-labelledby="h-est">
+        <CardTitle id="h-est">Estado de la tienda</CardTitle>
+        <div role="radiogroup" aria-label="Estado de la tienda" className="grid grid-cols-1 gap-2 sm:grid-cols-2 xl:grid-cols-4">
+          {STATUS_OPTIONS.map((opt) => {
+            const Icon = opt.icon;
+            const sel = status === opt.value;
+            return (
+              <button
+                key={opt.value}
+                type="button"
+                role="radio"
+                aria-checked={sel}
+                onClick={() => setStatus(opt.value)}
+                className={`flex items-center gap-3 rounded-xl px-3.5 py-3 text-left transition-colors ${
+                  sel ? `border-2 border-kr-navy shadow-pop-sm ${opt.on}` : 'border-[1.5px] border-kr-line bg-white hover:border-kr-navy/40'
+                }`}
+              >
+                <Icon size={24} weight={sel ? 'fill' : 'regular'} className="flex-shrink-0" />
+                <span className="flex min-w-0 flex-col">
+                  <b className="font-extrabold text-kr-navy">{opt.label}</b>
+                  <small className="text-[13px] font-bold text-kr-muted">{opt.sub}</small>
+                </span>
+              </button>
+            );
+          })}
+        </div>
+        {status === 'busy' && (
+          <div className="flex flex-wrap items-center gap-2 animate-fadeIn">
+            <span className="text-sm font-extrabold text-kr-muted">Demora:</span>
+            {[60, 90].map((min) => (
+              <button
+                key={min}
+                type="button"
+                aria-pressed={busyTime === min}
+                onClick={() => setBusyTime(min)}
+                className={`flex min-h-10 items-center gap-1.5 rounded-xl px-3.5 text-sm font-extrabold ${
+                  busyTime === min ? 'border-2 border-kr-navy bg-kr-yellow' : 'border-[1.5px] border-kr-line bg-white hover:border-kr-navy/40'
+                }`}
+              >
+                <Clock size={16} weight="bold" />
+                {min} min
+              </button>
+            ))}
           </div>
-
-          {status === 'busy' && (
-            <div className="flex flex-col gap-2 animate-slideUp">
-              <p className="text-xs font-semibold text-gray-500">Tiempo estimado de demora</p>
-              <div className="flex gap-2">
-                {[60, 90].map((min) => (
-                  <button
-                    key={min}
-                    type="button"
-                    onClick={() => setBusyTime(min)}
-                    className={`flex items-center gap-1.5 px-4 py-2 rounded-xl border-2 text-sm font-bold transition-all ${
-                      busyTime === min
-                        ? 'border-yellow-400 bg-yellow-50 text-yellow-600'
-                        : 'border-gray-100 text-gray-400 hover:border-yellow-200'
-                    }`}
-                  >
-                    <Clock size={14} weight="fill" />
-                    {min} min
-                  </button>
-                ))}
-              </div>
-            </div>
-          )}
-
-          <button
-            onClick={() => statusMutation.mutate()}
-            disabled={statusMutation.isPending}
-            className={`flex items-center justify-center gap-2 py-3 rounded-xl font-bold text-sm transition-all mt-auto ${
-              statusSaved
-                ? 'bg-green-500 text-white'
-                : 'bg-orange-500 hover:bg-orange-600 text-white disabled:opacity-60'
-            }`}
-          >
-            {statusSaved && <Check size={16} weight="bold" />}
-            {statusSaved ? 'Guardado' : statusMutation.isPending ? 'Guardando...' : 'Guardar estado'}
+        )}
+        <div className="flex justify-end">
+          <button type="button" onClick={() => statusMutation.mutate()} disabled={statusMutation.isPending} className={buttonClasses('primary', 'md')}>
+            {statusMutation.isPending ? 'Guardando…' : 'Guardar estado'}
           </button>
         </div>
+      </Card>
 
-        {/* Horario de atención */}
-        <div className="bg-white rounded-2xl shadow-sm p-6 flex flex-col gap-4">
-          <h2 className="text-base font-extrabold text-gray-700">Horario de atención</h2>
-
+      <div className="grid items-start gap-4 xl:grid-cols-2">
+        <Card aria-labelledby="h-hor">
+          <CardTitle id="h-hor">Horarios de atención</CardTitle>
           {loadingConfig ? (
-            <div className="flex-1 flex items-center justify-center">
-              <div className="w-6 h-6 border-3 border-orange-500 border-t-transparent rounded-full animate-spin" />
+            <div className="flex flex-col gap-2">
+              {Array.from({ length: 7 }).map((_, i) => <div key={i} className="h-10 animate-pulse rounded-lg bg-kr-sand" />)}
             </div>
           ) : (
-            <div className="flex flex-col gap-1.5">
+            <ul className="flex flex-col">
               {schedule.map((day) => (
-                <div key={day.dayOfWeek} className="flex items-center gap-3 py-2 border-b border-gray-50 last:border-0">
-                  <span className="w-20 text-xs font-bold text-gray-600 flex-shrink-0">
-                    {DAYS[day.dayOfWeek]}
-                  </span>
-
-                  <Toggle
+                <li key={day.dayOfWeek} className="flex flex-wrap items-center gap-x-3 gap-y-2 border-b border-dashed border-kr-line py-2.5 last:border-b-0">
+                  <ToggleSwitch
+                    label={`${DAYS[day.dayOfWeek]} abierto`}
                     checked={day.isOpen}
-                    onChange={(v) => updateDay(day.dayOfWeek, 'isOpen', v)}
+                    onChange={() => updateDay(day.dayOfWeek, 'isOpen', !day.isOpen)}
                   />
-
+                  <span className="w-24 font-extrabold">{DAYS[day.dayOfWeek]}</span>
                   {day.isOpen ? (
-                    <div className="flex items-center gap-1.5 flex-1 animate-fadeIn">
+                    <span className="flex items-center gap-2 animate-fadeIn">
+                      <HourSelect label={`Abre el ${DAYS[day.dayOfWeek]}`} value={day.openHour} onChange={(v) => updateDay(day.dayOfWeek, 'openHour', v)} />
+                      <span className="text-sm font-bold text-kr-muted">a</span>
                       <HourSelect
-                        value={day.openHour}
-                        onChange={(v) => updateDay(day.dayOfWeek, 'openHour', v)}
-                      />
-                      <span className="text-xs text-gray-300 font-bold">—</span>
-                      <HourSelect
+                        label={`Cierra el ${DAYS[day.dayOfWeek]}`}
                         value={day.closeHour}
                         onChange={(v) => updateDay(day.dayOfWeek, 'closeHour', v)}
                         options={CLOSE_HOURS}
                       />
-                    </div>
+                    </span>
                   ) : (
-                    <span className="text-xs text-gray-300 font-semibold flex-1">Cerrado</span>
+                    <span className="text-sm font-bold text-kr-muted">Cerrado</span>
+                  )}
+                </li>
+              ))}
+            </ul>
+          )}
+          <div className="flex justify-end">
+            <button
+              type="button"
+              onClick={() => scheduleMutation.mutate()}
+              disabled={scheduleMutation.isPending || schedule.length === 0}
+              className={buttonClasses('primary', 'md')}
+            >
+              {scheduleMutation.isPending ? 'Guardando…' : 'Guardar horarios'}
+            </button>
+          </div>
+        </Card>
+
+        <div className="flex min-w-0 flex-col gap-4">
+          <Card aria-labelledby="h-cob">
+            <CardTitle id="h-cob">Contacto y cobro</CardTitle>
+            <div className="grid gap-3 sm:grid-cols-2">
+              <Field label="WhatsApp" htmlFor="cf-wa" hint="Sin + ni espacios. Ej: 5491124805770">
+                <input id="cf-wa" inputMode="numeric" value={contact.whatsappNumber} onChange={(e) => setContact({ ...contact, whatsappNumber: e.target.value })} placeholder="5491112345678" className={inputClasses()} />
+              </Field>
+              <Field label="Titular de la cuenta" htmlFor="cf-tit">
+                <input id="cf-tit" value={contact.titular} onChange={(e) => setContact({ ...contact, titular: e.target.value })} placeholder="Nombre Apellido" className={inputClasses()} />
+              </Field>
+              <Field label="CVU / CBU" htmlFor="cf-cbu">
+                <input id="cf-cbu" inputMode="numeric" value={contact.cbu} onChange={(e) => setContact({ ...contact, cbu: e.target.value })} placeholder="0000003100054149448072" className={inputClasses('font-mono')} />
+              </Field>
+              <Field label="Alias" htmlFor="cf-alias">
+                <input id="cf-alias" value={contact.alias} onChange={(e) => setContact({ ...contact, alias: e.target.value })} placeholder="kiosco.kramer" className={inputClasses('font-mono')} />
+              </Field>
+            </div>
+
+            {(contact.alias || contact.cbu) && (
+              <div className="flex flex-col gap-1.5 rounded-xl border-[1.5px] border-dashed border-kr-line bg-kr-paper px-3.5 py-3">
+                <span className="text-[11px] font-extrabold uppercase tracking-wide text-kr-muted">Así lo ve el cliente al pagar</span>
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <span className="min-w-0 break-all">
+                    <span className="text-sm font-bold text-kr-muted">{contact.alias ? 'Alias ' : 'CVU '}</span>
+                    <b className="font-mono font-extrabold">{contact.alias || contact.cbu}</b>
+                  </span>
+                  {contact.alias && (
+                    <button type="button" onClick={copiarAlias} className={buttonClasses('secondary', 'sm')}>
+                      {copiado ? <Check size={14} weight="bold" /> : <Copy size={14} weight="bold" />}
+                      {copiado ? 'Copiado' : 'Copiar'}
+                    </button>
                   )}
                 </div>
-              ))}
+                {contact.titular && <span className="text-[13px] font-bold text-kr-muted">A nombre de {contact.titular}</span>}
+              </div>
+            )}
+
+            <div className="flex justify-end">
+              <button type="button" onClick={() => contactMutation.mutate()} disabled={contactMutation.isPending} className={buttonClasses('primary', 'md')}>
+                {contactMutation.isPending ? 'Guardando…' : 'Guardar contacto'}
+              </button>
             </div>
-          )}
+          </Card>
 
-          <button
-            onClick={() => scheduleMutation.mutate()}
-            disabled={scheduleMutation.isPending || schedule.length === 0}
-            className={`flex items-center justify-center gap-2 py-3 rounded-xl font-bold text-sm transition-all mt-auto ${
-              scheduleSaved
-                ? 'bg-green-500 text-white'
-                : 'bg-orange-500 hover:bg-orange-600 text-white disabled:opacity-60'
-            }`}
-          >
-            {scheduleSaved && <Check size={16} weight="bold" />}
-            {scheduleSaved ? 'Guardado' : scheduleMutation.isPending ? 'Guardando...' : 'Guardar horario'}
-          </button>
+          <Card aria-labelledby="h-ubi">
+            <CardTitle id="h-ubi">Ubicación del local</CardTitle>
+            <div className="overflow-hidden rounded-xl border border-kr-line">
+              <RepartidoresMap
+                fill
+                repartidores={[]}
+                storeLat={ubicacion?.lat ?? null}
+                storeLng={ubicacion?.lng ?? null}
+                onMapClick={(lat, lng) => setUbicacion({ lat, lng })}
+              />
+            </div>
+            <p className="text-[13px] font-bold text-kr-muted">
+              Tocá el mapa para mover el pin. Se usa para calcular el envío y qué repartidor está más cerca.
+            </p>
+            <div className="flex justify-end">
+              <button
+                type="button"
+                onClick={() => ubicacionMutation.mutate()}
+                disabled={!ubicacion || ubicacionMutation.isPending}
+                className={buttonClasses('primary', 'md')}
+              >
+                {ubicacionMutation.isPending ? 'Guardando…' : 'Guardar ubicación'}
+              </button>
+            </div>
+          </Card>
         </div>
-
       </div>
-
-      {/* Datos de contacto y pago */}
-      <div className="grid grid-cols-2 gap-6">
-
-        {/* Vista previa */}
-        <div className="bg-white rounded-2xl shadow-sm p-6 flex flex-col gap-4">
-          <h2 className="text-base font-extrabold text-gray-700">Datos activos</h2>
-
-          {storeData && (storeData.whatsappNumber || storeData.cbu || storeData.alias || storeData.titular) ? (
-            <div className="flex flex-col gap-3">
-
-              {storeData.whatsappNumber && (
-                <div className="flex items-center gap-3 p-3 bg-gray-50 rounded-xl">
-                  <div className="w-9 h-9 rounded-xl bg-green-100 flex items-center justify-center flex-shrink-0">
-                    <WhatsappLogo size={16} weight="fill" className="text-green-600" />
-                  </div>
-                  <div className="min-w-0">
-                    <p className="text-[10px] text-gray-400 font-semibold uppercase tracking-wide">WhatsApp</p>
-                    <p className="text-sm font-bold text-gray-700">+{storeData.whatsappNumber}</p>
-                  </div>
-                </div>
-              )}
-
-              {storeData.titular && (
-                <div className="flex items-center gap-3 p-3 bg-gray-50 rounded-xl">
-                  <div className="w-9 h-9 rounded-xl bg-blue-100 flex items-center justify-center flex-shrink-0">
-                    <IdentificationCard size={16} weight="fill" className="text-blue-500" />
-                  </div>
-                  <div className="min-w-0">
-                    <p className="text-[10px] text-gray-400 font-semibold uppercase tracking-wide">Titular</p>
-                    <p className="text-sm font-bold text-gray-700 truncate">{storeData.titular}</p>
-                  </div>
-                </div>
-              )}
-
-              {storeData.cbu && (
-                <div className="flex items-center gap-3 p-3 bg-gray-50 rounded-xl">
-                  <div className="w-9 h-9 rounded-xl bg-orange-100 flex items-center justify-center flex-shrink-0">
-                    <Bank size={16} weight="fill" className="text-orange-500" />
-                  </div>
-                  <div className="min-w-0 flex-1">
-                    <p className="text-[10px] text-gray-400 font-semibold uppercase tracking-wide">CVU / CBU</p>
-                    <div className="flex items-center justify-between gap-1">
-                      <p className="text-xs font-mono font-bold text-gray-700 truncate">{storeData.cbu}</p>
-                      <button
-                        type="button"
-                        onClick={() => handleCopyPreview(storeData.cbu!, 'cbu')}
-                        className="flex-shrink-0 text-gray-400 hover:text-orange-500 transition-colors"
-                      >
-                        {copiedPreview === 'cbu'
-                          ? <Check size={13} weight="bold" className="text-green-500" />
-                          : <Copy size={13} weight="bold" />}
-                      </button>
-                    </div>
-                  </div>
-                </div>
-              )}
-
-              {storeData.alias && (
-                <div className="flex items-center gap-3 p-3 bg-gray-50 rounded-xl">
-                  <div className="w-9 h-9 rounded-xl bg-orange-100 flex items-center justify-center flex-shrink-0">
-                    <Bank size={16} weight="fill" className="text-orange-500" />
-                  </div>
-                  <div className="min-w-0 flex-1">
-                    <p className="text-[10px] text-gray-400 font-semibold uppercase tracking-wide">Alias</p>
-                    <div className="flex items-center justify-between gap-1">
-                      <p className="text-sm font-mono font-bold text-gray-700">{storeData.alias}</p>
-                      <button
-                        type="button"
-                        onClick={() => handleCopyPreview(storeData.alias!, 'alias')}
-                        className="flex-shrink-0 text-gray-400 hover:text-orange-500 transition-colors"
-                      >
-                        {copiedPreview === 'alias'
-                          ? <Check size={13} weight="bold" className="text-green-500" />
-                          : <Copy size={13} weight="bold" />}
-                      </button>
-                    </div>
-                  </div>
-                </div>
-              )}
-
-            </div>
-          ) : (
-            <div className="flex-1 flex items-center justify-center border-2 border-dashed border-gray-100 rounded-2xl p-6">
-              <p className="text-sm text-gray-400 font-medium text-center">No hay datos cargados aún</p>
-            </div>
-          )}
-        </div>
-
-        {/* Formulario de edición */}
-        <div className="bg-white rounded-2xl shadow-sm p-6 flex flex-col gap-4">
-          <h2 className="text-base font-extrabold text-gray-700">Editar datos</h2>
-
-          <div className="flex flex-col gap-3 flex-1">
-            <div className="flex flex-col gap-1">
-              <label className="text-xs font-bold text-gray-500 flex items-center gap-1.5">
-                <WhatsappLogo size={13} weight="fill" className="text-green-500" />
-                Número de WhatsApp
-              </label>
-              <input
-                type="text"
-                value={contact.whatsappNumber}
-                onChange={(e) => setContact({ ...contact, whatsappNumber: e.target.value })}
-                placeholder="5491112345678"
-                className="border border-gray-200 rounded-xl px-3 py-2.5 text-sm outline-none focus:border-orange-400 font-medium"
-              />
-              <p className="text-[10px] text-gray-400">Sin + ni espacios. Ej: 5491124805770</p>
-            </div>
-
-            <div className="flex flex-col gap-1">
-              <label className="text-xs font-bold text-gray-500 flex items-center gap-1.5">
-                <IdentificationCard size={13} weight="fill" className="text-blue-400" />
-                Titular de la cuenta
-              </label>
-              <input
-                type="text"
-                value={contact.titular}
-                onChange={(e) => setContact({ ...contact, titular: e.target.value })}
-                placeholder="Nombre Apellido"
-                className="border border-gray-200 rounded-xl px-3 py-2.5 text-sm outline-none focus:border-orange-400 font-medium"
-              />
-            </div>
-
-            <div className="flex flex-col gap-1">
-              <label className="text-xs font-bold text-gray-500 flex items-center gap-1.5">
-                <Bank size={13} weight="fill" className="text-orange-400" />
-                CVU / CBU
-              </label>
-              <input
-                type="text"
-                value={contact.cbu}
-                onChange={(e) => setContact({ ...contact, cbu: e.target.value })}
-                placeholder="0000003100054149448072"
-                className="border border-gray-200 rounded-xl px-3 py-2.5 text-sm font-mono outline-none focus:border-orange-400"
-              />
-            </div>
-
-            <div className="flex flex-col gap-1">
-              <label className="text-xs font-bold text-gray-500 flex items-center gap-1.5">
-                <Bank size={13} weight="fill" className="text-orange-400" />
-                Alias
-              </label>
-              <input
-                type="text"
-                value={contact.alias}
-                onChange={(e) => setContact({ ...contact, alias: e.target.value })}
-                placeholder="agua25"
-                className="border border-gray-200 rounded-xl px-3 py-2.5 text-sm font-mono outline-none focus:border-orange-400"
-              />
-            </div>
-          </div>
-
-          <button
-            onClick={() => contactMutation.mutate()}
-            disabled={contactMutation.isPending}
-            className={`flex items-center justify-center gap-2 py-3 rounded-xl font-bold text-sm transition-all mt-auto ${
-              contactSaved
-                ? 'bg-green-500 text-white'
-                : 'bg-orange-500 hover:bg-orange-600 text-white disabled:opacity-60'
-            }`}
-          >
-            {contactSaved && <Check size={16} weight="bold" />}
-            {contactSaved ? 'Guardado' : contactMutation.isPending ? 'Guardando...' : 'Guardar datos'}
-          </button>
-        </div>
-
-      </div>
-
-      {/* Ubicación del local */}
-      <div className="bg-white rounded-2xl shadow-sm p-6 flex flex-col gap-4">
-        <div>
-          <h2 className="text-base font-extrabold text-gray-700 flex items-center gap-2">
-            <MapPin size={18} weight="fill" className="text-orange-500" />
-            Ubicación del local
-          </h2>
-          <p className="text-xs text-gray-400 mt-0.5">
-            Tocá el mapa para marcar dónde está el kiosco - se usa para calcular qué repartidor está más cerca al asignar un pedido.
-          </p>
-        </div>
-
-        <RepartidoresMap
-          repartidores={[]}
-          storeLat={ubicacion?.lat ?? null}
-          storeLng={ubicacion?.lng ?? null}
-          onMapClick={(lat, lng) => setUbicacion({ lat, lng })}
-        />
-
-        <button
-          onClick={() => ubicacionMutation.mutate()}
-          disabled={!ubicacion || ubicacionMutation.isPending}
-          className={`flex items-center justify-center gap-2 py-3 rounded-xl font-bold text-sm transition-all disabled:opacity-50 w-full max-w-xs mx-auto ${
-            ubicacionSaved
-              ? 'bg-green-500 text-white'
-              : 'bg-orange-500 hover:bg-orange-600 text-white'
-          }`}
-        >
-          {ubicacionSaved && <Check size={16} weight="bold" />}
-          {ubicacionSaved ? 'Guardado' : ubicacionMutation.isPending ? 'Guardando...' : 'Guardar ubicación'}
-        </button>
-      </div>
-
-    </div>
+    </>
   );
 }
