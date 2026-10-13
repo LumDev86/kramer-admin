@@ -4,6 +4,10 @@ import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useQueryClient } from '@tanstack/react-query';
 import { Cliente, clientes } from '@/lib/api';
+import Card from '@/components/ui/Card';
+import Field, { inputClasses } from '@/components/ui/Field';
+import { buttonClasses } from '@/components/ui/Button';
+import { useToast } from '@/components/ui/Toast';
 
 interface Props {
   cliente?: Cliente;
@@ -12,6 +16,7 @@ interface Props {
 export default function ClienteForm({ cliente }: Props) {
   const router = useRouter();
   const qc = useQueryClient();
+  const toast = useToast();
   const isEdit = !!cliente;
 
   const [nombre, setNombre] = useState(cliente?.nombre ?? '');
@@ -21,15 +26,14 @@ export default function ClienteForm({ cliente }: Props) {
   const [telefono, setTelefono] = useState(cliente?.telefono ?? '');
   const [direccion, setDireccion] = useState(cliente?.direccion ?? '');
   const [email, setEmail] = useState(cliente?.email ?? '');
-  const [creditLimit, setCreditLimit] = useState(cliente?.creditLimit ?? '');
+  const [creditLimit, setCreditLimit] = useState<string>(cliente?.creditLimit ?? '');
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState('');
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setError('');
     setLoading(true);
     try {
+      let destinoId = cliente?.id;
       if (isEdit) {
         await clientes.update(cliente.id, {
           nombre,
@@ -42,7 +46,7 @@ export default function ClienteForm({ cliente }: Props) {
           creditLimit: creditLimit !== '' ? parseFloat(String(creditLimit)) : null,
         });
       } else {
-        await clientes.create({
+        const nuevo = await clientes.create({
           nombre,
           apellido,
           ...(apodo && { apodo }),
@@ -52,140 +56,80 @@ export default function ClienteForm({ cliente }: Props) {
           ...(email && { email }),
           ...(creditLimit !== '' && { creditLimit: parseFloat(String(creditLimit)) }),
         });
+        destinoId = nuevo.id;
       }
       qc.invalidateQueries({ queryKey: ['clientes'] });
-      router.push('/clientes');
+      if (cliente) qc.invalidateQueries({ queryKey: ['cliente', cliente.id] });
+      toast.show(isEdit ? 'Cambios guardados' : 'Cliente creado');
+      router.push(destinoId ? `/clientes/${destinoId}` : '/clientes');
     } catch (err: any) {
-      setError(err.message ?? 'Error al guardar');
+      toast.show(err.message ?? 'Error al guardar', 'error');
     } finally {
       setLoading(false);
     }
   };
 
+  const campo = (id: string, label: string, value: string, set: (v: string) => void, extra: { placeholder?: string; type?: string; required?: boolean; inputMode?: 'numeric' | 'tel' | 'email' } = {}) => (
+    <Field label={label} htmlFor={id}>
+      <input
+        id={id}
+        type={extra.type ?? 'text'}
+        required={extra.required}
+        inputMode={extra.inputMode}
+        value={value}
+        onChange={(e) => set(e.target.value)}
+        placeholder={extra.placeholder}
+        className={inputClasses()}
+      />
+    </Field>
+  );
+
   return (
-    <form onSubmit={handleSubmit} className="bg-white rounded-2xl shadow-sm p-6 flex flex-col gap-5 max-w-lg">
-      <div className="flex gap-4">
-        <div className="flex-1 flex flex-col gap-1">
-          <label className="text-xs font-semibold text-gray-500">Nombre *</label>
-          <input
-            required
-            type="text"
-            value={nombre}
-            onChange={(e) => setNombre(e.target.value)}
-            placeholder="Nombre"
-            className="border border-gray-200 rounded-xl px-3 py-2.5 text-sm outline-none focus:border-orange-400 font-medium"
-          />
+    <form onSubmit={handleSubmit} className="w-full max-w-xl">
+      <Card className="gap-4">
+        <div className="grid gap-3 sm:grid-cols-2">
+          {campo('cf-nombre', 'Nombre', nombre, setNombre, { required: true, placeholder: 'Nombre' })}
+          {campo('cf-apellido', 'Apellido', apellido, setApellido, { required: true, placeholder: 'Apellido' })}
+          {campo('cf-apodo', 'Apodo', apodo, setApodo, { placeholder: 'Como le dicen' })}
+          {campo('cf-dni', 'DNI', dni, setDni, { placeholder: '30123456', inputMode: 'numeric' })}
+          {campo('cf-tel', 'Teléfono', telefono, setTelefono, { placeholder: '11-1234-5678', type: 'tel', inputMode: 'tel' })}
+          {campo('cf-email', 'Email', email, setEmail, { placeholder: 'cliente@ejemplo.com', type: 'email', inputMode: 'email' })}
         </div>
-        <div className="flex-1 flex flex-col gap-1">
-          <label className="text-xs font-semibold text-gray-500">Apellido *</label>
-          <input
-            required
-            type="text"
-            value={apellido}
-            onChange={(e) => setApellido(e.target.value)}
-            placeholder="Apellido"
-            className="border border-gray-200 rounded-xl px-3 py-2.5 text-sm outline-none focus:border-orange-400 font-medium"
-          />
-        </div>
-      </div>
+        {campo('cf-dir', 'Dirección', direccion, setDireccion, { placeholder: 'Domicilio' })}
 
-      <div className="flex gap-4">
-        <div className="flex-1 flex flex-col gap-1">
-          <label className="text-xs font-semibold text-gray-500">Apodo</label>
-          <input
-            type="text"
-            value={apodo}
-            onChange={(e) => setApodo(e.target.value)}
-            placeholder="Como le dicen habitualmente"
-            className="border border-gray-200 rounded-xl px-3 py-2.5 text-sm outline-none focus:border-orange-400 font-medium"
-          />
-        </div>
-        <div className="flex-1 flex flex-col gap-1">
-          <label className="text-xs font-semibold text-gray-500">DNI</label>
-          <input
-            type="text"
-            value={dni}
-            onChange={(e) => setDni(e.target.value)}
-            placeholder="30123456"
-            className="border border-gray-200 rounded-xl px-3 py-2.5 text-sm outline-none focus:border-orange-400 font-medium"
-          />
-        </div>
-      </div>
-
-      <div className="flex gap-4">
-        <div className="flex-1 flex flex-col gap-1">
-          <label className="text-xs font-semibold text-gray-500">Teléfono</label>
-          <input
-            type="text"
-            value={telefono}
-            onChange={(e) => setTelefono(e.target.value)}
-            placeholder="11-1234-5678"
-            className="border border-gray-200 rounded-xl px-3 py-2.5 text-sm outline-none focus:border-orange-400 font-medium"
-          />
-        </div>
-        <div className="flex-1 flex flex-col gap-1">
-          <label className="text-xs font-semibold text-gray-500">Email</label>
-          <input
-            type="email"
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            placeholder="cliente@ejemplo.com"
-            className="border border-gray-200 rounded-xl px-3 py-2.5 text-sm outline-none focus:border-orange-400 font-medium"
-          />
-        </div>
-      </div>
-
-      <div className="flex flex-col gap-1">
-        <label className="text-xs font-semibold text-gray-500">Dirección</label>
-        <input
-          type="text"
-          value={direccion}
-          onChange={(e) => setDireccion(e.target.value)}
-          placeholder="Domicilio"
-          className="border border-gray-200 rounded-xl px-3 py-2.5 text-sm outline-none focus:border-orange-400 font-medium"
-        />
-      </div>
-
-      <p className="text-xs text-gray-400 -mt-2">
-        El cliente ahora puede registrarse solo desde la tienda online para ver su cuenta. Cargarlo acá a mano es
-        para el caso puntual de alguien que no puede autoregistrarse — no le da acceso al portal (no tiene
-        contraseña) hasta que se registre él mismo con este email.
-      </p>
-
-      <div className="flex flex-col gap-1">
-        <label className="text-xs font-semibold text-gray-500">Límite de crédito</label>
-        <input
-          type="number"
-          min="0"
-          step="0.01"
-          value={creditLimit}
-          onChange={(e) => setCreditLimit(e.target.value)}
-          placeholder="Dejalo vacío si no querés poner un tope"
-          className="border border-gray-200 rounded-xl px-3 py-2.5 text-sm outline-none focus:border-orange-400 font-medium"
-        />
-        <p className="text-xs text-gray-400">
-          Si lo completás, el sistema no va a dejar cobrarle un crédito que supere este monto de deuda.
+        <p className="rounded-xl bg-kr-paper px-3 py-2.5 text-[13px] font-bold text-kr-muted">
+          Los clientes pueden registrarse solos desde la tienda para ver su cuenta. Cargarlo acá es para quien no puede
+          hacerlo: no le da acceso a la cuenta (no tiene contraseña) hasta que se registre con este email.
         </p>
-      </div>
 
-      {error && <p className="text-xs text-red-500 font-semibold bg-red-50 rounded-lg px-3 py-2">{error}</p>}
+        <Field
+          label="Límite de crédito"
+          htmlFor="cf-limite"
+          hint="Si lo completás, no se le va a poder cobrar un fiado que haga pasar su deuda de este monto."
+        >
+          <input
+            id="cf-limite"
+            type="number"
+            inputMode="decimal"
+            min="0"
+            step="0.01"
+            value={creditLimit}
+            onChange={(e) => setCreditLimit(e.target.value)}
+            placeholder="Vacío = sin tope"
+            className={inputClasses('no-spin')}
+          />
+        </Field>
 
-      <div className="flex gap-3">
-        <button
-          type="button"
-          onClick={() => router.back()}
-          className="flex-1 py-2.5 rounded-xl border border-gray-200 text-sm font-semibold text-gray-600 hover:bg-gray-50 transition-colors"
-        >
-          Cancelar
-        </button>
-        <button
-          type="submit"
-          disabled={loading}
-          className="flex-1 py-2.5 rounded-xl bg-orange-500 hover:bg-orange-600 text-white text-sm font-bold transition-colors disabled:opacity-60"
-        >
-          {loading ? 'Guardando...' : isEdit ? 'Guardar cambios' : 'Crear'}
-        </button>
-      </div>
+        <div className="flex gap-2.5 pt-1">
+          <span className="flex-1" />
+          <button type="button" onClick={() => router.back()} className={buttonClasses('secondary', 'md')}>
+            Cancelar
+          </button>
+          <button type="submit" disabled={loading} className={buttonClasses('primary', 'md', 'min-w-36')}>
+            {loading ? 'Guardando…' : isEdit ? 'Guardar cambios' : 'Crear cliente'}
+          </button>
+        </div>
+      </Card>
     </form>
   );
 }

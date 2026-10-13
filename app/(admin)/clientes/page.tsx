@@ -1,144 +1,146 @@
 'use client';
 
-import { useState } from 'react';
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useEffect, useState } from 'react';
+import { useQuery } from '@tanstack/react-query';
 import Link from 'next/link';
+import { CaretLeft, CaretRight, Plus } from '@phosphor-icons/react';
 import { clientes, Cliente } from '@/lib/api';
-import { Plus, PencilSimple, MagnifyingGlass } from '@phosphor-icons/react';
-import ToggleSwitch from '@/components/ui/ToggleSwitch';
 import { money } from '@/lib/format';
+import PageHeader from '@/components/ui/PageHeader';
+import SearchInput from '@/components/ui/SearchInput';
+import Segmented from '@/components/ui/Segmented';
+import Chip from '@/components/ui/Chip';
+import { buttonClasses } from '@/components/ui/Button';
+import BarraLimite from '@/components/clientes/BarraLimite';
 
 const LIMIT = 20;
 
+type Filtro = 'todos' | 'reset';
+
+const FILA =
+  'grid items-center gap-x-3 gap-y-2 px-3 py-3 grid-cols-[minmax(0,1fr)_auto_20px] md:px-4 md:grid-cols-[minmax(0,1fr)_150px_170px_130px_20px]';
+
 export default function ClientesPage() {
-  const qc = useQueryClient();
+  const [searchInput, setSearchInput] = useState('');
   const [search, setSearch] = useState('');
+  const [filtro, setFiltro] = useState<Filtro>('todos');
   const [page, setPage] = useState(1);
 
+  useEffect(() => {
+    const t = setTimeout(() => { setSearch(searchInput.trim()); setPage(1); }, 300);
+    return () => clearTimeout(t);
+  }, [searchInput]);
+
   const { data, isLoading } = useQuery({
-    queryKey: ['clientes', { search, page }],
-    queryFn: () => clientes.getAll({ search: search || undefined, page, limit: LIMIT }),
+    queryKey: ['clientes', { search, page, filtro }],
+    queryFn: () => clientes.getAll({ search: search || undefined, page, limit: LIMIT, resetPendiente: filtro === 'reset' || undefined }),
   });
 
-  const toggleMutation = useMutation({
-    mutationFn: (id: string) => clientes.toggleActive(id),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ['clientes'] }),
+  // misma query que el aviso del menú lateral: el contador sale sin pedir nada extra
+  const { data: resetPendientes } = useQuery({
+    queryKey: ['clientes', 'reset-pendientes'],
+    queryFn: () => clientes.getAll({ resetPendiente: true, limit: 1 }),
   });
+
+  const total = data?.meta.total ?? 0;
+  const desde = total === 0 ? 0 : (page - 1) * LIMIT + 1;
+  const hasta = Math.min(page * LIMIT, total);
 
   return (
-    <div className="flex flex-col gap-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-extrabold text-gray-800">Clientes</h1>
-          <p className="text-sm text-gray-400 font-medium mt-0.5">{data?.meta.total ?? 0} clientes</p>
-        </div>
-        <Link
-          href="/clientes/nuevo"
-          className="flex items-center gap-2 bg-orange-500 hover:bg-orange-600 text-white font-bold px-4 py-2.5 rounded-xl text-sm transition-colors"
-        >
-          <Plus size={16} weight="bold" />
-          Nuevo cliente
-        </Link>
-      </div>
+    <>
+      <PageHeader
+        title="Clientes"
+        subtitle={data && filtro === 'todos' ? `${total.toLocaleString('es-AR')} clientes` : undefined}
+        actions={
+          <Link href="/clientes/nuevo" className={buttonClasses('primary', 'md')}>
+            <Plus size={18} weight="bold" />
+            Nuevo cliente
+          </Link>
+        }
+      />
 
-      <div className="relative max-w-sm">
-        <MagnifyingGlass size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
-        <input
-          type="text"
-          value={search}
-          onChange={(e) => { setSearch(e.target.value); setPage(1); }}
-          placeholder="Buscar por nombre, apodo o teléfono..."
-          className="w-full pl-9 pr-4 py-2.5 bg-white border border-gray-200 rounded-xl text-sm outline-none focus:border-orange-400 font-medium"
+      <div className="flex flex-wrap items-center gap-2.5">
+        <Segmented<Filtro>
+          ariaLabel="Filtro de clientes"
+          value={filtro}
+          onChange={(f) => { setFiltro(f); setPage(1); }}
+          options={[
+            { value: 'todos', label: 'Todos' },
+            { value: 'reset', label: 'Pidieron contraseña', count: resetPendientes?.meta.total },
+          ]}
+        />
+        <SearchInput
+          label="Buscar cliente"
+          placeholder="Buscar por nombre, apodo o teléfono"
+          value={searchInput}
+          onChange={(e) => setSearchInput(e.target.value)}
         />
       </div>
 
-      <div className="bg-white rounded-2xl shadow-sm overflow-hidden">
-        <table className="w-full text-sm">
-          <thead className="border-b border-gray-100">
-            <tr className="text-left">
-              <th className="px-4 py-3 text-xs font-bold text-gray-400 uppercase tracking-wide">Nombre</th>
-              <th className="px-4 py-3 text-xs font-bold text-gray-400 uppercase tracking-wide">Teléfono</th>
-              <th className="px-4 py-3 text-xs font-bold text-gray-400 uppercase tracking-wide">Deuda</th>
-              <th className="px-4 py-3 text-xs font-bold text-gray-400 uppercase tracking-wide w-20">Activo</th>
-              <th className="px-4 py-3 text-xs font-bold text-gray-400 uppercase tracking-wide w-16">Acciones</th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-gray-50">
-            {isLoading ? (
-              Array.from({ length: 4 }).map((_, i) => (
-                <tr key={i}>
-                  <td colSpan={5} className="px-4 py-3">
-                    <div className="h-5 bg-gray-100 rounded animate-pulse" />
-                  </td>
-                </tr>
-              ))
-            ) : data && data.data.length > 0 ? (
-              data.data.map((c: Cliente) => (
-                <tr key={c.id} className={`hover:bg-gray-50 transition-colors ${!c.isActive ? 'opacity-50' : ''}`}>
-                  <td className="px-4 py-3">
-                    <Link href={`/clientes/${c.id}`} className="font-semibold text-gray-800 hover:text-orange-500">
-                      {c.nombre} {c.apellido}
-                    </Link>
-                    {c.passwordResetRequestedAt && (
-                      <span className="ml-1.5 text-[10px] font-bold text-red-500 align-middle">🔔 Pidió recuperar contraseña</span>
-                    )}
-                    {c.apodo && <p className="text-xs text-gray-400">{c.apodo}</p>}
-                  </td>
-                  <td className="px-4 py-3 text-gray-500">{c.telefono ?? '—'}</td>
-                  <td className={`px-4 py-3 font-bold ${(c.deuda ?? 0) > 0 ? 'text-red-500' : 'text-gray-400'}`}>
-                    {money(c.deuda ?? 0)}
-                  </td>
-                  <td className="px-4 py-3">
-                    <ToggleSwitch
-                      checked={c.isActive}
-                      loading={toggleMutation.isPending && toggleMutation.variables === c.id}
-                      onChange={() => toggleMutation.mutate(c.id)}
-                    />
-                  </td>
-                  <td className="px-4 py-3">
-                    <Link
-                      href={`/clientes/${c.id}/editar`}
-                      className="w-8 h-8 rounded-lg flex items-center justify-center text-gray-400 hover:bg-orange-50 hover:text-orange-500 transition-colors"
-                    >
-                      <PencilSimple size={15} weight="bold" />
-                    </Link>
-                  </td>
-                </tr>
-              ))
-            ) : (
-              <tr>
-                <td colSpan={5} className="px-4 py-8 text-center text-sm text-gray-400 font-medium">
-                  Todavía no hay clientes cargados.
-                </td>
-              </tr>
-            )}
-          </tbody>
-        </table>
-
-        {data && data.meta.totalPages > 1 && (
-          <div className="flex items-center justify-between px-4 py-3 border-t border-gray-100">
-            <p className="text-xs text-gray-400 font-medium">
-              Página {data.meta.page} de {data.meta.totalPages}
-            </p>
-            <div className="flex gap-2">
-              <button
-                onClick={() => setPage((p) => p - 1)}
-                disabled={page === 1}
-                className="px-3 py-1.5 rounded-lg border border-gray-200 text-xs font-semibold text-gray-600 disabled:opacity-40 hover:bg-gray-50 transition-colors"
-              >
-                Anterior
-              </button>
-              <button
-                onClick={() => setPage((p) => p + 1)}
-                disabled={page === data.meta.totalPages}
-                className="px-3 py-1.5 rounded-lg border border-gray-200 text-xs font-semibold text-gray-600 disabled:opacity-40 hover:bg-gray-50 transition-colors"
-              >
-                Siguiente
-              </button>
-            </div>
+      <section aria-label="Clientes" className="overflow-hidden rounded-2xl border border-kr-line bg-white">
+        <div className={`${FILA} hidden border-b border-kr-line bg-kr-paper text-xs font-extrabold uppercase tracking-wide text-kr-muted md:grid`}>
+          <span>Cliente</span>
+          <span>Teléfono</span>
+          <span>Uso del límite</span>
+          <span className="text-right">Deuda</span>
+          <span />
+        </div>
+        {isLoading ? (
+          <div className="flex flex-col gap-3 p-4">
+            {Array.from({ length: 6 }).map((_, i) => <div key={i} className="h-11 animate-pulse rounded-lg bg-kr-sand" />)}
           </div>
+        ) : !data || data.data.length === 0 ? (
+          <p className="px-4 py-10 text-center text-sm font-bold text-kr-muted">
+            {filtro === 'reset'
+              ? 'Nadie está esperando una contraseña nueva.'
+              : search
+              ? `No hay clientes que coincidan con "${search}".`
+              : 'Todavía no hay clientes cargados.'}
+          </p>
+        ) : (
+          <ul>
+            {data.data.map((c: Cliente) => {
+              const deuda = c.deuda ?? 0;
+              return (
+                <li key={c.id} className="border-b border-dashed border-kr-line last:border-b-0">
+                  <Link href={`/clientes/${c.id}`} className={`${FILA} hover:bg-kr-paper`}>
+                    <span className="min-w-0">
+                      <span className={`block font-extrabold leading-snug ${c.isActive ? '' : 'text-kr-muted'}`}>
+                        {c.nombre} {c.apellido}
+                      </span>
+                      <span className="mt-0.5 flex flex-wrap items-center gap-1.5 text-[13px] font-bold text-kr-muted">
+                        {c.apodo && <span>“{c.apodo}”</span>}
+                        <span className="md:hidden">{c.telefono ?? 'Sin teléfono'}</span>
+                        {c.passwordResetRequestedAt && <Chip tone="info">Pidió contraseña</Chip>}
+                        {!c.isActive && <Chip tone="off">Dado de baja</Chip>}
+                      </span>
+                      {Number(c.creditLimit) > 0 && <span className="mt-2 block md:hidden"><BarraLimite deuda={deuda} limite={c.creditLimit} /></span>}
+                    </span>
+                    <span className="hidden text-sm font-bold text-kr-muted md:block">{c.telefono ?? '—'}</span>
+                    <span className="hidden md:block"><BarraLimite deuda={deuda} limite={c.creditLimit} /></span>
+                    <span className={`text-right text-base font-extrabold tabular-nums ${deuda > 0 ? 'text-kr-orange-dark' : 'text-kr-muted'}`}>
+                      {money(deuda)}
+                    </span>
+                    <CaretRight size={18} weight="bold" className="text-kr-muted" />
+                  </Link>
+                </li>
+              );
+            })}
+          </ul>
         )}
-      </div>
-    </div>
+      </section>
+
+      {data && total > LIMIT && (
+        <div className="flex items-center justify-end gap-2.5 text-sm font-extrabold text-kr-muted">
+          <span className="tabular-nums">{desde}–{hasta} de {total.toLocaleString('es-AR')}</span>
+          <button type="button" onClick={() => setPage((p) => p - 1)} disabled={page <= 1} aria-label="Página anterior" className={buttonClasses('secondary', 'md', 'w-11 !px-0')}>
+            <CaretLeft size={18} weight="bold" />
+          </button>
+          <button type="button" onClick={() => setPage((p) => p + 1)} disabled={page >= data.meta.totalPages} aria-label="Página siguiente" className={buttonClasses('secondary', 'md', 'w-11 !px-0')}>
+            <CaretRight size={18} weight="bold" />
+          </button>
+        </div>
+      )}
+    </>
   );
 }
