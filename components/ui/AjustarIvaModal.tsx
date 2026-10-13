@@ -76,21 +76,21 @@ export default function AjustarIvaModal({ distribuidorId, distribuidorNombre, tu
   const sinProductos = !isLoading && (!productos || productos.length === 0);
 
   return (
-    <div className="fixed inset-0 z-50 flex items-start justify-center bg-black/40 px-4 pt-16 sm:pt-24 animate-fadeIn overflow-y-auto pb-8" onClick={onClose}>
+    <div className="fixed inset-0 z-50 flex items-start justify-center bg-kr-navy/50 px-4 pt-16 sm:pt-24 animate-fadeIn overflow-y-auto pb-8" onClick={onClose}>
       <div
-        className="bg-white rounded-2xl shadow-xl w-full max-w-lg flex flex-col max-h-[80vh] animate-slideUp"
+        className="bg-white rounded-2xl border-2 border-kr-navy shadow-pop-lg w-full max-w-lg flex flex-col max-h-[80vh] animate-slideUp"
         onClick={(e) => e.stopPropagation()}
       >
-        <div className="flex items-center justify-between gap-2 p-4 border-b border-gray-100 flex-shrink-0">
+        <div className="flex items-center justify-between gap-2 p-4 border-b border-kr-line flex-shrink-0">
           <div>
-            <p className="text-sm font-bold text-gray-800">
+            <p className="text-sm font-bold text-kr-navy">
               {turningOn ? 'Activar IVA discriminado' : 'Desactivar IVA discriminado'}
             </p>
-            <p className="text-xs text-gray-400">{distribuidorNombre}</p>
+            <p className="text-xs text-kr-muted">{distribuidorNombre}</p>
           </div>
           <button
             onClick={onClose}
-            className="w-7 h-7 flex items-center justify-center rounded-lg text-gray-400 hover:bg-gray-100 hover:text-gray-600 transition-colors flex-shrink-0"
+            className="w-7 h-7 flex items-center justify-center rounded-lg text-kr-muted hover:bg-kr-sand hover:text-kr-navy transition-colors flex-shrink-0"
           >
             <X size={16} weight="bold" />
           </button>
@@ -98,32 +98,32 @@ export default function AjustarIvaModal({ distribuidorId, distribuidorNombre, tu
 
         {resultado ? (
           <>
-            <div className="overflow-y-auto divide-y divide-gray-50">
-              <div className="px-4 py-3 bg-green-50 border-b border-green-100">
-                <p className="text-xs font-bold text-green-700">
+            <div className="overflow-y-auto divide-y divide-kr-line">
+              <div className="px-4 py-3 bg-kr-green-soft border-b border-kr-line">
+                <p className="text-xs font-bold text-kr-green-dark">
                   Se actualizaron {resultado.length} producto{resultado.length !== 1 ? 's' : ''}.
                 </p>
               </div>
               {resultado.map((p) => (
                 <div key={p.id} className="px-4 py-3 flex items-center justify-between gap-3">
-                  <p className="text-sm font-semibold text-gray-700 truncate">{p.title}</p>
+                  <p className="text-sm font-bold text-kr-navy">{p.title}</p>
                   <div className="text-right text-xs flex-shrink-0">
                     {p.costNuevo && (
-                      <p className="text-gray-400">
-                        Costo: {money(p.costAnterior ?? 0)} → <span className="font-bold text-gray-600">{money(p.costNuevo)}</span>
+                      <p className="text-kr-muted">
+                        Costo: {money(p.costAnterior ?? 0)} → <span className="font-bold text-kr-muted">{money(p.costNuevo)}</span>
                       </p>
                     )}
-                    <p className="text-gray-400">
-                      Venta: {money(p.precioAnterior)} → <span className="font-bold text-orange-500">{money(p.precioNuevo)}</span>
+                    <p className="text-kr-muted">
+                      Venta: {money(p.precioAnterior)} → <span className="font-bold text-kr-blue">{money(p.precioNuevo)}</span>
                     </p>
                   </div>
                 </div>
               ))}
             </div>
-            <div className="p-4 border-t border-gray-100 flex-shrink-0">
+            <div className="p-4 border-t border-kr-line flex-shrink-0">
               <button
                 onClick={onClose}
-                className="w-full py-2.5 rounded-xl bg-green-600 hover:bg-green-700 text-white text-sm font-bold transition-colors"
+                className="w-full py-2.5 rounded-xl bg-kr-green text-kr-navy border-2 border-kr-navy text-sm font-bold transition-colors"
               >
                 Listo
               </button>
@@ -131,30 +131,30 @@ export default function AjustarIvaModal({ distribuidorId, distribuidorNombre, tu
           </>
         ) : (
           <>
-            <div className="p-4 border-b border-gray-100 flex-shrink-0 flex flex-col gap-2">
-              <p className="text-xs text-gray-500">
+            <div className="p-4 border-b border-kr-line flex-shrink-0 flex flex-col gap-2">
+              <p className="text-xs text-kr-muted">
                 {turningOn
                   ? 'Los costos que ya cargaste de esta distribuidora no tenían el IVA sumado. Se les va a sumar ahora, y el precio de venta se ajusta en la misma proporción para mantener el margen.'
                   : 'Los costos que ya cargaste de esta distribuidora tenían el IVA sumado de más. Se les va a restar ahora, y el precio de venta se ajusta en la misma proporción para mantener el margen.'}
               </p>
               <div className="flex items-center gap-2">
-                <span className="text-xs font-semibold text-gray-500">Alícuota</span>
+                <span className="text-xs font-bold text-kr-muted">Alícuota</span>
                 <input
                   type="number"
                   step="0.1"
                   value={alicuota}
                   onChange={(e) => setAlicuota(e.target.value)}
-                  className="w-20 border border-gray-200 rounded-xl px-3 py-2 text-sm outline-none focus:border-orange-400 font-medium"
+                  className="w-20 border border-kr-line rounded-xl px-3 py-2 text-sm outline-none focus:border-kr-blue font-bold"
                 />
-                <span className="text-sm font-bold text-gray-400">%</span>
+                <span className="text-sm font-bold text-kr-muted">%</span>
               </div>
             </div>
 
-            <div className="overflow-y-auto divide-y divide-gray-50">
+            <div className="overflow-y-auto divide-y divide-kr-line">
               {isLoading ? (
-                <p className="px-4 py-8 text-center text-sm text-gray-400 font-medium">Cargando productos...</p>
+                <p className="px-4 py-8 text-center text-sm text-kr-muted font-bold">Cargando productos...</p>
               ) : sinProductos ? (
-                <p className="px-4 py-8 text-center text-sm text-gray-400 font-medium">
+                <p className="px-4 py-8 text-center text-sm text-kr-muted font-bold">
                   Todavía no confirmaste ninguna factura de esta distribuidora.
                 </p>
               ) : (
@@ -163,16 +163,16 @@ export default function AjustarIvaModal({ distribuidorId, distribuidorNombre, tu
                   const newPrice = factor ? Number(p.price) * factor : null;
                   return (
                     <div key={p.id} className="flex items-center gap-3 px-4 py-2.5">
-                      <div className="relative w-9 h-9 flex-shrink-0 bg-gray-100 rounded-lg overflow-hidden">
+                      <div className="relative w-9 h-9 flex-shrink-0 bg-kr-sand rounded-lg overflow-hidden">
                         <Image src={p.imageUrl} alt={p.title} fill sizes="36px" className="object-contain p-1" />
                       </div>
                       <div className="min-w-0 flex-1">
-                        <p className="text-sm font-semibold text-gray-700 truncate">{p.title}</p>
+                        <p className="text-sm font-bold text-kr-navy">{p.title}</p>
                       </div>
                       <div className="text-right text-xs flex-shrink-0">
-                        <p className="text-gray-400">
+                        <p className="text-kr-muted">
                           {money(p.price)}
-                          {newPrice !== null && <span className="font-bold text-orange-500"> → {money(newPrice)}</span>}
+                          {newPrice !== null && <span className="font-bold text-kr-blue"> → {money(newPrice)}</span>}
                         </p>
                       </div>
                     </div>
@@ -182,20 +182,20 @@ export default function AjustarIvaModal({ distribuidorId, distribuidorNombre, tu
             </div>
 
             {error && (
-              <p className="px-4 py-2 text-xs text-red-500 font-semibold bg-red-50 flex-shrink-0">{error}</p>
+              <p className="px-4 py-2 text-xs text-kr-orange-dark font-bold bg-[#FFE7D6] flex-shrink-0">{error}</p>
             )}
 
-            <div className="p-4 border-t border-gray-100 flex-shrink-0 flex gap-2">
+            <div className="p-4 border-t border-kr-line flex-shrink-0 flex gap-2">
               <button
                 onClick={onClose}
-                className="flex-1 py-2.5 rounded-xl border border-gray-200 text-sm font-semibold text-gray-600"
+                className="flex-1 py-2.5 rounded-xl border border-kr-line text-sm font-bold text-kr-muted"
               >
                 Cancelar
               </button>
               <button
                 onClick={handleSubmit}
                 disabled={mutation.isPending || isLoading || sinProductos}
-                className="flex-1 py-2.5 rounded-xl bg-orange-500 hover:bg-orange-600 text-white text-sm font-bold transition-colors disabled:opacity-50 flex items-center justify-center gap-1.5"
+                className="flex-1 py-2.5 rounded-xl bg-kr-yellow hover:bg-[#FFD24D] text-kr-navy border-2 border-kr-navy text-sm font-bold transition-colors disabled:opacity-50 flex items-center justify-center gap-1.5"
               >
                 {mutation.isPending ? 'Aplicando...' : (
                   <>

@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { Check, X } from '@phosphor-icons/react';
+import { ArrowDown, ArrowUp, Check, X } from '@phosphor-icons/react';
 import { FacturaItem } from '@/lib/api';
 import { money } from '@/lib/format';
 
@@ -61,24 +61,24 @@ export default function ProductoVinculado({
   return (
     <div className="flex flex-col gap-1 mt-1">
       <div className="flex items-center gap-1.5">
-        <Check size={12} weight="bold" className="text-green-500" />
-        <span className="text-xs text-green-600 font-semibold">{item.product.title}</span>
-        <button onClick={onDesvincular} className="text-gray-300 hover:text-red-500">
+        <Check size={12} weight="bold" className="text-kr-green-dark" />
+        <span className="text-xs text-kr-green-dark font-bold">{item.product.title}</span>
+        <button onClick={onDesvincular} aria-label="Desvincular producto" title="Desvincular" className="text-kr-muted/60 hover:text-kr-orange-dark">
           <X size={12} weight="bold" />
         </button>
       </div>
-      <p className="text-[11px] text-purple-500 font-semibold">
+      <p className="text-[11px] text-kr-blue font-bold">
         PedidosYa (+40% s/precio de catálogo): {money(Number(item.product.price) * 1.4)}
       </p>
       {change && (
         <div className="flex flex-col gap-1">
-          <p className={`text-[11px] font-bold ${subiendo ? 'text-red-500' : 'text-green-600'}`}>
-            {subiendo ? '⬆' : '⬇'} {subiendo ? 'Aumentó' : 'Bajó'} {Math.abs(change.pct).toFixed(1)}%
+          <p className={`flex flex-wrap items-center gap-1 text-xs font-bold ${subiendo ? 'text-kr-orange-dark' : 'text-kr-green-dark'}`}>
+            {subiendo ? <ArrowUp size={13} weight="bold" /> : <ArrowDown size={13} weight="bold" />} {subiendo ? 'Aumentó' : 'Bajó'} {Math.abs(change.pct).toFixed(1)}%
             {' '}respecto a la última factura ({money(change.oldCost)} → {money(change.newCost)})
           </p>
           {subiendo && (
             <div className="flex items-center gap-1.5 flex-wrap">
-              <span className="text-[11px] text-gray-400 font-medium whitespace-nowrap">
+              <span className="text-[11px] text-kr-muted font-bold whitespace-nowrap">
                 Precio de venta actual: {money(item.product.price)}
               </span>
               <input
@@ -92,15 +92,15 @@ export default function ProductoVinculado({
                   const pct = parseFloat(e.target.value);
                   if (!isNaN(pct) && change) setPriceDraft((change.newCost * (1 + pct / 100)).toFixed(2));
                 }}
-                className="w-14 text-[11px] font-semibold border border-gray-200 rounded-lg px-1.5 py-0.5 outline-none focus:border-orange-400"
+                className="w-14 text-[11px] font-bold border border-kr-line rounded-lg px-1.5 py-0.5 outline-none focus:border-kr-blue"
               />
-              <span className="text-[11px] text-gray-400">% →</span>
+              <span className="text-[11px] text-kr-muted">% →</span>
               <input
                 type="number"
                 step="0.01"
                 value={priceDraft ?? item.product.price}
                 onChange={(e) => { setPriceDraft(e.target.value); setPctDraft(null); }}
-                className="w-20 text-[11px] font-semibold border border-gray-200 rounded-lg px-1.5 py-0.5 outline-none focus:border-orange-400"
+                className="w-20 text-[11px] font-bold border border-kr-line rounded-lg px-1.5 py-0.5 outline-none focus:border-kr-blue"
               />
               <button
                 onClick={() => {
@@ -109,7 +109,7 @@ export default function ProductoVinculado({
                   if (!isNaN(newPrice) && newPrice > 0) onActualizarPrecio(newPrice);
                 }}
                 disabled={actualizandoPrecio}
-                className="text-[11px] font-bold text-orange-500 hover:text-orange-600 whitespace-nowrap disabled:opacity-50"
+                className="text-[11px] font-bold text-kr-blue hover:text-kr-navy whitespace-nowrap disabled:opacity-50"
               >
                 Actualizar precio
               </button>
@@ -117,15 +117,15 @@ export default function ProductoVinculado({
                 const priceNum = parseFloat(String(priceDraft ?? item.product.price));
                 if (isNaN(priceNum) || priceNum <= 0) return null;
                 return (
-                  <span className="text-[11px] text-purple-500 font-semibold whitespace-nowrap">
+                  <span className="text-[11px] text-kr-blue font-bold whitespace-nowrap">
                     PedidosYa (+40%): {money(priceNum * 1.4)}
                   </span>
                 );
               })()}
-              {error && <p className="w-full text-[11px] font-semibold text-red-500">{error}</p>}
+              {error && <p className="w-full text-[11px] font-bold text-kr-orange-dark">{error}</p>}
               {!error && precioActualizado !== undefined && (
-                <p className="w-full text-[11px] font-semibold text-green-600">
-                  ✓ Precio actualizado a {money(precioActualizado)}
+                <p className="w-full text-[11px] font-bold text-kr-green-dark">
+                  Precio actualizado a {money(precioActualizado)}
                 </p>
               )}
             </div>

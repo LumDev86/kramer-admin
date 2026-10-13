@@ -1,51 +1,54 @@
 'use client';
 
-import { useEffect, useState } from 'react';
-import { useParams } from 'next/navigation';
+import { useState } from 'react';
+import { useParams, useRouter } from 'next/navigation';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import Link from 'next/link';
-import Image from 'next/image';
-import { distribuidores, facturas, products, categories, Factura } from '@/lib/api';
-import { CaretLeft, Warning, TrendUp, Plus } from '@phosphor-icons/react';
-import ConfirmModal from '@/components/ui/ConfirmModal';
-import ImageLightbox from '@/components/ui/ImageLightbox';
-import AplicarAumentoModal from '@/components/ui/AplicarAumentoModal';
+import { CaretRight, Camera, NotePencil, SpinnerGap, Warning } from '@phosphor-icons/react';
+import { distribuidores, facturas, Factura } from '@/lib/api';
 import { money } from '@/lib/format';
-import SubirFacturaCard from '@/components/distribuidoras/SubirFacturaCard';
-import FacturaItemRow from '@/components/distribuidoras/FacturaItemRow';
-import AgregarLineaManual from '@/components/distribuidoras/AgregarLineaManual';
-import AgregarProductoAFactura from '@/components/distribuidoras/AgregarProductoAFactura';
-import FacturaManualItemsTable from '@/components/distribuidoras/FacturaManualItemsTable';
-import HistorialFacturas from '@/components/distribuidoras/HistorialFacturas';
+import PageHeader from '@/components/ui/PageHeader';
+import Segmented from '@/components/ui/Segmented';
+import Chip from '@/components/ui/Chip';
+import { buttonClasses } from '@/components/ui/Button';
+import { useToast } from '@/components/ui/Toast';
+import AplicarAumentoModal from '@/components/ui/AplicarAumentoModal';
 import ProductosDistribuidora from '@/components/distribuidoras/ProductosDistribuidora';
+import NuevaCompraMenu from '@/components/distribuidoras/NuevaCompraMenu';
+import CompraSueltaModal from '@/components/distribuidoras/CompraSueltaModal';
+import { FACTURA_STATUS_LABEL, FACTURA_STATUS_TONE, facturaHref, fechaCorta, fechaGasto } from '@/components/distribuidoras/facturaUtils';
+import { haceCuanto, minutosDesde } from '@/components/pedidos/pedidoUtils';
+import { useF10 } from '@/lib/useF10';
+
+type Tab = 'facturas' | 'productos';
 
 export default function DistribuidoraDetallePage() {
   const { id } = useParams() as { id: string };
+  const router = useRouter();
   const qc = useQueryClient();
+  const toast = useToast();
 
-  const [tab, setTab] = useState<'facturas' | 'productos'>('facturas');
-  const [activeFacturaId, setActiveFacturaId] = useState<string | null>(null);
-  const [uploadError, setUploadError] = useState('');
-  const [lightboxUrl, setLightboxUrl] = useState<string | null>(null);
-  const [revealCount, setRevealCount] = useState(Infinity);
-  const [toCancel, setToCancel] = useState<Factura | null>(null);
-  const [showAumentoModal, setShowAumentoModal] = useState(false);
-  const [priceUpdateError, setPriceUpdateError] = useState<{ productId: string; message: string } | null>(null);
-  // sin esto, actualizar el precio no daba ningún indicio visible de éxito más allá de un
-  // texto chico ("Precio de venta actual") que es fácil de no notar - si el navegador
-  // descargó la pestaña en segundo plano y el usuario volvió horas después con el input ya
-  // reseteado a su valor por defecto, el click igual "funcionaba" pero grababa el mismo precio
-  // de siempre, y sin este aviso quedaba indistinguible de un click que no hizo nada
-  const [priceUpdateSuccess, setPriceUpdateSuccess] = useState<{ productId: string; price: number } | null>(null);
+  const [tab, setTab] = useState<Tab>('facturas');
+  const [showAumento, setShowAumento] = useState(false);
+  const [showSuelto, setShowSuelto] = useState(false);
 
-  const { data, isLoading } = useQuery({
+  // F10 = producto suelto, igual que "buscar producto" en Ventas
+  useF10(() => setShowSuelto((o) => !o));
+
+  const { data, isLoading, error } = useQuery({
     queryKey: ['distribuidor', id],
     queryFn: () => distribuidores.getById(id),
   });
 
+  const { data: productos } = useQuery({
+    queryKey: ['distribuidor', id, 'productos'],
+    queryFn: () => distribuidores.getProductos(id),
+  });
+
   const invalidate = () => {
     qc.invalidateQueries({ queryKey: ['distribuidor', id] });
-    qc.invalidateQueries({ queryKey: ['factura', 'suggestions'] });
+    qc.invalidateQueries({ queryKey: ['distribuidores'] });
+    qc.invalidateQueries({ queryKey: ['products'] });
   };
 
   const uploadMutation = useMutation({
@@ -56,382 +59,204 @@ export default function DistribuidoraDetallePage() {
     },
     onSuccess: (factura) => {
       invalidate();
-      setActiveFacturaId(factura.id);
-      setUploadError('');
-      setRevealCount(0);
+      // ?leyendo=1: el editor muestra los productos apareciendo de a uno
+      router.push(`${facturaHref(id, factura.id)}?leyendo=1`);
     },
-    onError: (err: any) => setUploadError(err.message ?? 'Error al procesar la factura'),
+    onError: (err: any) => toast.show(err.message ?? 'No se pudo leer la factura', 'error'),
   });
 
-  const iniciarManualMutation = useMutation({
+  const manualMutation = useMutation({
     mutationFn: () => facturas.iniciarManual(id),
     onSuccess: (factura) => {
       invalidate();
-      setActiveFacturaId(factura.id);
-      setRevealCount(Infinity);
+      router.push(facturaHref(id, factura.id));
     },
+    onError: (err: any) => toast.show(err.message ?? 'No se pudo crear la factura', 'error'),
   });
-
-  const updateItemMutation = useMutation({
-    mutationFn: ({ facturaId, itemId, data: itemData }: { facturaId: string; itemId: string; data: any }) =>
-      facturas.updateItem(facturaId, itemId, itemData),
-    onSuccess: invalidate,
-  });
-
-  const removeItemMutation = useMutation({
-    mutationFn: ({ facturaId, itemId }: { facturaId: string; itemId: string }) =>
-      facturas.removeItem(facturaId, itemId),
-    onSuccess: invalidate,
-  });
-
-  const updateProductPriceMutation = useMutation({
-    mutationFn: ({ productId, price }: { productId: string; price: number }) => {
-      const form = new FormData();
-      form.append('price', String(price));
-      return products.update(productId, form);
-    },
-    onSuccess: (_data, { productId, price }) => {
-      invalidate();
-      qc.invalidateQueries({ queryKey: ['products'] });
-      setPriceUpdateError(null);
-      setPriceUpdateSuccess({ productId, price });
-    },
-    // sin esto, un fallo (red, sesión vencida, server caído) dejaba el click sin ningún efecto
-    // visible - el botón "no hacía nada" en vez de avisar qué pasó
-    onError: (err: any, { productId }) => {
-      setPriceUpdateSuccess(null);
-      setPriceUpdateError({ productId, message: err.message ?? 'No se pudo actualizar el precio' });
-    },
-  });
-
-  const confirmMutation = useMutation({
-    mutationFn: (facturaId: string) => facturas.confirm(facturaId),
-    onSuccess: () => {
-      invalidate();
-      setActiveFacturaId(null);
-    },
-  });
-
-  const cancelMutation = useMutation({
-    mutationFn: (facturaId: string) => facturas.cancel(facturaId),
-    onSuccess: () => {
-      invalidate();
-      setToCancel(null);
-      setActiveFacturaId(null);
-    },
-  });
-
-  const { data: suggestions } = useQuery({
-    queryKey: ['factura', 'suggestions', activeFacturaId],
-    queryFn: () => facturas.getSuggestions(activeFacturaId!),
-    enabled: !!activeFacturaId,
-  });
-
-  const { data: catsData } = useQuery({
-    queryKey: ['categories', { parentId: 'null', limit: 100 }],
-    queryFn: () => categories.getAll({ parentId: 'null', limit: 100 }),
-  });
-
-  const activeFacturaItemCount = data?.facturas.find((f) => f.id === activeFacturaId)?.items.length ?? 0;
-
-  useEffect(() => {
-    if (revealCount >= activeFacturaItemCount) return;
-    const timer = setTimeout(() => setRevealCount((c) => c + 1), 220);
-    return () => clearTimeout(timer);
-  }, [revealCount, activeFacturaItemCount]);
 
   if (isLoading) {
-    return <div className="w-8 h-8 border-4 border-orange-500 border-t-transparent rounded-full animate-spin" />;
+    return (
+      <>
+        <div className="h-16 w-72 animate-pulse rounded-2xl bg-white" />
+        <div className="grid gap-3 sm:grid-cols-3">
+          {Array.from({ length: 3 }).map((_, i) => <div key={i} className="h-24 animate-pulse rounded-2xl bg-white" />)}
+        </div>
+        <div className="h-72 animate-pulse rounded-2xl bg-white" />
+      </>
+    );
   }
 
-  if (!data) return null;
+  if (!data) {
+    return (
+      <p className="rounded-2xl border border-kr-line bg-white px-4 py-10 text-center text-sm font-bold text-kr-muted">
+        No se pudo cargar la distribuidora{error ? `: ${(error as Error).message}` : '.'}{' '}
+        <Link href="/distribuidoras" className="text-kr-blue underline">Volver</Link>
+      </p>
+    );
+  }
 
-  const totalGastado = data.facturas
-    .filter((f) => f.status === 'CONFIRMED')
-    .reduce((sum, f) => sum + Number(f.total), 0);
-
+  const confirmadas = data.facturas.filter((f) => f.status === 'CONFIRMED');
   const pendientes = data.facturas.filter((f) => f.status === 'PENDING_REVIEW');
-  const historial = data.facturas.filter((f) => f.status !== 'PENDING_REVIEW');
-  const activeFactura = data.facturas.find((f) => f.id === activeFacturaId) ?? null;
-  const unresolvedCount = activeFactura ? activeFactura.items.filter((i) => !i.productId).length : 0;
+  const historial = data.facturas
+    .filter((f) => f.status !== 'PENDING_REVIEW')
+    .sort((a, b) => fechaGasto(b).localeCompare(fechaGasto(a)));
+
+  const ahora = new Date();
+  const delMes = confirmadas.filter((f) => {
+    const d = new Date(fechaGasto(f));
+    return d.getMonth() === ahora.getMonth() && d.getFullYear() === ahora.getFullYear();
+  });
+  const gastadoMes = delMes.reduce((s, f) => s + Number(f.total), 0);
+  const totalHistorico = confirmadas.reduce((s, f) => s + Number(f.total), 0);
+  const porFecha = [...confirmadas].sort((a, b) => fechaGasto(a).localeCompare(fechaGasto(b)));
+  const primera = porFecha[0];
+  const ultima = porFecha[porFecha.length - 1];
+
+  const ocupado = uploadMutation.isPending || manualMutation.isPending;
 
   return (
-    <div className="flex flex-col gap-6">
-      <div className="flex items-center gap-3 flex-wrap">
-        <Link href="/distribuidoras" className="text-gray-400 hover:text-gray-600 transition-colors">
-          <CaretLeft size={20} weight="bold" />
-        </Link>
-        <div className="flex-1 min-w-0">
-          <h1 className="text-2xl font-extrabold text-gray-800 truncate">{data.nombre}</h1>
-          <p className="text-sm text-gray-400 font-medium mt-0.5">{data.telefono ?? 'Sin teléfono'}</p>
+    <>
+      <PageHeader
+        back={{ href: '/distribuidoras', label: 'Distribuidoras' }}
+        title={data.nombre}
+        subtitle={[data.telefono ?? 'Sin teléfono', data.ivaDiscriminado ? 'IVA discriminado' : 'Precios con IVA incluido'].join(' · ')}
+        actions={
+          <>
+            <Link href={`/distribuidoras/${id}/editar`} className={buttonClasses('secondary', 'md')}>
+              Editar
+            </Link>
+            <NuevaCompraMenu
+              disabled={ocupado}
+              onEscanear={(f) => uploadMutation.mutate(f)}
+              onManual={() => manualMutation.mutate()}
+              onSuelto={() => setShowSuelto(true)}
+            />
+          </>
+        }
+      />
+
+      {ocupado && (
+        <div role="status" className="flex items-center gap-3 rounded-2xl border-2 border-kr-navy bg-kr-yellow-soft px-4 py-3 font-extrabold animate-fadeIn">
+          <SpinnerGap size={22} className="flex-shrink-0 animate-spin" />
+          {uploadMutation.isPending ? 'La IA está leyendo la factura, puede tardar unos segundos…' : 'Creando la factura…'}
         </div>
-        <div className="text-right">
-          <p className="text-xs font-bold text-gray-400 uppercase tracking-wide">Total gastado</p>
-          <p className="text-2xl font-extrabold text-orange-500">{money(totalGastado)}</p>
-        </div>
-        <button
-          onClick={() => setShowAumentoModal(true)}
-          className="flex items-center gap-2 border border-gray-200 text-gray-600 hover:bg-gray-50 font-bold px-4 py-2.5 rounded-xl text-sm transition-colors"
-        >
-          <TrendUp size={16} weight="bold" />
-          Aplicar aumento
-        </button>
+      )}
+
+      <div className="grid grid-cols-2 gap-3 lg:grid-cols-3">
+        <Stat label="Gastado este mes" value={money(gastadoMes)} sub={`${delMes.length} ${delMes.length === 1 ? 'factura' : 'facturas'}`} />
+        <Stat
+          label="Total histórico"
+          value={money(totalHistorico)}
+          sub={primera ? `desde ${new Date(fechaGasto(primera)).toLocaleDateString('es-AR', { month: 'long', year: 'numeric' })}` : 'sin compras todavía'}
+        />
+        <Stat
+          className="col-span-2 lg:col-span-1"
+          label="Última factura"
+          value={ultima ? money(ultima.total) : '—'}
+          sub={ultima ? `${fechaCorta(fechaGasto(ultima))} · ${haceCuanto(minutosDesde(fechaGasto(ultima), ahora.getTime()))}` : 'sin compras todavía'}
+        />
       </div>
 
-      <div className="flex gap-2 border-b border-gray-200">
-        <button
-          onClick={() => setTab('facturas')}
-          className={`px-4 py-2.5 text-sm font-bold border-b-2 -mb-px transition-colors ${
-            tab === 'facturas' ? 'border-orange-500 text-orange-500' : 'border-transparent text-gray-400 hover:text-gray-600'
-          }`}
-        >
-          Facturas
-        </button>
-        <button
-          onClick={() => setTab('productos')}
-          className={`px-4 py-2.5 text-sm font-bold border-b-2 -mb-px transition-colors ${
-            tab === 'productos' ? 'border-orange-500 text-orange-500' : 'border-transparent text-gray-400 hover:text-gray-600'
-          }`}
-        >
-          Productos
-        </button>
-      </div>
+      {pendientes.map((f) => (
+        <div key={f.id} className="flex flex-wrap items-center gap-3 rounded-2xl border-2 border-kr-navy bg-kr-yellow-soft px-4 py-3">
+          <Warning size={22} weight="fill" className="flex-shrink-0 text-kr-orange-dark" />
+          <span className="min-w-[180px] flex-1 font-extrabold">
+            Factura sin confirmar · {fechaCorta(f.createdAt)} · {f.items.length} {f.items.length === 1 ? 'producto' : 'productos'}
+            {f.imageUrl ? ' · escaneada' : ''}
+          </span>
+          <Link href={facturaHref(id, f.id)} className={buttonClasses('secondary', 'md', '!bg-white !border-kr-navy')}>
+            Seguir cargando
+          </Link>
+        </div>
+      ))}
 
-      {tab === 'productos' && (
-        <ProductosDistribuidora
+      <Segmented<Tab>
+        ariaLabel="Secciones de la distribuidora"
+        className="self-start"
+        value={tab}
+        onChange={setTab}
+        options={[
+          { value: 'facturas', label: 'Facturas', count: historial.length },
+          { value: 'productos', label: 'Productos', count: productos?.length },
+        ]}
+      />
+
+      {tab === 'facturas' && <HistorialFacturas distribuidorId={id} facturas={historial} />}
+
+      {tab === 'productos' && <ProductosDistribuidora distribuidorId={id} onAplicarAumento={() => setShowAumento(true)} />}
+
+      {showSuelto && (
+        <CompraSueltaModal
           distribuidorId={id}
           distribuidorNombre={data.nombre}
-          ivaDiscriminado={data.ivaDiscriminado}
+          onClose={() => setShowSuelto(false)}
+          onRegistrada={invalidate}
         />
       )}
 
-      {tab === 'facturas' && (
-        <>
-          <SubirFacturaCard
-            onUpload={(file) => uploadMutation.mutate(file)}
-            uploading={uploadMutation.isPending}
-            error={uploadError}
-          />
-
-          {!activeFactura && (
-            <button
-              onClick={() => iniciarManualMutation.mutate()}
-              disabled={iniciarManualMutation.isPending}
-              className="flex items-center gap-2 self-start border border-gray-200 text-gray-600 hover:bg-gray-50 font-bold px-4 py-2.5 rounded-xl text-sm transition-colors disabled:opacity-50"
-            >
-              <Plus size={16} weight="bold" />
-              {iniciarManualMutation.isPending ? 'Creando...' : 'Crear factura manual (sin escanear)'}
-            </button>
-          )}
-
-          {pendientes.length > 0 && !activeFactura && (
-            <div className="bg-white rounded-2xl shadow-sm p-5 flex flex-col gap-2">
-              <p className="text-sm font-bold text-gray-700">Facturas pendientes de revisión</p>
-              <div className="flex flex-wrap gap-2">
-                {pendientes.map((f) => (
-                  <button
-                    key={f.id}
-                    onClick={() => { setActiveFacturaId(f.id); setRevealCount(Infinity); }}
-                    className="flex items-center gap-2 px-3 py-2 rounded-xl border border-orange-200 bg-orange-50 text-orange-600 text-xs font-bold"
-                  >
-                    {money(f.total)} · {f.items.length} ítems
-                  </button>
-                ))}
-              </div>
-            </div>
-          )}
-
-          {activeFactura && (
-        <div className={activeFactura.imageUrl ? 'grid grid-cols-1 lg:grid-cols-[280px_1fr] gap-6' : 'flex flex-col gap-6'}>
-          {activeFactura.imageUrl && (
-            <div className="bg-white rounded-2xl shadow-sm p-3">
-              <div className="relative w-full aspect-[3/4] rounded-xl overflow-hidden bg-gray-100">
-                <button
-                  type="button"
-                  onClick={() => setLightboxUrl(activeFactura.imageUrl)}
-                  className="absolute inset-0 cursor-zoom-in"
-                  title="Ver imagen ampliada"
-                >
-                  <Image src={activeFactura.imageUrl} alt="Factura" fill sizes="280px" className="object-contain" />
-                </button>
-              </div>
-            </div>
-          )}
-
-          <div className="flex flex-col gap-4">
-            {activeFactura.extractionError && (
-              <div className="flex items-center gap-2 bg-amber-50 border border-amber-200 rounded-xl px-4 py-3 text-xs text-amber-700 font-semibold">
-                <Warning size={16} weight="fill" />
-                No se pudo leer la factura automáticamente ({activeFactura.extractionError}). Cargá los productos a mano.
-              </div>
-            )}
-
-            <div className="bg-white rounded-2xl shadow-sm overflow-hidden">
-            {activeFactura.imageUrl ? (
-              <div className="overflow-x-auto">
-                <table className="w-full text-sm">
-                  <thead className="border-b border-gray-100">
-                    <tr className="text-left">
-                      <th className="px-4 py-3 text-xs font-bold text-gray-400 uppercase tracking-wide">Producto</th>
-                      <th className="px-4 py-3 text-xs font-bold text-gray-400 uppercase tracking-wide w-24">Cant.</th>
-                      <th className="px-4 py-3 text-xs font-bold text-gray-400 uppercase tracking-wide w-28">P. Unitario</th>
-                      <th className="px-4 py-3 text-xs font-bold text-gray-400 uppercase tracking-wide w-28">Subtotal</th>
-                      <th className="px-4 py-3 w-10" />
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-gray-50">
-                    {activeFactura.items.length === 0 ? (
-                      <tr>
-                        <td colSpan={5} className="px-4 py-8 text-center text-sm text-gray-400 font-medium">
-                          Sin productos todavía.
-                        </td>
-                      </tr>
-                    ) : (
-                      activeFactura.items.slice(0, revealCount).map((item) => (
-                        <FacturaItemRow
-                          key={item.id}
-                          item={item}
-                          facturaId={activeFactura.id}
-                          suggestions={suggestions?.[item.id] ?? []}
-                          categories={catsData?.data ?? []}
-                          categoriesLoading={!catsData}
-                          onUpdate={(itemData) =>
-                            updateItemMutation.mutate({ facturaId: activeFactura.id, itemId: item.id, data: itemData })
-                          }
-                          onRemove={() => removeItemMutation.mutate({ facturaId: activeFactura.id, itemId: item.id })}
-                          onVincular={(product, precio) => {
-                            updateItemMutation.mutate({
-                              facturaId: activeFactura.id,
-                              itemId: item.id,
-                              data: { productId: product.id },
-                            });
-                            const newPrice = parseFloat(precio);
-                            if (!isNaN(newPrice) && newPrice > 0 && newPrice !== Number(product.price)) {
-                              updateProductPriceMutation.mutate({ productId: product.id, price: newPrice });
-                            }
-                          }}
-                          onActualizarPrecioProducto={(productId, price) =>
-                            updateProductPriceMutation.mutate({ productId, price })
-                          }
-                          actualizandoPrecio={updateProductPriceMutation.isPending}
-                          errorActualizarPrecio={
-                            item.product && priceUpdateError?.productId === item.product.id
-                              ? priceUpdateError.message
-                              : undefined
-                          }
-                          precioActualizado={
-                            item.product && priceUpdateSuccess?.productId === item.product.id
-                              ? priceUpdateSuccess.price
-                              : undefined
-                          }
-                          onProductCreated={invalidate}
-                        />
-                      ))
-                    )}
-                    {revealCount < activeFactura.items.length && (
-                      <tr>
-                        <td colSpan={5} className="px-4 py-3 animate-fadeIn">
-                          <div className="flex items-center gap-2">
-                            <div className="w-3.5 h-3.5 border-2 border-orange-400 border-t-transparent rounded-full animate-spin flex-shrink-0" />
-                            <span className="text-xs text-orange-500 font-semibold">
-                              Detectando productos... ({revealCount}/{activeFactura.items.length})
-                            </span>
-                          </div>
-                        </td>
-                      </tr>
-                    )}
-                  </tbody>
-                </table>
-              </div>
-            ) : (
-              <FacturaManualItemsTable
-                facturaId={activeFactura.id}
-                items={activeFactura.items}
-                onChanged={invalidate}
-                ivaDiscriminado={data.ivaDiscriminado}
-              />
-            )}
-
-              <div className="p-4 border-t border-gray-100">
-                {activeFactura.imageUrl ? (
-                  <AgregarLineaManual facturaId={activeFactura.id} onAdded={invalidate} />
-                ) : (
-                  <AgregarProductoAFactura
-                    facturaId={activeFactura.id}
-                    distribuidorId={id}
-                    categories={catsData?.data ?? []}
-                    categoriesLoading={!catsData}
-                    onAdded={invalidate}
-                  />
-                )}
-              </div>
-            </div>
-
-            <div className="flex items-center justify-between bg-white rounded-2xl shadow-sm p-5">
-              <div>
-                <p className="text-xs font-bold text-gray-400 uppercase tracking-wide">Total de la factura</p>
-                <p className="text-xl font-extrabold text-gray-800">{money(activeFactura.total)}</p>
-                {unresolvedCount > 0 && (
-                  <p className="text-xs text-amber-600 font-semibold mt-1">
-                    Quedan {unresolvedCount} producto{unresolvedCount > 1 ? 's' : ''} sin resolver
-                  </p>
-                )}
-              </div>
-              <div className="flex gap-3">
-                <button
-                  onClick={() => setToCancel(activeFactura)}
-                  className="py-2.5 px-4 rounded-xl border border-gray-200 text-sm font-semibold text-gray-600 hover:bg-gray-50"
-                >
-                  Cancelar factura
-                </button>
-                <button
-                  onClick={() => confirmMutation.mutate(activeFactura.id)}
-                  disabled={activeFactura.items.length === 0 || unresolvedCount > 0 || confirmMutation.isPending}
-                  className="py-2.5 px-6 rounded-xl bg-green-600 hover:bg-green-700 text-white text-sm font-extrabold transition-colors disabled:opacity-50"
-                >
-                  {confirmMutation.isPending ? 'Confirmando...' : 'Confirmar factura'}
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
-
-          <HistorialFacturas
-            facturas={historial}
-            onViewImage={setLightboxUrl}
-            distribuidorId={id}
-            distribuidorNombre={data.nombre}
-            ivaDiscriminado={data.ivaDiscriminado}
-            categories={catsData?.data ?? []}
-            categoriesLoading={!catsData}
-            onChanged={invalidate}
-          />
-        </>
-      )}
-
-      {toCancel && (
-        <ConfirmModal
-          message="¿Cancelar esta factura? Se pierden los productos cargados."
-          loading={cancelMutation.isPending}
-          onConfirm={() => cancelMutation.mutate(toCancel.id)}
-          onCancel={() => setToCancel(null)}
-        />
-      )}
-
-      {lightboxUrl && <ImageLightbox imageUrl={lightboxUrl} alt="Factura" onClose={() => setLightboxUrl(null)} />}
-
-      {showAumentoModal && (
+      {showAumento && (
         <AplicarAumentoModal
           distribuidorId={id}
           distribuidorNombre={data.nombre}
-          onClose={() => setShowAumentoModal(false)}
-          onApplied={() => {
-            invalidate();
-            qc.invalidateQueries({ queryKey: ['products'] });
-          }}
+          onClose={() => setShowAumento(false)}
+          onApplied={invalidate}
         />
       )}
+    </>
+  );
+}
+
+function Stat({ label, value, sub, className = '' }: { label: string; value: string; sub: string; className?: string }) {
+  return (
+    <div className={`flex min-w-0 flex-col gap-0.5 rounded-2xl border border-kr-line bg-white px-4 py-3 ${className}`}>
+      <span className="text-xs font-extrabold uppercase tracking-wide text-kr-muted">{label}</span>
+      <span className="font-display text-xl leading-tight tabular-nums text-kr-navy [overflow-wrap:anywhere] sm:text-2xl">{value}</span>
+      <span className="text-[13px] font-bold text-kr-muted">{sub}</span>
     </div>
+  );
+}
+
+const FILA_FACTURA =
+  'grid items-center gap-x-3 gap-y-1 px-3 py-3 grid-cols-[minmax(0,1fr)_auto_20px] md:px-4 md:grid-cols-[96px_minmax(0,1fr)_96px_128px_120px_20px]';
+
+function HistorialFacturas({ distribuidorId, facturas: lista }: { distribuidorId: string; facturas: Factura[] }) {
+  return (
+    <section aria-label="Historial de facturas" className="overflow-hidden rounded-2xl border border-kr-line bg-white">
+      <div className={`${FILA_FACTURA} hidden border-b border-kr-line bg-kr-paper text-xs font-extrabold uppercase tracking-wide text-kr-muted md:grid`}>
+        <span>Fecha</span>
+        <span>Origen</span>
+        <span className="text-right">Productos</span>
+        <span className="text-right">Total</span>
+        <span>Estado</span>
+        <span />
+      </div>
+      {lista.length === 0 ? (
+        <p className="px-4 py-10 text-center text-sm font-bold text-kr-muted">Todavía no hay facturas confirmadas.</p>
+      ) : (
+        <ul>
+          {lista.map((f) => (
+            <li key={f.id} className="border-b border-dashed border-kr-line last:border-b-0">
+              <Link href={facturaHref(distribuidorId, f.id)} className={`${FILA_FACTURA} hover:bg-kr-paper`}>
+                {/* celular: fecha + origen arriba, productos abajo; total y estado a la derecha */}
+                <span className="flex min-w-0 flex-col md:contents">
+                  <span className="font-extrabold tabular-nums">{fechaCorta(fechaGasto(f))}</span>
+                  <span className="flex items-center gap-1.5 text-[13px] font-bold text-kr-muted md:text-sm">
+                    {f.imageUrl ? <Camera size={16} weight="bold" /> : <NotePencil size={16} weight="bold" />}
+                    {f.imageUrl ? 'Escaneada' : 'A mano'}
+                    <span className="md:hidden">· {f.items.length} {f.items.length === 1 ? 'producto' : 'productos'}</span>
+                  </span>
+                  <span className="hidden text-right font-bold tabular-nums text-kr-muted md:block">{f.items.length}</span>
+                </span>
+                <span className="flex flex-col items-end gap-1 md:contents">
+                  <span className="text-right font-extrabold tabular-nums">{money(f.total)}</span>
+                  <span><Chip tone={FACTURA_STATUS_TONE[f.status]}>{FACTURA_STATUS_LABEL[f.status]}</Chip></span>
+                </span>
+                <CaretRight size={18} weight="bold" className="text-kr-muted" />
+              </Link>
+            </li>
+          ))}
+        </ul>
+      )}
+    </section>
   );
 }

@@ -4,7 +4,11 @@ import { useState } from 'react';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import Image from 'next/image';
 import { facturas, products, FacturaItem } from '@/lib/api';
-import { Trash } from '@phosphor-icons/react';
+import { X } from '@phosphor-icons/react';
+import ToggleSwitch from '@/components/ui/ToggleSwitch';
+import { buttonClasses } from '@/components/ui/Button';
+import { PEDIDOSYA_RECARGO } from '@/components/productos/precio';
+import { celdaInput, celdaLabel } from './estilos';
 import { money } from '@/lib/format';
 
 interface Props {
@@ -17,7 +21,7 @@ interface Props {
   // una factura cancelada queda de solo lectura (el backend rechaza cualquier edición)
   readOnly?: boolean;
   // si la distribuidora discrimina IVA aparte del precio neto (ver Distribuidor.ivaDiscriminado)
-  // - acá no hay IA leyendo la factura, así que se ofrece una calculadora manual (📦 ya existe
+  // - acá no hay IA leyendo la factura, así que se ofrece una calculadora manual (ya existe
   // para bultos, esta es la misma idea para IVA) en vez de aplicarlo solo
   ivaDiscriminado?: boolean;
 }
@@ -166,392 +170,429 @@ export default function FacturaManualItemsTable({
   }, 0);
   const totalConIva = items.reduce((sum, item) => sum + Number(item.subtotal), 0);
 
+  // con IVA hay tres columnas más: la fila entera recién entra en pantallas muy anchas (2xl);
+  // antes de eso cada producto se muestra como tarjeta con los campos rotulados
+  const L = ivaFacturaOn ? LAYOUT.iva : LAYOUT.normal;
+  const busy = readOnly || updateItemMutation.isPending || updateProductMutation.isPending;
+
   return (
-    <div className="flex flex-col gap-2">
+    <div className="flex flex-col">
       {ivaDiscriminado && !readOnly && (
-        <div className="flex items-center gap-3 bg-purple-50 rounded-xl px-3 py-2 mb-1">
-          <button
-            type="button"
-            role="switch"
-            aria-checked={ivaFacturaOn}
-            onClick={() => setIvaFacturaOn((v) => !v)}
-            className={`relative w-9 h-5 rounded-full flex-shrink-0 transition-colors ${ivaFacturaOn ? 'bg-purple-500' : 'bg-gray-300'}`}
-          >
-            <span
-              className={`absolute top-0.5 left-0.5 w-4 h-4 rounded-full bg-white transition-transform ${ivaFacturaOn ? 'translate-x-4' : ''}`}
-            />
-          </button>
-          <span className="text-sm font-bold text-purple-700">Aplicar IVA a esta factura</span>
+        <div className="flex flex-wrap items-center gap-x-3 gap-y-2 border-b border-kr-line bg-kr-blue-soft px-3 py-2.5 md:px-4">
+          <ToggleSwitch
+            label="Cargar costos sin IVA en esta factura"
+            checked={ivaFacturaOn}
+            onChange={() => setIvaFacturaOn((v) => !v)}
+          />
+          <span className="text-sm font-extrabold text-kr-navy">Cargar costos sin IVA (neto)</span>
           {ivaFacturaOn && (
-            <div className="flex items-center gap-1.5">
-              <span className="text-sm text-purple-500 font-medium">Alícuota general:</span>
+            <label className="flex items-center gap-1.5 text-sm font-bold text-kr-muted">
+              Alícuota general
               <input
                 type="number"
                 step="0.1"
                 min="0"
                 value={ivaFacturaPct}
                 onChange={(e) => setIvaFacturaPct(e.target.value)}
-                className="w-16 border border-purple-200 rounded-lg px-2 py-1.5 text-base outline-none focus:border-purple-400 font-semibold"
+                className={`${celdaInput} !w-16 text-right`}
               />
-              <span className="text-sm text-purple-500 font-medium">%</span>
-            </div>
+              %
+            </label>
           )}
+          <span className="basis-full text-xs font-bold text-kr-muted">
+            {ivaFacturaOn
+              ? 'Tipeá el costo como figura en la factura; se guarda con el IVA sumado.'
+              : 'Esta distribuidora discrimina IVA: prendelo para tipear los costos netos.'}
+          </span>
         </div>
       )}
-      <div className="overflow-x-auto">
-        <table className="w-full text-sm">
-          <thead className="border-b border-gray-100">
-            <tr className="text-left">
-              <th className="px-2.5 py-2.5 text-xs font-bold text-gray-400 uppercase tracking-wide">Producto</th>
-              <th className="px-2.5 py-2.5 text-xs font-bold text-gray-400 uppercase tracking-wide w-14">Cant.</th>
-              <th className="px-2.5 py-2.5 text-xs font-bold text-gray-400 uppercase tracking-wide w-20">
-                {ivaFacturaOn ? 'Costo (neto)' : 'Costo'}
-              </th>
-              {ivaFacturaOn && (
-                <>
-                  <th className="px-2.5 py-2.5 text-xs font-bold text-purple-400 uppercase tracking-wide w-14">IVA %</th>
-                  <th className="px-2.5 py-2.5 text-xs font-bold text-purple-400 uppercase tracking-wide w-20">Costo c/IVA</th>
-                </>
-              )}
-              <th className="px-2.5 py-2.5 text-xs font-bold text-gray-400 uppercase tracking-wide w-20">Precio</th>
-              <th className="px-2.5 py-2.5 text-xs font-bold text-purple-400 uppercase tracking-wide w-20">PedidosYa</th>
-              <th className="px-2.5 py-2.5 text-xs font-bold text-gray-400 uppercase tracking-wide w-16">Ganan.</th>
-              <th className="px-2.5 py-2.5 text-xs font-bold text-gray-400 uppercase tracking-wide w-24">Cód. art.</th>
-              <th className="px-2.5 py-2.5 text-xs font-bold text-gray-400 uppercase tracking-wide w-20">
-                {ivaFacturaOn ? 'Subtot. (neto)' : 'Subtotal'}
-              </th>
-              {ivaFacturaOn && (
-                <th className="px-2.5 py-2.5 text-xs font-bold text-purple-400 uppercase tracking-wide w-20">Subtot. c/IVA</th>
-              )}
-              <th className="px-2.5 py-2.5 w-8" />
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-gray-50">
-            {items.length === 0 ? (
-              <tr>
-                <td colSpan={ivaFacturaOn ? 12 : 9} className="px-4 py-8 text-center text-sm text-gray-400 font-medium">
-                  Sin productos todavía.
-                </td>
-              </tr>
-            ) : (
-              items.map((item, row) => {
-                const product = item.product;
-                const costoConIva = Number(item.precioUnitario);
-                const pctRaw = parseFloat(pctParaItem(item.id));
-                const itemPct = !isNaN(pctRaw) && pctRaw >= 0 ? pctRaw : 0;
-                const costoNeto = ivaFacturaOn ? costoConIva / (1 + itemPct / 100) : costoConIva;
-                const costo = costoConIva; // el costo "real" (para ganancia/margen) siempre es el que tiene IVA sumado
-                const precio = product ? Number(product.price) : null;
-                const pct = product && costo > 0 ? ((precio! - costo) / costo) * 100 : null;
-                const busy = readOnly || updateItemMutation.isPending || updateProductMutation.isPending;
 
-                return (
-                  <tr key={item.id} className="hover:bg-gray-50 transition-colors">
-                    <td className="px-2.5 py-2.5">
-                      <div className="flex items-center gap-1.5 min-w-[90px]">
-                        {product && (
-                          <div className="relative w-7 h-7 flex-shrink-0 bg-gray-100 rounded-lg overflow-hidden">
-                            <Image src={product.imageUrl} alt={product.title} fill sizes="28px" className="object-contain p-0.5" />
-                          </div>
-                        )}
-                        <span className="font-semibold text-gray-700 truncate max-w-[110px]">
-                          {product?.title ?? item.nombreDetectado}
-                        </span>
-                      </div>
-                    </td>
-                    <td className="px-3 py-3">
-                      <input
-                        key={item.cantidad}
-                        data-row={row}
-                        data-field="cantidad"
-                        type="number"
-                        step="1"
-                        min="1"
-                        defaultValue={item.cantidad}
-                        disabled={busy}
-                        onKeyDown={(e) => handleKeyDown(e, row, 'cantidad')}
-                        onBlur={(e) => {
-                          const val = Math.round(parseFloat(e.target.value));
-                          if (isNaN(val) || val < 1) { e.target.value = String(item.cantidad); return; }
-                          if (val === item.cantidad) return;
-                          updateItemMutation.mutate({ itemId: item.id, data: { cantidad: val } });
-                        }}
-                        className="w-16 text-base font-semibold outline-none border-b border-transparent focus:border-orange-300 disabled:opacity-50"
-                      />
-                    </td>
-                    <td className="px-3 py-3">
-                      <div className="flex items-center gap-1">
-                        <span className="font-bold text-gray-500 text-base">$</span>
-                        <input
-                          key={`${item.precioUnitario}-${ivaFacturaOn}-${itemPct}`}
-                          data-row={row}
-                          data-field="costo"
-                          type="number"
-                          step="0.01"
-                          defaultValue={costoNeto.toFixed(2)}
-                          disabled={busy}
-                          onKeyDown={(e) => handleKeyDown(e, row, 'costo')}
-                          onBlur={(e) => {
-                            const tipeado = parseFloat(e.target.value);
-                            if (isNaN(tipeado) || tipeado < 0) { e.target.value = costoNeto.toFixed(2); return; }
-                            // si el toggle de IVA está prendido, lo tipeado es el neto - lo que
-                            // se guarda como costo real es siempre el valor con IVA ya sumado
-                            const nuevoCostoConIva = ivaFacturaOn
-                              ? parseFloat((tipeado * (1 + itemPct / 100)).toFixed(2))
-                              : tipeado;
-                            commitCostoConIva(item, costoConIva, nuevoCostoConIva);
-                          }}
-                          className="w-20 text-base font-bold text-gray-600 outline-none border-b border-transparent focus:border-orange-300 disabled:opacity-50"
-                        />
-                      </div>
-                      <div className="flex items-center gap-2 mt-1">
-                        {!readOnly && (
-                        <button
-                          type="button"
-                          title="Calcular a partir del precio de un bulto/caja"
-                          onClick={() => (bultoOpenId === item.id ? setBultoOpenId(null) : openBulto(item))}
-                          className={`text-xs font-bold rounded px-1.5 py-0.5 transition-colors whitespace-nowrap ${
-                            bultoOpenId === item.id ? 'bg-orange-100 text-orange-600' : 'text-gray-400 hover:bg-gray-100'
-                          }`}
-                        >
-                          📦 Bulto
-                        </button>
-                        )}
-                      </div>
-                      {item.unidadesPorBultoDetectada != null && bultoOpenId !== item.id && (
-                        <p className="text-[10px] text-gray-400 font-medium mt-0.5 whitespace-nowrap">
-                          {item.unidadesPorBultoDetectada} un./bulto
-                        </p>
-                      )}
-                      {bultoOpenId === item.id && (
-                        <div className="flex flex-col gap-1 mt-2 bg-gray-50 rounded-lg p-2 w-48">
-                          <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wide">
-                            Unidades por bulto
-                          </label>
-                          <input
-                            type="number"
-                            step="1"
-                            min="1"
-                            autoFocus
-                            value={bultoUnidades}
-                            onChange={(e) => setBultoUnidades(e.target.value)}
-                            className="border border-gray-200 rounded-lg px-2 py-1 text-xs outline-none focus:border-orange-400"
-                          />
-                          <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wide">
-                            Precio del bulto
-                          </label>
-                          <input
-                            type="number"
-                            step="0.01"
-                            min="0"
-                            value={bultoPrecio}
-                            onChange={(e) => setBultoPrecio(e.target.value)}
-                            className="border border-gray-200 rounded-lg px-2 py-1 text-xs outline-none focus:border-orange-400"
-                          />
-                          <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wide">
-                            Bultos comprados
-                          </label>
-                          <input
-                            type="number"
-                            step="1"
-                            min="1"
-                            value={bultoCantidad}
-                            onChange={(e) => setBultoCantidad(e.target.value)}
-                            className="border border-gray-200 rounded-lg px-2 py-1 text-xs outline-none focus:border-orange-400"
-                          />
-                          {parseFloat(bultoUnidades) > 0 && parseFloat(bultoPrecio) > 0 && (
-                            <p className="text-[11px] font-semibold text-gray-500">
-                              = {Math.round((parseFloat(bultoCantidad) || 1) * parseFloat(bultoUnidades))} un. a{' '}
-                              {money(parseFloat(bultoPrecio) / parseFloat(bultoUnidades))} c/u
-                            </p>
-                          )}
-                          <div className="flex gap-1 mt-1">
-                            <button
-                              onClick={() => setBultoOpenId(null)}
-                              className="flex-1 py-1 rounded-lg border border-gray-200 text-[11px] font-semibold text-gray-600"
-                            >
-                              Cancelar
-                            </button>
-                            <button
-                              onClick={() => applyBulto(item)}
-                              className="flex-1 py-1 rounded-lg bg-orange-500 hover:bg-orange-600 text-white text-[11px] font-bold"
-                            >
-                              Aplicar
-                            </button>
-                          </div>
-                        </div>
-                      )}
-                    </td>
-                    {ivaFacturaOn && (
-                      <>
-                        <td className="px-3 py-3">
-                          <div className="flex items-center gap-0.5">
-                            <input
-                              type="number"
-                              step="0.1"
-                              min="0"
-                              disabled={busy}
-                              defaultValue={pctParaItem(item.id)}
-                              onBlur={(e) => {
-                                const raw = e.target.value.trim();
-                                setIvaPorItem((prev) => ({ ...prev, [item.id]: raw === '' ? ivaFacturaPct : raw }));
-                              }}
-                              className="w-14 text-base font-semibold text-purple-600 outline-none border-b border-transparent focus:border-purple-300 disabled:opacity-50"
-                            />
-                            <span className="text-sm font-bold text-purple-300">%</span>
-                          </div>
-                        </td>
-                        <td className="px-3 py-3 text-base font-semibold text-purple-600 whitespace-nowrap">
-                          {money(costoConIva)}
-                        </td>
-                      </>
+      <div className={`${L.head} gap-x-2.5 border-b border-kr-line bg-kr-paper px-4 py-2.5 text-xs font-extrabold uppercase tracking-wide text-kr-muted`}>
+        <span>Producto</span>
+        <span className="text-right">Cant.</span>
+        <span className="text-right">{ivaFacturaOn ? 'Costo neto' : 'Costo'}</span>
+        {ivaFacturaOn && (
+          <>
+            <span className="text-right text-kr-blue">IVA %</span>
+            <span className="text-right text-kr-blue">Costo c/IVA</span>
+          </>
+        )}
+        <span className="text-right">Precio</span>
+        <span className="text-right">PedidosYa</span>
+        <span className="text-right">Ganan.</span>
+        <span>Cód. art.</span>
+        <span className="text-right">{ivaFacturaOn ? 'Subt. neto' : 'Subtotal'}</span>
+        {ivaFacturaOn && <span className="text-right text-kr-blue">Subt. c/IVA</span>}
+        <span />
+      </div>
+
+      {items.length === 0 ? (
+        <p className="px-4 py-10 text-center text-sm font-bold text-kr-muted">Todavía no hay productos en esta factura.</p>
+      ) : (
+        <ul>
+          {items.map((item, row) => {
+            const product = item.product;
+            const costoConIva = Number(item.precioUnitario);
+            const pctRaw = parseFloat(pctParaItem(item.id));
+            const itemPct = !isNaN(pctRaw) && pctRaw >= 0 ? pctRaw : 0;
+            const costoNeto = ivaFacturaOn ? costoConIva / (1 + itemPct / 100) : costoConIva;
+            const costo = costoConIva; // el costo "real" (para ganancia/margen) siempre es el que tiene IVA sumado
+            const precio = product ? Number(product.price) : null;
+            const pct = product && costo > 0 ? ((precio! - costo) / costo) * 100 : null;
+            const nombre = product?.title ?? item.nombreDetectado;
+
+            const quitar = allowRemove && !readOnly && (
+              <button
+                type="button"
+                onClick={() => removeItemMutation.mutate(item.id)}
+                aria-label={`Quitar ${nombre}`}
+                className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-xl text-kr-muted hover:bg-[#FFE7D6] hover:text-kr-orange-dark"
+              >
+                <X size={18} weight="bold" />
+              </button>
+            );
+
+            return (
+              <li key={item.id} className={`${L.row} flex flex-col gap-2.5 border-b border-dashed border-kr-line px-3 py-3 last:border-b-0 md:px-4`}>
+                <div className="flex min-w-0 items-start gap-2.5">
+                  {product && (
+                    <div className="relative h-10 w-10 flex-shrink-0 overflow-hidden rounded-[10px] border border-kr-line bg-kr-sand">
+                      <Image src={product.imageUrl} alt="" fill sizes="40px" className="object-contain p-0.5" />
+                    </div>
+                  )}
+                  <div className="min-w-0 flex-1 pt-0.5">
+                    <p className="font-extrabold leading-snug text-kr-navy">{nombre}</p>
+                    {item.unidadesPorBultoDetectada != null && bultoOpenId !== item.id && (
+                      <p className="text-xs font-bold text-kr-muted">{item.unidadesPorBultoDetectada} un. por bulto</p>
                     )}
-                    <td className="px-3 py-3">
-                      {product && (
-                        <div className="flex items-center gap-1">
-                          <span className="font-bold text-orange-500 text-base">$</span>
-                          <input
-                            key={product.price}
-                            data-row={row}
-                            data-field="precio"
-                            type="number"
-                            step="0.01"
-                            defaultValue={product.price}
-                            disabled={busy}
-                            onKeyDown={(e) => handleKeyDown(e, row, 'precio')}
-                            onBlur={(e) => {
-                              const val = parseFloat(e.target.value);
-                              if (isNaN(val) || val <= 0) { e.target.value = product.price; return; }
-                              if (val === precio) return;
-                              updateProductMutation.mutate({ productId: product.id, price: val });
-                            }}
-                            className="w-20 text-base font-bold text-orange-500 outline-none border-b border-transparent focus:border-orange-300 disabled:opacity-50"
-                          />
-                        </div>
-                      )}
-                    </td>
-                    <td className="px-3 py-3">
-                      {product && (
-                        <span className="text-base font-bold text-purple-500">
-                          {money(Number(product.price) * 1.4)}
-                        </span>
-                      )}
-                    </td>
-                    <td className="px-3 py-3">
-                      {product && (
-                        <div className="flex items-center gap-0.5">
-                          <input
-                            key={`${item.precioUnitario}-${product.price}`}
-                            data-row={row}
-                            data-field="ganancia"
-                            type="number"
-                            step="0.1"
-                            defaultValue={pct !== null ? pct.toFixed(1) : ''}
-                            placeholder="—"
-                            disabled={!costo || busy}
-                            onKeyDown={(e) => handleKeyDown(e, row, 'ganancia')}
-                            onBlur={(e) => {
-                              if (!costo) return;
-                              const raw = e.target.value;
-                              const newPct = parseFloat(raw);
-                              if (raw === '' || isNaN(newPct)) { e.target.value = pct !== null ? pct.toFixed(1) : ''; return; }
-                              if (pct !== null && Math.abs(newPct - pct) < 0.05) return;
-                              const newPrice = parseFloat((costo * (1 + newPct / 100)).toFixed(2));
-                              if (newPrice <= 0) { e.target.value = pct !== null ? pct.toFixed(1) : ''; return; }
-                              updateProductMutation.mutate({ productId: product.id, price: newPrice });
-                            }}
-                            className={`w-16 text-base font-bold outline-none border-b border-transparent focus:border-orange-300 disabled:opacity-50 ${
-                              pct === null ? 'text-gray-300' : pct >= 0 ? 'text-green-600' : 'text-red-500'
-                            }`}
-                          />
-                          <span className="text-sm font-bold text-gray-300">%</span>
-                        </div>
-                      )}
-                    </td>
-                    <td className="px-3 py-3">
+                  </div>
+                  <span className={L.cardOnly}>{quitar}</span>
+                </div>
+
+                <div className={`${L.fields} grid grid-cols-3 gap-2 sm:grid-cols-4`}>
+                  <label className="flex min-w-0 flex-col gap-1">
+                    <span className={`${celdaLabel} ${L.label}`}>Cant.</span>
+                    <input
+                      key={item.cantidad}
+                      data-row={row}
+                      data-field="cantidad"
+                      type="number"
+                      inputMode="numeric"
+                      step="1"
+                      min="1"
+                      aria-label={`Cantidad de ${nombre}`}
+                      defaultValue={item.cantidad}
+                      disabled={busy}
+                      onKeyDown={(e) => handleKeyDown(e, row, 'cantidad')}
+                      onBlur={(e) => {
+                        const val = Math.round(parseFloat(e.target.value));
+                        if (isNaN(val) || val < 1) { e.target.value = String(item.cantidad); return; }
+                        if (val === item.cantidad) return;
+                        updateItemMutation.mutate({ itemId: item.id, data: { cantidad: val } });
+                      }}
+                      className={`${celdaInput} ${L.right}`}
+                    />
+                  </label>
+
+                  <div className="flex min-w-0 flex-col gap-1">
+                    <span className={`${celdaLabel} ${L.label}`}>{ivaFacturaOn ? 'Costo neto' : 'Costo'}</span>
+                    <input
+                      key={`${item.precioUnitario}-${ivaFacturaOn}-${itemPct}`}
+                      data-row={row}
+                      data-field="costo"
+                      type="number"
+                      inputMode="decimal"
+                      step="0.01"
+                      aria-label={`Costo de ${nombre}`}
+                      defaultValue={costoNeto.toFixed(2)}
+                      disabled={busy}
+                      onKeyDown={(e) => handleKeyDown(e, row, 'costo')}
+                      onBlur={(e) => {
+                        const tipeado = parseFloat(e.target.value);
+                        if (isNaN(tipeado) || tipeado < 0) { e.target.value = costoNeto.toFixed(2); return; }
+                        // si el toggle de IVA está prendido, lo tipeado es el neto - lo que
+                        // se guarda como costo real es siempre el valor con IVA ya sumado
+                        const nuevoCostoConIva = ivaFacturaOn
+                          ? parseFloat((tipeado * (1 + itemPct / 100)).toFixed(2))
+                          : tipeado;
+                        commitCostoConIva(item, costoConIva, nuevoCostoConIva);
+                      }}
+                      className={`${celdaInput} ${L.right}`}
+                    />
+                    {!readOnly && (
+                      <button
+                        type="button"
+                        title="Calcular a partir del precio de un bulto o caja"
+                        aria-expanded={bultoOpenId === item.id}
+                        onClick={() => (bultoOpenId === item.id ? setBultoOpenId(null) : openBulto(item))}
+                        className={`self-start rounded-md px-1.5 py-0.5 text-xs font-extrabold ${L.selfEnd} ${
+                          bultoOpenId === item.id ? 'bg-kr-yellow-soft text-kr-navy' : 'text-kr-blue hover:bg-kr-blue-soft'
+                        }`}
+                      >
+                        Por bulto
+                      </button>
+                    )}
+                  </div>
+
+                  {ivaFacturaOn && (
+                    <>
+                      <label className="flex min-w-0 flex-col gap-1">
+                        <span className={`${celdaLabel} ${L.label} text-kr-blue`}>IVA %</span>
+                        <input
+                          type="number"
+                          step="0.1"
+                          min="0"
+                          disabled={busy}
+                          aria-label={`IVA de ${nombre}`}
+                          defaultValue={pctParaItem(item.id)}
+                          onBlur={(e) => {
+                            const raw = e.target.value.trim();
+                            setIvaPorItem((prev) => ({ ...prev, [item.id]: raw === '' ? ivaFacturaPct : raw }));
+                          }}
+                          className={`${celdaInput} ${L.right} !text-kr-blue`}
+                        />
+                      </label>
+                      <div className="flex min-w-0 flex-col gap-1">
+                        <span className={`${celdaLabel} ${L.label} text-kr-blue`}>Costo c/IVA</span>
+                        <span className={`py-2 font-extrabold tabular-nums text-kr-blue ${L.right}`}>{money(costoConIva)}</span>
+                      </div>
+                    </>
+                  )}
+
+                  <label className="flex min-w-0 flex-col gap-1">
+                    <span className={`${celdaLabel} ${L.label}`}>Precio</span>
+                    {product ? (
                       <input
-                        key={item.codigoArticuloDetectado ?? ''}
+                        key={product.price}
                         data-row={row}
-                        data-field="codigoArticulo"
-                        type="text"
-                        defaultValue={item.codigoArticuloDetectado ?? ''}
-                        disabled={busy}
-                        onKeyDown={(e) => {
-                          if (e.key === 'Enter') e.preventDefault();
-                          handleKeyDown(e, row, 'codigoArticulo');
-                        }}
-                        onBlur={(e) => {
-                          const val = e.target.value.trim();
-                          if (val === (item.codigoArticuloDetectado ?? '')) return;
-                          updateItemMutation.mutate({ itemId: item.id, data: { codigoArticulo: val || null } });
-                        }}
-                        placeholder="—"
-                        className="w-full text-sm outline-none border-b border-transparent focus:border-orange-300 disabled:opacity-50"
-                      />
-                    </td>
-                    <td className="px-3 py-3">
-                      <input
-                        key={`subneto-${item.precioUnitario}-${ivaFacturaOn}-${itemPct}-${item.cantidad}`}
+                        data-field="precio"
                         type="number"
+                        inputMode="decimal"
+                        step="0.01"
+                        aria-label={`Precio de venta de ${nombre}`}
+                        defaultValue={product.price}
+                        disabled={busy}
+                        onKeyDown={(e) => handleKeyDown(e, row, 'precio')}
+                        onBlur={(e) => {
+                          const val = parseFloat(e.target.value);
+                          if (isNaN(val) || val <= 0) { e.target.value = product.price; return; }
+                          if (val === precio) return;
+                          updateProductMutation.mutate({ productId: product.id, price: val });
+                        }}
+                        className={`${celdaInput} ${L.right}`}
+                      />
+                    ) : (
+                      <span className={`py-2 font-extrabold text-kr-muted ${L.right}`}>—</span>
+                    )}
+                  </label>
+
+                  <div className="flex min-w-0 flex-col gap-1">
+                    <span className={`${celdaLabel} ${L.label}`}>PedidosYa</span>
+                    <span className={`py-2 font-extrabold tabular-nums text-kr-muted ${L.right}`}>
+                      {product ? money(Number(product.price) * (1 + PEDIDOSYA_RECARGO / 100)) : '—'}
+                    </span>
+                  </div>
+
+                  <label className="flex min-w-0 flex-col gap-1">
+                    <span className={`${celdaLabel} ${L.label}`}>Ganancia</span>
+                    {product ? (
+                      <span className="flex items-center gap-1">
+                        <input
+                          key={`${item.precioUnitario}-${product.price}`}
+                          data-row={row}
+                          data-field="ganancia"
+                          type="number"
+                          inputMode="decimal"
+                          step="0.1"
+                          aria-label={`Porcentaje de ganancia de ${nombre}`}
+                          defaultValue={pct !== null ? pct.toFixed(1) : ''}
+                          placeholder="—"
+                          disabled={!costo || busy}
+                          onKeyDown={(e) => handleKeyDown(e, row, 'ganancia')}
+                          onBlur={(e) => {
+                            if (!costo) return;
+                            const raw = e.target.value;
+                            const newPct = parseFloat(raw);
+                            if (raw === '' || isNaN(newPct)) { e.target.value = pct !== null ? pct.toFixed(1) : ''; return; }
+                            if (pct !== null && Math.abs(newPct - pct) < 0.05) return;
+                            const newPrice = parseFloat((costo * (1 + newPct / 100)).toFixed(2));
+                            if (newPrice <= 0) { e.target.value = pct !== null ? pct.toFixed(1) : ''; return; }
+                            updateProductMutation.mutate({ productId: product.id, price: newPrice });
+                          }}
+                          className={`${celdaInput} ${L.right} ${
+                            pct === null ? '' : pct >= 0 ? '!text-kr-green-dark' : '!text-kr-orange-dark'
+                          }`}
+                        />
+                        <span className="text-sm font-extrabold text-kr-muted">%</span>
+                      </span>
+                    ) : (
+                      <span className={`py-2 font-extrabold text-kr-muted ${L.right}`}>—</span>
+                    )}
+                  </label>
+
+                  <label className="flex min-w-0 flex-col gap-1">
+                    <span className={`${celdaLabel} ${L.label}`}>Cód. art.</span>
+                    <input
+                      key={item.codigoArticuloDetectado ?? ''}
+                      data-row={row}
+                      data-field="codigoArticulo"
+                      type="text"
+                      aria-label={`Código de artículo de ${nombre}`}
+                      defaultValue={item.codigoArticuloDetectado ?? ''}
+                      disabled={busy}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter') e.preventDefault();
+                        handleKeyDown(e, row, 'codigoArticulo');
+                      }}
+                      onBlur={(e) => {
+                        const val = e.target.value.trim();
+                        if (val === (item.codigoArticuloDetectado ?? '')) return;
+                        updateItemMutation.mutate({ itemId: item.id, data: { codigoArticulo: val || null } });
+                      }}
+                      placeholder="—"
+                      className={`${celdaInput} !text-sm !font-bold`}
+                    />
+                  </label>
+
+                  <label className="flex min-w-0 flex-col gap-1">
+                    <span className={`${celdaLabel} ${L.label}`}>{ivaFacturaOn ? 'Subt. neto' : 'Subtotal'}</span>
+                    <input
+                      key={`subneto-${item.precioUnitario}-${ivaFacturaOn}-${itemPct}-${item.cantidad}`}
+                      type="number"
+                      inputMode="decimal"
+                      step="0.01"
+                      min="0"
+                      disabled={busy}
+                      aria-label={`Subtotal de ${nombre}`}
+                      defaultValue={(ivaFacturaOn ? costoNeto * Number(item.cantidad) : Number(item.subtotal)).toFixed(2)}
+                      onBlur={(e) => {
+                        const tipeado = parseFloat(e.target.value);
+                        if (isNaN(tipeado) || tipeado < 0 || !(Number(item.cantidad) > 0)) return;
+                        const nuevoCostoUnitNeto = tipeado / Number(item.cantidad);
+                        const nuevoCostoConIva = ivaFacturaOn
+                          ? parseFloat((nuevoCostoUnitNeto * (1 + itemPct / 100)).toFixed(2))
+                          : parseFloat(nuevoCostoUnitNeto.toFixed(2));
+                        commitCostoConIva(item, costoConIva, nuevoCostoConIva);
+                      }}
+                      className={`${celdaInput} ${L.right}`}
+                    />
+                  </label>
+
+                  {ivaFacturaOn && (
+                    <label className="flex min-w-0 flex-col gap-1">
+                      <span className={`${celdaLabel} ${L.label} text-kr-blue`}>Subt. c/IVA</span>
+                      <input
+                        key={`subiva-${item.precioUnitario}-${item.cantidad}`}
+                        type="number"
+                        inputMode="decimal"
                         step="0.01"
                         min="0"
                         disabled={busy}
-                        defaultValue={(ivaFacturaOn ? costoNeto * Number(item.cantidad) : Number(item.subtotal)).toFixed(2)}
+                        aria-label={`Subtotal con IVA de ${nombre}`}
+                        defaultValue={Number(item.subtotal).toFixed(2)}
                         onBlur={(e) => {
                           const tipeado = parseFloat(e.target.value);
                           if (isNaN(tipeado) || tipeado < 0 || !(Number(item.cantidad) > 0)) return;
-                          const nuevoCostoUnitNeto = tipeado / Number(item.cantidad);
-                          const nuevoCostoConIva = ivaFacturaOn
-                            ? parseFloat((nuevoCostoUnitNeto * (1 + itemPct / 100)).toFixed(2))
-                            : parseFloat(nuevoCostoUnitNeto.toFixed(2));
+                          const nuevoCostoConIva = parseFloat((tipeado / Number(item.cantidad)).toFixed(2));
                           commitCostoConIva(item, costoConIva, nuevoCostoConIva);
                         }}
-                        className="w-24 text-base font-bold text-gray-700 outline-none border-b border-transparent focus:border-orange-300 disabled:opacity-50"
+                        className={`${celdaInput} ${L.right} !text-kr-blue`}
                       />
-                    </td>
-                    {ivaFacturaOn && (
-                      <td className="px-3 py-3">
-                        <input
-                          key={`subiva-${item.precioUnitario}-${item.cantidad}`}
-                          type="number"
-                          step="0.01"
-                          min="0"
-                          disabled={busy}
-                          defaultValue={Number(item.subtotal).toFixed(2)}
-                          onBlur={(e) => {
-                            const tipeado = parseFloat(e.target.value);
-                            if (isNaN(tipeado) || tipeado < 0 || !(Number(item.cantidad) > 0)) return;
-                            const nuevoCostoConIva = parseFloat((tipeado / Number(item.cantidad)).toFixed(2));
-                            commitCostoConIva(item, costoConIva, nuevoCostoConIva);
-                          }}
-                          className="w-24 text-base font-bold text-purple-600 outline-none border-b border-transparent focus:border-purple-300 disabled:opacity-50"
-                        />
-                      </td>
+                    </label>
+                  )}
+
+                  <span className={`${L.rowOnly} justify-end`}>{quitar}</span>
+                </div>
+
+                {bultoOpenId === item.id && (
+                  <div className="col-span-full flex flex-wrap items-end gap-2 rounded-xl border-[1.5px] border-kr-line bg-kr-paper p-3 animate-fadeIn">
+                    <label className="flex flex-col gap-1">
+                      <span className={celdaLabel}>Unidades por bulto</span>
+                      <input
+                        type="number"
+                        step="1"
+                        min="1"
+                        autoFocus
+                        value={bultoUnidades}
+                        onChange={(e) => setBultoUnidades(e.target.value)}
+                        className={`${celdaInput} !w-24`}
+                      />
+                    </label>
+                    <label className="flex flex-col gap-1">
+                      <span className={celdaLabel}>Precio del bulto</span>
+                      <input
+                        type="number"
+                        step="0.01"
+                        min="0"
+                        value={bultoPrecio}
+                        onChange={(e) => setBultoPrecio(e.target.value)}
+                        className={`${celdaInput} !w-32`}
+                      />
+                    </label>
+                    <label className="flex flex-col gap-1">
+                      <span className={celdaLabel}>Bultos comprados</span>
+                      <input
+                        type="number"
+                        step="1"
+                        min="1"
+                        value={bultoCantidad}
+                        onChange={(e) => setBultoCantidad(e.target.value)}
+                        className={`${celdaInput} !w-24`}
+                      />
+                    </label>
+                    {parseFloat(bultoUnidades) > 0 && parseFloat(bultoPrecio) > 0 && (
+                      <p className="pb-2.5 text-sm font-extrabold text-kr-navy">
+                        = {Math.round((parseFloat(bultoCantidad) || 1) * parseFloat(bultoUnidades))} un. a{' '}
+                        {money(parseFloat(bultoPrecio) / parseFloat(bultoUnidades))} c/u
+                      </p>
                     )}
-                    <td className="px-1 py-2.5">
-                      {allowRemove && !readOnly && (
-                        <button
-                          onClick={() => removeItemMutation.mutate(item.id)}
-                          className="w-6 h-6 rounded-lg flex items-center justify-center text-gray-400 hover:bg-red-50 hover:text-red-500 transition-colors"
-                        >
-                          <Trash size={13} weight="bold" />
-                        </button>
-                      )}
-                    </td>
-                  </tr>
-                );
-              })
-            )}
-          </tbody>
-        </table>
-      </div>
+                    <div className="ml-auto flex gap-2">
+                      <button type="button" onClick={() => setBultoOpenId(null)} className={buttonClasses('secondary', 'sm')}>
+                        Cancelar
+                      </button>
+                      <button type="button" onClick={() => applyBulto(item)} className={buttonClasses('primary', 'sm')}>
+                        Aplicar
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </li>
+            );
+          })}
+        </ul>
+      )}
+
       {ivaFacturaOn && items.length > 0 && (
-        <div className="flex items-center justify-end gap-6 px-2.5 py-1.5 border-t border-gray-100">
-          <span className="text-xs font-semibold text-gray-500">Total (neto): {money(totalNeto)}</span>
-          <span className="text-xs font-bold text-purple-600">Total c/IVA: {money(totalConIva)}</span>
+        <div className="flex flex-wrap items-center justify-end gap-x-6 gap-y-1 border-t border-kr-line px-4 py-2.5 text-sm">
+          <span className="font-bold text-kr-muted">Total neto: <b className="tabular-nums text-kr-navy">{money(totalNeto)}</b></span>
+          <span className="font-bold text-kr-blue">Total con IVA: <b className="tabular-nums">{money(totalConIva)}</b></span>
         </div>
       )}
-      {error && <p className="px-4 text-xs font-semibold text-red-500">{error}</p>}
+      {error && <p role="alert" className="mx-4 my-2 rounded-lg bg-[#FFE7D6] px-3 py-2 text-sm font-bold text-kr-orange-dark">{error}</p>}
     </div>
   );
 }
+
+// clases literales por variante (Tailwind no arma clases con breakpoints variables)
+const LAYOUT = {
+  normal: {
+    row: 'xl:grid xl:grid-cols-[minmax(0,1fr)_64px_112px_104px_96px_84px_104px_112px_40px] xl:items-start xl:gap-x-2.5',
+    head: 'hidden xl:grid xl:grid-cols-[minmax(0,1fr)_64px_112px_104px_96px_84px_104px_112px_40px]',
+    fields: 'xl:contents',
+    label: 'xl:hidden',
+    right: 'xl:text-right',
+    selfEnd: 'xl:self-end',
+    cardOnly: 'xl:hidden',
+    rowOnly: 'hidden xl:flex',
+  },
+  iva: {
+    row: '2xl:grid 2xl:grid-cols-[minmax(0,1fr)_60px_104px_64px_100px_100px_92px_84px_96px_104px_104px_40px] 2xl:items-start 2xl:gap-x-2',
+    head: 'hidden 2xl:grid 2xl:grid-cols-[minmax(0,1fr)_60px_104px_64px_100px_100px_92px_84px_96px_104px_104px_40px]',
+    fields: '2xl:contents',
+    label: '2xl:hidden',
+    right: '2xl:text-right',
+    selfEnd: '2xl:self-end',
+    cardOnly: '2xl:hidden',
+    rowOnly: 'hidden 2xl:flex',
+  },
+};

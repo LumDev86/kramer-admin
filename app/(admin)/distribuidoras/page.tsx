@@ -1,113 +1,92 @@
 'use client';
 
 import { useState } from 'react';
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useQuery } from '@tanstack/react-query';
 import Link from 'next/link';
-import { distribuidores, Distribuidor } from '@/lib/api';
-import { Plus, PencilSimple, Trash } from '@phosphor-icons/react';
-import ConfirmModal from '@/components/ui/ConfirmModal';
+import { CaretRight, Plus, Truck } from '@phosphor-icons/react';
+import { distribuidores } from '@/lib/api';
 import { money } from '@/lib/format';
+import PageHeader from '@/components/ui/PageHeader';
+import SearchInput from '@/components/ui/SearchInput';
+import Chip from '@/components/ui/Chip';
+import { buttonClasses } from '@/components/ui/Button';
+
+const FILA = 'grid items-center gap-x-3 gap-y-1 px-3 py-3 grid-cols-[minmax(0,1fr)_auto_20px] md:px-4 md:grid-cols-[minmax(0,1fr)_170px_150px_20px]';
 
 export default function DistribuidorasPage() {
-  const qc = useQueryClient();
-  const [toDelete, setToDelete] = useState<Distribuidor | null>(null);
-  const [deleteError, setDeleteError] = useState('');
-
+  const [search, setSearch] = useState('');
   const { data, isLoading } = useQuery({ queryKey: ['distribuidores'], queryFn: distribuidores.getAll });
 
-  const deleteMutation = useMutation({
-    mutationFn: (id: string) => distribuidores.delete(id),
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ['distribuidores'] });
-      setToDelete(null);
-      setDeleteError('');
-    },
-    onError: (err: any) => setDeleteError(err.message ?? 'Error al eliminar'),
-  });
+  const lista = (data ?? []).filter((d) => d.nombre.toLowerCase().includes(search.trim().toLowerCase()));
 
   return (
-    <div className="flex flex-col gap-6">
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-        <div>
-          <h1 className="text-2xl font-extrabold text-gray-800">Distribuidoras</h1>
-          <p className="text-sm text-gray-400 font-medium mt-0.5">{data?.length ?? 0} distribuidoras</p>
+    <>
+      <PageHeader
+        title="Distribuidoras"
+        subtitle={data ? `${data.length} distribuidoras` : undefined}
+        actions={
+          <Link href="/distribuidoras/nueva" className={buttonClasses('primary', 'md')}>
+            <Plus size={18} weight="bold" />
+            Nueva distribuidora
+          </Link>
+        }
+      />
+
+      <SearchInput
+        label="Buscar distribuidora"
+        placeholder="Buscar distribuidora"
+        value={search}
+        onChange={(e) => setSearch(e.target.value)}
+        className="flex-none basis-auto md:max-w-md"
+      />
+
+      <section aria-label="Distribuidoras" className="overflow-hidden rounded-2xl border border-kr-line bg-white">
+        <div className={`${FILA} hidden border-b border-kr-line bg-kr-paper text-xs font-extrabold uppercase tracking-wide text-kr-muted md:grid`}>
+          <span>Distribuidora</span>
+          <span>Precios</span>
+          <span className="text-right">Total gastado</span>
+          <span />
         </div>
-        <Link
-          href="/distribuidoras/nueva"
-          className="flex items-center justify-center gap-2 bg-orange-500 hover:bg-orange-600 text-white font-bold px-4 py-2.5 rounded-xl text-sm transition-colors"
-        >
-          <Plus size={16} weight="bold" />
-          Nueva distribuidora
-        </Link>
-      </div>
-
-      <div className="bg-white rounded-2xl shadow-sm overflow-hidden overflow-x-auto">
-        <table className="w-full text-sm">
-          <thead className="border-b border-gray-100">
-            <tr className="text-left">
-              <th className="px-4 py-3 text-xs font-bold text-gray-400 uppercase tracking-wide">Nombre</th>
-              <th className="px-4 py-3 text-xs font-bold text-gray-400 uppercase tracking-wide">Teléfono</th>
-              <th className="px-4 py-3 text-xs font-bold text-gray-400 uppercase tracking-wide">Total gastado</th>
-              <th className="px-4 py-3 text-xs font-bold text-gray-400 uppercase tracking-wide w-24">Acciones</th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-gray-50">
-            {isLoading ? (
-              Array.from({ length: 4 }).map((_, i) => (
-                <tr key={i}>
-                  <td colSpan={4} className="px-4 py-3">
-                    <div className="h-5 bg-gray-100 rounded animate-pulse" />
-                  </td>
-                </tr>
-              ))
-            ) : data && data.length > 0 ? (
-              data.map((d) => (
-                <tr key={d.id} className="hover:bg-gray-50 transition-colors">
-                  <td className="px-4 py-3">
-                    <Link href={`/distribuidoras/${d.id}`} className="font-semibold text-gray-800 hover:text-orange-500">
-                      {d.nombre}
-                    </Link>
-                  </td>
-                  <td className="px-4 py-3 text-gray-500">{d.telefono ?? '—'}</td>
-                  <td className="px-4 py-3 font-bold text-orange-500">{money(d.totalGastado ?? 0)}</td>
-                  <td className="px-4 py-3">
-                    <div className="flex gap-1">
-                      <Link
-                        href={`/distribuidoras/${d.id}/editar`}
-                        className="w-8 h-8 rounded-lg flex items-center justify-center text-gray-400 hover:bg-orange-50 hover:text-orange-500 transition-colors"
-                      >
-                        <PencilSimple size={15} weight="bold" />
-                      </Link>
-                      <button
-                        onClick={() => setToDelete(d)}
-                        className="w-8 h-8 rounded-lg flex items-center justify-center text-gray-400 hover:bg-red-50 hover:text-red-500 transition-colors"
-                      >
-                        <Trash size={15} weight="bold" />
-                      </button>
-                    </div>
-                  </td>
-                </tr>
-              ))
-            ) : (
-              <tr>
-                <td colSpan={4} className="px-4 py-8 text-center text-sm text-gray-400 font-medium">
-                  Todavía no hay distribuidoras cargadas.
-                </td>
-              </tr>
-            )}
-          </tbody>
-        </table>
-      </div>
-
-      {toDelete && (
-        <ConfirmModal
-          message={`¿Eliminar "${toDelete.nombre}"? Esta acción no se puede deshacer.`}
-          loading={deleteMutation.isPending}
-          error={deleteError}
-          onConfirm={() => deleteMutation.mutate(toDelete.id)}
-          onCancel={() => { setToDelete(null); setDeleteError(''); }}
-        />
-      )}
-    </div>
+        {isLoading ? (
+          <div className="flex flex-col gap-3 p-4">
+            {Array.from({ length: 4 }).map((_, i) => <div key={i} className="h-12 animate-pulse rounded-lg bg-kr-sand" />)}
+          </div>
+        ) : lista.length === 0 ? (
+          <p className="px-4 py-10 text-center text-sm font-bold text-kr-muted">
+            {data && data.length > 0 ? `No hay distribuidoras que coincidan con "${search.trim()}".` : 'Todavía no hay distribuidoras cargadas.'}
+          </p>
+        ) : (
+          <ul>
+            {lista.map((d) => {
+              const iva = (
+                <Chip tone={d.ivaDiscriminado ? 'info' : 'neutral'}>{d.ivaDiscriminado ? 'IVA discriminado' : 'IVA incluido'}</Chip>
+              );
+              return (
+                <li key={d.id} className="border-b border-dashed border-kr-line last:border-b-0">
+                  <Link href={`/distribuidoras/${d.id}`} className={`${FILA} hover:bg-kr-paper`}>
+                    <span className="flex min-w-0 items-center gap-3">
+                      <span className="flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-xl border border-kr-line bg-kr-sand text-kr-muted">
+                        <Truck size={22} weight="bold" />
+                      </span>
+                      <span className="min-w-0">
+                        <span className="block font-extrabold leading-snug">{d.nombre}</span>
+                        <span className="block text-[13px] font-bold text-kr-muted">{d.telefono ?? 'Sin teléfono'}</span>
+                        <span className="mt-1 block md:hidden">{iva}</span>
+                      </span>
+                    </span>
+                    <span className="hidden md:block">{iva}</span>
+                    <span className="text-right">
+                      <span className="block text-[11px] font-extrabold uppercase text-kr-muted md:hidden">Gastado</span>
+                      <span className="text-base font-extrabold tabular-nums">{money(d.totalGastado ?? 0)}</span>
+                    </span>
+                    <CaretRight size={18} weight="bold" className="text-kr-muted" />
+                  </Link>
+                </li>
+              );
+            })}
+          </ul>
+        )}
+      </section>
+    </>
   );
 }

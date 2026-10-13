@@ -109,12 +109,12 @@ export default function NuevoProductoManualForm({
   const pct = costNum > 0 && !isNaN(priceNum) ? ((priceNum - costNum) / costNum) * 100 : null;
 
   return (
-    <div className="bg-white rounded-2xl shadow-sm p-4 flex flex-col gap-3 border border-orange-200">
+    <div className="bg-white rounded-2xl border border-kr-line p-4 flex flex-col gap-3 border border-kr-navy/30">
       <div className="flex items-center justify-between">
-        <p className="text-sm font-bold text-gray-800">Crear producto nuevo</p>
+        <p className="text-sm font-bold text-kr-navy">Crear producto nuevo</p>
         <button
           onClick={onCancel}
-          className="w-7 h-7 flex items-center justify-center rounded-lg text-gray-400 hover:bg-gray-100 transition-colors"
+          className="w-7 h-7 flex items-center justify-center rounded-lg text-kr-muted hover:bg-kr-sand transition-colors"
         >
           <X size={15} weight="bold" />
         </button>
@@ -122,15 +122,15 @@ export default function NuevoProductoManualForm({
       <div className="flex flex-col sm:flex-row gap-4">
         <div className="w-full sm:w-40 flex-shrink-0 flex flex-col gap-2">
           {aiImageUrl ? (
-            <div className="relative w-full h-52 border-2 border-orange-200 rounded-xl overflow-hidden bg-gray-50">
+            <div className="relative w-full h-52 border-2 border-kr-navy/30 rounded-xl overflow-hidden bg-kr-paper">
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img src={aiImageUrl} alt="Imagen elegida" className="w-full h-full object-contain p-2" />
               <button
                 type="button"
                 onClick={() => setAiImageUrl(null)}
-                className="absolute top-2 right-2 w-7 h-7 bg-white rounded-full shadow flex items-center justify-center hover:bg-red-50 transition-colors"
+                className="absolute top-2 right-2 w-7 h-7 bg-white rounded-full flex items-center justify-center hover:bg-[#FFE7D6] transition-colors"
               >
-                <X size={14} weight="bold" className="text-gray-500" />
+                <X size={14} weight="bold" className="text-kr-muted" />
               </button>
             </div>
           ) : (
@@ -140,7 +140,7 @@ export default function NuevoProductoManualForm({
                 type="button"
                 disabled={imageSearchLoading}
                 onClick={() => handleImageSearch(title)}
-                className="flex items-center justify-center gap-1.5 py-2 rounded-xl border border-gray-200 text-xs font-semibold text-gray-600 hover:bg-gray-50 transition-colors disabled:opacity-50"
+                className="flex items-center justify-center gap-1.5 py-2 rounded-xl border border-kr-line text-xs font-bold text-kr-muted hover:bg-kr-paper transition-colors disabled:opacity-50"
               >
                 <MagnifyingGlass size={14} weight="bold" />
                 {imageSearchLoading ? 'Buscando...' : 'Buscar imagen con IA'}
@@ -152,7 +152,7 @@ export default function NuevoProductoManualForm({
                       key={i}
                       type="button"
                       onClick={() => { setAiImageUrl(r.imageUrl); setImageSearchResults(null); setImage(null); }}
-                      className="relative w-full aspect-square rounded-lg overflow-hidden border border-gray-200 hover:border-orange-400 transition-colors bg-gray-50"
+                      className="relative w-full aspect-square rounded-lg overflow-hidden border border-kr-line hover:border-kr-blue transition-colors bg-kr-paper"
                     >
                       {/* eslint-disable-next-line @next/next/no-img-element */}
                       <img src={r.thumbnailUrl} alt="" className="w-full h-full object-cover" />
@@ -161,7 +161,7 @@ export default function NuevoProductoManualForm({
                 </div>
               )}
               {imageSearchResults && imageSearchResults.length === 0 && (
-                <p className="text-[11px] text-gray-400 text-center">No se encontraron imágenes.</p>
+                <p className="text-[11px] text-kr-muted text-center">No se encontraron imágenes.</p>
               )}
             </>
           )}
@@ -171,44 +171,44 @@ export default function NuevoProductoManualForm({
             value={title}
             onChange={(e) => setTitle(e.target.value)}
             placeholder="Nombre del producto"
-            className="border border-gray-200 rounded-xl px-3 py-2 text-sm outline-none focus:border-orange-400"
+            className="border border-kr-line rounded-xl px-3 py-2 text-sm outline-none focus:border-kr-blue"
           />
           <div className="flex flex-wrap gap-2">
             <div className="w-24">
-              <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wide">Cantidad</label>
+              <label className="text-[10px] font-bold text-kr-muted uppercase tracking-wide">Cantidad</label>
               <input
                 type="number"
                 step="1"
                 min="1"
                 value={cantidad}
                 onChange={(e) => setCantidad(e.target.value)}
-                className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm outline-none focus:border-orange-400"
+                className="w-full border border-kr-line rounded-xl px-3 py-2 text-sm outline-none focus:border-kr-blue"
               />
             </div>
             <div className="w-28">
-              <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wide">Costo</label>
+              <label className="text-[10px] font-bold text-kr-muted uppercase tracking-wide">Costo</label>
               <input
                 type="number"
                 min="0"
                 step="0.01"
                 value={costo}
                 onChange={(e) => setCosto(e.target.value)}
-                className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm outline-none focus:border-orange-400"
+                className="w-full border border-kr-line rounded-xl px-3 py-2 text-sm outline-none focus:border-kr-blue"
               />
             </div>
             <div className="w-28">
-              <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wide">Precio</label>
+              <label className="text-[10px] font-bold text-kr-muted uppercase tracking-wide">Precio</label>
               <input
                 type="number"
                 min="0"
                 step="0.01"
                 value={form.price}
                 onChange={(e) => setForm((f) => ({ ...f, price: e.target.value }))}
-                className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm outline-none focus:border-orange-400"
+                className="w-full border border-kr-line rounded-xl px-3 py-2 text-sm outline-none focus:border-kr-blue"
               />
             </div>
             <div className="w-20">
-              <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wide">% ganancia</label>
+              <label className="text-[10px] font-bold text-kr-muted uppercase tracking-wide">% ganancia</label>
               <input
                 type="number"
                 min="0"
@@ -220,23 +220,23 @@ export default function NuevoProductoManualForm({
                   if (costNum > 0 && !isNaN(p)) setForm((f) => ({ ...f, price: (costNum * (1 + p / 100)).toFixed(2) }));
                 }}
                 placeholder="Ej: 30"
-                className="w-full border border-gray-200 rounded-xl px-2 py-2 text-sm outline-none focus:border-orange-400"
+                className="w-full border border-kr-line rounded-xl px-2 py-2 text-sm outline-none focus:border-kr-blue"
               />
             </div>
           </div>
           <div className="flex items-center gap-3 flex-wrap">
             {pct !== null && (
-              <p className={`text-[11px] font-semibold ${pct >= 0 ? 'text-green-600' : 'text-red-500'}`}>
+              <p className={`text-[11px] font-bold ${pct >= 0 ? 'text-kr-green-dark' : 'text-kr-orange-dark'}`}>
                 Ganancia actual: {pct >= 0 ? '+' : ''}{pct.toFixed(1)}%
               </p>
             )}
             {!isNaN(priceNum) && priceNum > 0 && (
-              <p className="text-[11px] font-semibold text-purple-500">
+              <p className="text-[11px] font-bold text-kr-blue">
                 PedidosYa (+40%): {money(priceNum * 1.4)}
               </p>
             )}
             {costNum > 0 && (
-              <p className="text-[11px] font-semibold text-gray-500">
+              <p className="text-[11px] font-bold text-kr-muted">
                 Subtotal de la compra: {money(costNum * (parseFloat(cantidad || '0') || 0))}
               </p>
             )}
@@ -248,7 +248,7 @@ export default function NuevoProductoManualForm({
               onChange={(e) => setCodigoArticulo(e.target.value)}
               onKeyDown={(e) => { if (e.key === 'Enter') e.preventDefault(); }}
               placeholder="Código de artículo de esta distribuidora (opcional)"
-              className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm outline-none focus:border-orange-400"
+              className="w-full border border-kr-line rounded-xl px-3 py-2 text-sm outline-none focus:border-kr-blue"
             />
           </div>
           <div className="flex flex-wrap gap-2">
@@ -259,7 +259,7 @@ export default function NuevoProductoManualForm({
               value={form.quantity}
               onChange={(e) => setForm((f) => ({ ...f, quantity: e.target.value }))}
               placeholder="Medida"
-              className="w-28 border border-gray-200 rounded-xl px-3 py-2 text-sm outline-none focus:border-orange-400"
+              className="w-28 border border-kr-line rounded-xl px-3 py-2 text-sm outline-none focus:border-kr-blue"
             />
             <UnitSelector value={form.unit} onChange={(v) => setForm((f) => ({ ...f, unit: v }))} />
             <CategorySelector
@@ -275,26 +275,26 @@ export default function NuevoProductoManualForm({
               onChange={(e) => setForm((f) => ({ ...f, barcode: e.target.value }))}
               onKeyDown={(e) => { if (e.key === 'Enter') e.preventDefault(); }}
               placeholder="Código de barras (opcional, o escaneá con el lector)"
-              className="flex-1 border border-gray-200 rounded-xl px-3 py-2 text-sm outline-none focus:border-orange-400"
+              className="flex-1 border border-kr-line rounded-xl px-3 py-2 text-sm outline-none focus:border-kr-blue"
             />
             <button
               type="button"
               disabled={generatingBarcode}
               onClick={handleGenerateBarcode}
-              className="px-3 rounded-xl border border-gray-200 text-xs font-semibold text-gray-600 hover:bg-gray-50 transition-colors disabled:opacity-50 whitespace-nowrap"
+              className="px-3 rounded-xl border border-kr-line text-xs font-bold text-kr-muted hover:bg-kr-paper transition-colors disabled:opacity-50 whitespace-nowrap"
             >
               {generatingBarcode ? 'Generando...' : 'Generar código'}
             </button>
           </div>
-          {error && <p className="text-xs text-red-500 font-semibold bg-red-50 rounded-lg px-3 py-2">{error}</p>}
+          {error && <p className="text-xs text-kr-orange-dark font-bold bg-[#FFE7D6] rounded-lg px-3 py-2">{error}</p>}
           <div className="flex gap-2 mt-1">
-            <button onClick={onCancel} className="flex-1 py-2 rounded-xl border border-gray-200 text-xs font-semibold text-gray-600">
+            <button onClick={onCancel} className="flex-1 py-2 rounded-xl border border-kr-line text-xs font-bold text-kr-muted">
               Cancelar
             </button>
             <button
               onClick={submit}
               disabled={createMutation.isPending}
-              className="flex-1 py-2 rounded-xl bg-orange-500 hover:bg-orange-600 text-white text-xs font-bold transition-colors disabled:opacity-50"
+              className="flex-1 py-2 rounded-xl bg-kr-yellow hover:bg-[#FFD24D] text-kr-navy border-2 border-kr-navy text-xs font-bold transition-colors disabled:opacity-50"
             >
               {createMutation.isPending ? 'Creando...' : 'Crear producto'}
             </button>

@@ -51,6 +51,8 @@ export default function CategoriasPage() {
 
   const todas = data?.data ?? [];
   const totalSubs = todas.reduce((s, c) => s + c.children.length, 0);
+  // si ninguna tiene subcategorías, la columna de la flecha solo le saca lugar al nombre
+  const hayArbol = totalSubs > 0;
   const q = normalizar(search.trim());
 
   // buscando: quedan las categorías que coinciden o que tienen alguna subcategoría que coincide,
@@ -99,7 +101,8 @@ export default function CategoriasPage() {
           <ul>
             {visibles.map(({ cat, subs, abierta }, i) => (
               <li key={cat.id} className="border-b border-dashed border-kr-line last:border-b-0">
-                <div className="flex items-center gap-2 py-2.5 pl-1 pr-2.5 sm:gap-3 sm:py-3 sm:pl-2 sm:pr-4">
+                <div className={`flex items-center gap-2 py-2.5 pr-2.5 sm:gap-3 sm:py-3 sm:pr-4 ${hayArbol ? 'pl-1 sm:pl-2' : 'pl-3 sm:pl-4'}`}>
+                  {hayArbol && (
                   <button
                     type="button"
                     onClick={() => toggle(cat.id)}
@@ -110,6 +113,7 @@ export default function CategoriasPage() {
                   >
                     <CaretRight size={18} weight="bold" className={`transition-transform duration-150 ${abierta ? 'rotate-90' : ''}`} />
                   </button>
+                  )}
                   <span
                     className="relative flex h-11 w-11 flex-shrink-0 items-center justify-center overflow-hidden rounded-[14px] border-[1.5px] border-kr-navy sm:h-14 sm:w-14"
                     style={{ background: TINTES[i % TINTES.length] }}

@@ -102,20 +102,19 @@ export default function NuevoProductoDesdeFacturaForm({
   };
 
   return (
-    <tr>
-      <td colSpan={5} className="px-4 pb-4 bg-orange-50/30">
-        <div className="flex flex-col sm:flex-row gap-4 bg-white border border-orange-100 rounded-xl p-4">
+    <div className="px-3 pb-4 md:px-4">
+        <div className="flex flex-col sm:flex-row gap-4 bg-white border border-kr-line rounded-xl p-4">
           <div className="w-full sm:w-40 flex-shrink-0 flex flex-col gap-2">
             {aiImageUrl ? (
-              <div className="relative w-full h-52 border-2 border-orange-200 rounded-xl overflow-hidden bg-gray-50">
+              <div className="relative w-full h-52 border-2 border-kr-navy/30 rounded-xl overflow-hidden bg-kr-paper">
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img src={aiImageUrl} alt="Imagen elegida" className="w-full h-full object-contain p-2" />
                 <button
                   type="button"
                   onClick={() => setAiImageUrl(null)}
-                  className="absolute top-2 right-2 w-7 h-7 bg-white rounded-full shadow flex items-center justify-center hover:bg-red-50 transition-colors"
+                  className="absolute top-2 right-2 w-7 h-7 bg-white rounded-full flex items-center justify-center hover:bg-[#FFE7D6] transition-colors"
                 >
-                  <X size={14} weight="bold" className="text-gray-500" />
+                  <X size={14} weight="bold" className="text-kr-muted" />
                 </button>
               </div>
             ) : (
@@ -125,7 +124,7 @@ export default function NuevoProductoDesdeFacturaForm({
                   type="button"
                   disabled={imageSearchLoading}
                   onClick={() => handleImageSearch(form.title)}
-                  className="flex items-center justify-center gap-1.5 py-2 rounded-xl border border-gray-200 text-xs font-semibold text-gray-600 hover:bg-gray-50 transition-colors disabled:opacity-50"
+                  className="flex items-center justify-center gap-1.5 py-2 rounded-xl border border-kr-line text-xs font-bold text-kr-muted hover:bg-kr-paper transition-colors disabled:opacity-50"
                 >
                   <MagnifyingGlass size={14} weight="bold" />
                   {imageSearchLoading ? 'Buscando...' : 'Buscar imagen con IA'}
@@ -137,7 +136,7 @@ export default function NuevoProductoDesdeFacturaForm({
                         key={i}
                         type="button"
                         onClick={() => { setAiImageUrl(r.imageUrl); setImageSearchResults(null); setImage(null); }}
-                        className="relative w-full aspect-square rounded-lg overflow-hidden border border-gray-200 hover:border-orange-400 transition-colors bg-gray-50"
+                        className="relative w-full aspect-square rounded-lg overflow-hidden border border-kr-line hover:border-kr-blue transition-colors bg-kr-paper"
                       >
                         {/* eslint-disable-next-line @next/next/no-img-element */}
                         <img src={r.thumbnailUrl} alt="" className="w-full h-full object-cover" />
@@ -146,7 +145,7 @@ export default function NuevoProductoDesdeFacturaForm({
                   </div>
                 )}
                 {imageSearchResults && imageSearchResults.length === 0 && (
-                  <p className="text-[11px] text-gray-400 text-center">No se encontraron imágenes.</p>
+                  <p className="text-[11px] text-kr-muted text-center">No se encontraron imágenes.</p>
                 )}
               </>
             )}
@@ -157,7 +156,7 @@ export default function NuevoProductoDesdeFacturaForm({
                 value={form.title}
                 onChange={(e) => setForm((f) => ({ ...f, title: e.target.value }))}
                 placeholder="Nombre del producto"
-                className="flex-1 border border-gray-200 rounded-xl px-3 py-2 text-sm outline-none focus:border-orange-400"
+                className="flex-1 border border-kr-line rounded-xl px-3 py-2 text-sm outline-none focus:border-kr-blue"
               />
               <div className="w-full sm:w-44 flex flex-col gap-1">
                 <input
@@ -167,10 +166,10 @@ export default function NuevoProductoDesdeFacturaForm({
                   value={form.price}
                   onChange={(e) => setForm((f) => ({ ...f, price: e.target.value }))}
                   placeholder="Precio al público"
-                  className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm outline-none focus:border-orange-400"
+                  className="w-full border border-kr-line rounded-xl px-3 py-2 text-sm outline-none focus:border-kr-blue"
                 />
                 <div className="flex items-center gap-1.5">
-                  <span className="text-[11px] text-gray-400 whitespace-nowrap">% ganancia:</span>
+                  <span className="text-[11px] text-kr-muted whitespace-nowrap">% ganancia:</span>
                   <input
                     type="number"
                     min="0"
@@ -185,7 +184,7 @@ export default function NuevoProductoDesdeFacturaForm({
                       }
                     }}
                     placeholder="Ej: 30"
-                    className="w-full border border-gray-200 rounded-lg px-2 py-1 text-xs outline-none focus:border-orange-400"
+                    className="w-full border border-kr-line rounded-lg px-2 py-1 text-xs outline-none focus:border-kr-blue"
                   />
                 </div>
                 {(() => {
@@ -194,7 +193,7 @@ export default function NuevoProductoDesdeFacturaForm({
                   if (!(cost > 0) || isNaN(priceNum)) return null;
                   const pct = ((priceNum - cost) / cost) * 100;
                   return (
-                    <p className={`text-[11px] font-semibold ${pct >= 0 ? 'text-green-600' : 'text-red-500'}`}>
+                    <p className={`text-[11px] font-bold ${pct >= 0 ? 'text-kr-green-dark' : 'text-kr-orange-dark'}`}>
                       Ganancia actual: {pct >= 0 ? '+' : ''}{pct.toFixed(1)}%
                     </p>
                   );
@@ -203,7 +202,7 @@ export default function NuevoProductoDesdeFacturaForm({
                   const priceNum = parseFloat(form.price);
                   if (isNaN(priceNum) || priceNum <= 0) return null;
                   return (
-                    <p className="text-[11px] font-semibold text-purple-500">
+                    <p className="text-[11px] font-bold text-kr-blue">
                       PedidosYa (+40%): {money(priceNum * 1.4)}
                     </p>
                   );
@@ -218,7 +217,7 @@ export default function NuevoProductoDesdeFacturaForm({
                 value={form.quantity}
                 onChange={(e) => setForm((f) => ({ ...f, quantity: e.target.value }))}
                 placeholder="Medida"
-                className="w-28 border border-gray-200 rounded-xl px-3 py-2 text-sm outline-none focus:border-orange-400"
+                className="w-28 border border-kr-line rounded-xl px-3 py-2 text-sm outline-none focus:border-kr-blue"
               />
               <UnitSelector value={form.unit} onChange={(v) => setForm((f) => ({ ...f, unit: v }))} />
               <CategorySelector
@@ -234,36 +233,35 @@ export default function NuevoProductoDesdeFacturaForm({
                 onChange={(e) => setForm((f) => ({ ...f, barcode: e.target.value }))}
                 onKeyDown={(e) => { if (e.key === 'Enter') e.preventDefault(); }}
                 placeholder="Código de barras (opcional, o escaneá con el lector)"
-                className="flex-1 border border-gray-200 rounded-xl px-3 py-2 text-sm outline-none focus:border-orange-400"
+                className="flex-1 border border-kr-line rounded-xl px-3 py-2 text-sm outline-none focus:border-kr-blue"
               />
               <button
                 type="button"
                 disabled={generatingBarcode}
                 onClick={handleGenerateBarcode}
-                className="px-3 rounded-xl border border-gray-200 text-xs font-semibold text-gray-600 hover:bg-gray-50 transition-colors disabled:opacity-50 whitespace-nowrap"
+                className="px-3 rounded-xl border border-kr-line text-xs font-bold text-kr-muted hover:bg-kr-paper transition-colors disabled:opacity-50 whitespace-nowrap"
               >
                 {generatingBarcode ? 'Generando...' : 'Generar código'}
               </button>
             </div>
-            <p className="text-xs text-gray-400">
+            <p className="text-xs text-kr-muted">
               Precio por mayor: {money(item.precioUnitario)} (de la factura) · Stock inicial 0, se suma al confirmar
             </p>
-            {error && <p className="text-xs text-red-500 font-semibold bg-red-50 rounded-lg px-3 py-2">{error}</p>}
+            {error && <p className="text-xs text-kr-orange-dark font-bold bg-[#FFE7D6] rounded-lg px-3 py-2">{error}</p>}
             <div className="flex gap-2 mt-1">
-              <button onClick={onCancel} className="flex-1 py-2 rounded-xl border border-gray-200 text-xs font-semibold text-gray-600">
+              <button onClick={onCancel} className="flex-1 py-2 rounded-xl border border-kr-line text-xs font-bold text-kr-muted">
                 Cancelar
               </button>
               <button
                 onClick={submit}
                 disabled={createProductMutation.isPending}
-                className="flex-1 py-2 rounded-xl bg-orange-500 hover:bg-orange-600 text-white text-xs font-bold transition-colors disabled:opacity-50"
+                className="flex-1 py-2 rounded-xl bg-kr-yellow hover:bg-[#FFD24D] text-kr-navy border-2 border-kr-navy text-xs font-bold transition-colors disabled:opacity-50"
               >
                 {createProductMutation.isPending ? 'Creando...' : 'Crear y vincular'}
               </button>
             </div>
           </div>
         </div>
-      </td>
-    </tr>
+    </div>
   );
 }

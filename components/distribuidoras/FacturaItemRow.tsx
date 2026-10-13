@@ -1,11 +1,12 @@
 'use client';
 
-import { Fragment, useState } from 'react';
+import { useState } from 'react';
 import { Trash } from '@phosphor-icons/react';
 import { FacturaItem, Category, SuggestedProduct } from '@/lib/api';
 import ProductoVinculado from './ProductoVinculado';
 import VincularProductoPanel from './VincularProductoPanel';
 import NuevoProductoDesdeFacturaForm from './NuevoProductoDesdeFacturaForm';
+import { celdaInput, celdaLabel } from './estilos';
 
 type ProductoBase = { id: string; title: string; price: string };
 
@@ -43,28 +44,27 @@ export default function FacturaItemRow({
   const [creando, setCreando] = useState(false);
 
   return (
-    <Fragment>
-      <tr className="align-top animate-slideUp">
-        <td className="px-4 py-3">
+    <li className="border-b border-dashed border-kr-line last:border-b-0 animate-slideUp">
+      <div className="grid grid-cols-[repeat(3,minmax(0,1fr))_44px] items-start gap-x-2 gap-y-2.5 px-3 py-3 md:grid-cols-[minmax(0,1fr)_76px_112px_120px_44px] md:gap-x-3 md:px-4">
+        <div className="col-span-3 flex min-w-0 flex-col gap-1 md:col-span-1">
           <input
             defaultValue={item.nombreDetectado}
+            aria-label="Nombre leído en la factura"
             onBlur={(e) => e.target.value !== item.nombreDetectado && onUpdate({ nombreDetectado: e.target.value })}
-            className="w-full text-sm font-semibold text-gray-700 outline-none border-b border-transparent focus:border-orange-300"
+            className="w-full min-w-0 border-b-[1.5px] border-dashed border-[#B9AE97] bg-transparent py-1 text-[15px] font-extrabold text-kr-navy outline-none focus:border-solid focus:border-kr-blue"
           />
           {item.unidadesPorBultoDetectada != null && (
-            <p className="text-[11px] text-gray-400 font-medium mt-0.5">
-              📦 Detectado por bulto de {item.unidadesPorBultoDetectada} un. · cant./precio ya normalizados por unidad
+            <p className="text-xs font-bold text-kr-muted">
+              Leído por bulto de {item.unidadesPorBultoDetectada} un. · cantidad y costo ya pasados a unidad
             </p>
           )}
           {item.alicuotaIvaDetectada != null && (
-            <p className="text-[11px] text-gray-400 font-medium mt-0.5">
-              🧾 IVA {item.alicuotaIvaDetectada}% ya incluido en el costo
-            </p>
+            <p className="text-xs font-bold text-kr-muted">IVA {item.alicuotaIvaDetectada}% ya sumado al costo</p>
           )}
           {item.codigoArticuloDetectado && (
-            <p className="text-[11px] text-gray-400 font-medium mt-0.5">
-              🏷️ Cód. artículo de esta distribuidora: {item.codigoArticuloDetectado}
-              {item.productId && ' · guardado para reconocerlo solo la próxima vez'}
+            <p className="text-xs font-bold text-kr-muted">
+              Cód. art. <span className="tabular-nums text-kr-navy">{item.codigoArticuloDetectado}</span>
+              {item.productId && ' · se guarda para reconocerlo solo la próxima vez'}
             </p>
           )}
           {item.product ? (
@@ -86,54 +86,70 @@ export default function FacturaItemRow({
               onCrearNuevo={() => setCreando(true)}
             />
           )}
-        </td>
-        <td className="px-4 py-3">
+        </div>
+
+        <div className="col-start-4 row-start-1 flex justify-end md:col-start-5">
+          <button
+            type="button"
+            onClick={onRemove}
+            aria-label={`Quitar ${item.nombreDetectado}`}
+            className="flex h-10 w-10 items-center justify-center rounded-xl text-kr-muted hover:bg-[#FFE7D6] hover:text-kr-orange-dark"
+          >
+            <Trash size={18} weight="bold" />
+          </button>
+        </div>
+
+        <label className="flex min-w-0 flex-col gap-1 md:col-start-2 md:row-start-1">
+          <span className={`${celdaLabel} md:hidden`}>Cant.</span>
           <input
+            key={item.cantidad}
             type="number"
+            inputMode="numeric"
             step="1"
             defaultValue={item.cantidad}
+            aria-label="Cantidad"
             onBlur={(e) => {
               const cantidad = Math.round(parseFloat(e.target.value));
               if (!isNaN(cantidad) && cantidad !== item.cantidad) onUpdate({ cantidad });
             }}
-            className="w-16 text-sm font-semibold outline-none border-b border-transparent focus:border-orange-300"
+            className={`${celdaInput} md:text-right`}
           />
-        </td>
-        <td className="px-4 py-3">
+        </label>
+        <label className="flex min-w-0 flex-col gap-1 md:col-start-3 md:row-start-1">
+          <span className={`${celdaLabel} md:hidden`}>Costo</span>
           <input
+            key={item.precioUnitario}
             type="number"
+            inputMode="decimal"
             step="0.01"
             defaultValue={item.precioUnitario}
+            aria-label="Costo por unidad"
             onBlur={(e) =>
               parseFloat(e.target.value) !== Number(item.precioUnitario) &&
               onUpdate({ precioUnitario: parseFloat(e.target.value) })
             }
-            className="w-20 text-sm font-semibold outline-none border-b border-transparent focus:border-orange-300"
+            className={`${celdaInput} md:text-right`}
           />
-        </td>
-        <td className="px-4 py-3">
+        </label>
+        <label className="flex min-w-0 flex-col gap-1 md:col-start-4 md:row-start-1">
+          <span className={`${celdaLabel} md:hidden`}>Subtotal</span>
           <input
+            key={item.subtotal}
             type="number"
+            inputMode="decimal"
             step="0.01"
             defaultValue={item.subtotal}
+            aria-label="Subtotal"
             onBlur={(e) => {
               const newSubtotal = parseFloat(e.target.value);
               if (isNaN(newSubtotal) || newSubtotal === Number(item.subtotal)) return;
               if (!(item.cantidad > 0)) return;
               onUpdate({ precioUnitario: newSubtotal / item.cantidad });
             }}
-            className="w-20 font-bold text-orange-500 outline-none border-b border-transparent focus:border-orange-300"
+            className={`${celdaInput} md:text-right`}
           />
-        </td>
-        <td className="px-4 py-3">
-          <button
-            onClick={onRemove}
-            className="w-7 h-7 rounded-lg flex items-center justify-center text-gray-400 hover:bg-red-50 hover:text-red-500 transition-colors"
-          >
-            <Trash size={14} weight="bold" />
-          </button>
-        </td>
-      </tr>
+        </label>
+      </div>
       {creando && (
         <NuevoProductoDesdeFacturaForm
           item={item}
@@ -144,6 +160,6 @@ export default function FacturaItemRow({
           onCancel={() => setCreando(false)}
         />
       )}
-    </Fragment>
+    </li>
   );
 }

@@ -29,28 +29,28 @@ export default function AgregarLineaManual({ facturaId, onAdded }: Props) {
 
   if (!open) {
     return (
-      <button onClick={() => setOpen(true)} className="text-xs font-semibold text-orange-500 hover:text-orange-600">
+      <button onClick={() => setOpen(true)} className="text-xs font-bold text-kr-blue hover:text-kr-navy">
         + Agregar línea manual
       </button>
     );
   }
 
   return (
-    <div className="flex flex-col gap-2 bg-gray-50 rounded-xl p-3">
+    <div className="flex flex-col gap-2 bg-kr-paper rounded-xl p-3">
       <div className="flex gap-2">
         <input
           type="text"
           value={nombre}
           onChange={(e) => setNombre(e.target.value)}
           placeholder="Descripción"
-          className="flex-1 border border-gray-200 rounded-xl px-3 py-2 text-sm outline-none focus:border-orange-400"
+          className="flex-1 border border-kr-line rounded-xl px-3 py-2 text-sm outline-none focus:border-kr-blue"
         />
         <input
           type="number"
           value={cantidad}
           onChange={(e) => setCantidad(e.target.value)}
           placeholder="Cant."
-          className="w-20 border border-gray-200 rounded-xl px-3 py-2 text-sm outline-none focus:border-orange-400"
+          className="w-20 border border-kr-line rounded-xl px-3 py-2 text-sm outline-none focus:border-kr-blue"
         />
         <input
           type="number"
@@ -58,13 +58,13 @@ export default function AgregarLineaManual({ facturaId, onAdded }: Props) {
           value={precio}
           onChange={(e) => setPrecio(e.target.value)}
           placeholder="Precio"
-          className="w-24 border border-gray-200 rounded-xl px-3 py-2 text-sm outline-none focus:border-orange-400"
+          className="w-24 border border-kr-line rounded-xl px-3 py-2 text-sm outline-none focus:border-kr-blue"
         />
       </div>
       <div className="flex gap-2">
         <button
           onClick={() => setOpen(false)}
-          className="flex-1 py-2 rounded-xl border border-gray-200 text-xs font-semibold text-gray-600"
+          className="flex-1 py-2 rounded-xl border border-kr-line text-xs font-bold text-kr-muted"
         >
           Cancelar
         </button>
@@ -77,7 +77,7 @@ export default function AgregarLineaManual({ facturaId, onAdded }: Props) {
             })
           }
           disabled={!nombre.trim() || !precio}
-          className="flex-1 py-2 rounded-xl bg-orange-500 text-white text-xs font-bold disabled:opacity-50"
+          className="flex-1 py-2 rounded-xl bg-kr-yellow text-kr-navy border-2 border-kr-navy text-xs font-bold disabled:opacity-50"
         >
           Agregar
         </button>
