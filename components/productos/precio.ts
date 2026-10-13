@@ -1,7 +1,8 @@
 // Costo, precio y ganancia están atados por precio = costo * (1 + ganancia/100). Estas cuentas las
 // usan tanto el listado (edición en la fila) como el formulario, para que den siempre lo mismo.
 
-export const redondear = (n: number) => Math.round(n * 100) / 100;
+// mismo redondeo que usaba el panel antes (toFixed), para que los precios den al centavo igual que siempre
+export const redondear = (n: number) => parseFloat(n.toFixed(2));
 
 // null si no hay costo cargado: sin costo no hay ganancia que mostrar
 export function gananciaPct(costo: number | null, precio: number): number | null {
@@ -13,7 +14,7 @@ export const precioConGanancia = (costo: number, pct: number) => redondear(costo
 
 // cambia el costo conservando el % de ganancia que ya tenía el producto
 export const precioManteniendoMargen = (costoAnterior: number, precioAnterior: number, costoNuevo: number) =>
-  redondear(costoNuevo * (precioAnterior / costoAnterior));
+  redondear(costoNuevo * (1 + (precioAnterior - costoAnterior) / costoAnterior));
 
 // 34 / 34.5 (sin ceros de más) - sirve como texto y como valor de un input numérico
 export const pctValor = (pct: number) => String(Number(pct.toFixed(1)));
