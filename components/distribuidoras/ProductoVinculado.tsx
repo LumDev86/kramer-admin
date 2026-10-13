@@ -63,7 +63,7 @@ export default function ProductoVinculado({
       <div className="flex items-center gap-1.5">
         <Check size={12} weight="bold" className="text-kr-green-dark" />
         <span className="text-xs text-kr-green-dark font-bold">{item.product.title}</span>
-        <button onClick={onDesvincular} aria-label="Desvincular producto" title="Desvincular" className="text-kr-muted/60 hover:text-kr-orange-dark">
+        <button onClick={onDesvincular} aria-label="Desvincular producto" title="Desvincular" className="flex h-8 w-8 items-center justify-center rounded-lg text-kr-muted hover:bg-[#FFE7D6] hover:text-kr-orange-dark">
           <X size={12} weight="bold" />
         </button>
       </div>

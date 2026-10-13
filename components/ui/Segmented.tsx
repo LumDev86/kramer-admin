@@ -16,13 +16,14 @@ interface Props<T extends string> {
   className?: string;
 }
 
-// control de "una opción entre pocas" (período, vista, filtro por estado)
+// control de "una opción entre pocas" (período, vista, filtro por estado). Si en el celular no
+// entran todas, se desliza de costado (sin barra de scroll visible)
 export default function Segmented<T extends string>({ options, value, onChange, ariaLabel, full, className = '' }: Props<T>) {
   return (
     <div
       role="tablist"
       aria-label={ariaLabel}
-      className={`box-border inline-flex max-w-full gap-1 overflow-x-auto rounded-[14px] border-[1.5px] border-kr-line bg-white p-1 ${full ? 'w-full' : ''} ${className}`}
+      className={`box-border inline-flex max-w-full gap-1 overflow-x-auto rounded-[14px] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden border-[1.5px] border-kr-line bg-white p-1 ${full ? 'w-full' : ''} ${className}`}
     >
       {options.map((o) => {
         const on = o.value === value;
@@ -33,7 +34,7 @@ export default function Segmented<T extends string>({ options, value, onChange, 
             role="tab"
             aria-selected={on}
             onClick={() => onChange(o.value)}
-            className={`inline-flex min-h-9.5 items-center justify-center gap-1.5 whitespace-nowrap rounded-[10px] px-3.5 text-sm font-extrabold transition-colors ${
+            className={`inline-flex min-h-9.5 items-center justify-center gap-1.5 whitespace-nowrap rounded-[10px] px-2.5 text-sm font-extrabold sm:px-3.5 transition-colors ${
               full ? 'flex-1' : ''
             } ${on ? 'bg-kr-navy text-white' : 'text-kr-muted hover:text-kr-navy'}`}
           >

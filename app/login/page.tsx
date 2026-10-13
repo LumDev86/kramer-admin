@@ -2,9 +2,11 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
+import Image from 'next/image';
 import { auth } from '@/lib/api';
 import { setToken } from '@/lib/auth';
 import { LockKey, EnvelopeSimple } from '@phosphor-icons/react';
+import { buttonClasses } from '@/components/ui/Button';
 
 export default function LoginPage() {
   const router = useRouter();
@@ -28,59 +30,63 @@ export default function LoginPage() {
     }
   };
 
-  return (
-    <div className="min-h-screen flex items-center justify-center px-4">
-      <div className="w-full max-w-sm animate-slideUp">
+  const campo = 'flex min-h-12 items-center gap-2.5 rounded-xl border-[1.5px] border-kr-line bg-kr-paper px-3 focus-within:border-kr-blue';
+  const input = 'min-w-0 flex-1 bg-transparent text-[15px] font-bold text-kr-navy outline-none placeholder:font-semibold placeholder:text-kr-muted/70';
 
-        <div className="text-center mb-8">
-          <div className="inline-flex items-center justify-center w-16 h-16 bg-orange-500 rounded-2xl shadow-md mb-4">
-            <LockKey size={32} weight="fill" className="text-white" />
+  return (
+    <div className="flex min-h-screen items-center justify-center bg-kr-navy px-4 py-10">
+      <div className="w-full max-w-sm animate-slideUp">
+        <div className="mb-6 flex flex-col items-center gap-3 text-center">
+          <span className="relative h-20 w-20 overflow-hidden rounded-2xl border-2 border-kr-yellow bg-white shadow-[4px_4px_0_0_var(--color-kr-yellow)]">
+            <Image src="/logo.png" alt="" fill sizes="80px" className="object-contain p-1.5" priority />
+          </span>
+          <div>
+            <h1 className="font-display text-3xl leading-none text-white">Kiosco Kramer</h1>
+            <p className="mt-1 text-sm font-bold text-kr-side-text">Panel de administración</p>
           </div>
-          <h1 className="text-2xl font-extrabold text-gray-800">Panel Admin</h1>
-          <p className="text-sm text-gray-400 font-medium mt-1">Kiosco Kramer</p>
         </div>
 
-        <form onSubmit={handleSubmit} className="bg-white rounded-2xl shadow-sm p-6 flex flex-col gap-4">
-          <div className="flex flex-col gap-1">
-            <label className="text-xs font-semibold text-gray-500">Email</label>
-            <div className="relative">
-              <EnvelopeSimple size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+        <form onSubmit={handleSubmit} className="flex flex-col gap-4 rounded-2xl border-2 border-kr-navy bg-white p-5 sm:p-6">
+          <div className="flex flex-col gap-1.5">
+            <label htmlFor="login-email" className="text-[13px] font-extrabold text-kr-muted">Email</label>
+            <div className={campo}>
+              <EnvelopeSimple size={18} weight="bold" className="flex-shrink-0 text-kr-muted" />
               <input
+                id="login-email"
                 required
                 type="email"
+                autoComplete="username"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 placeholder="admin@kramer.com"
-                className="w-full pl-9 pr-3 py-2.5 border border-gray-200 rounded-xl text-sm outline-none focus:border-orange-400 font-medium"
+                className={input}
               />
             </div>
           </div>
 
-          <div className="flex flex-col gap-1">
-            <label className="text-xs font-semibold text-gray-500">Contraseña</label>
-            <div className="relative">
-              <LockKey size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+          <div className="flex flex-col gap-1.5">
+            <label htmlFor="login-pass" className="text-[13px] font-extrabold text-kr-muted">Contraseña</label>
+            <div className={campo}>
+              <LockKey size={18} weight="bold" className="flex-shrink-0 text-kr-muted" />
               <input
+                id="login-pass"
                 required
                 type="password"
+                autoComplete="current-password"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 placeholder="••••••••"
-                className="w-full pl-9 pr-3 py-2.5 border border-gray-200 rounded-xl text-sm outline-none focus:border-orange-400 font-medium"
+                className={input}
               />
             </div>
           </div>
 
           {error && (
-            <p className="text-xs text-red-500 font-semibold bg-red-50 rounded-lg px-3 py-2">{error}</p>
+            <p role="alert" className="rounded-lg bg-[#FFE7D6] px-3 py-2 text-sm font-bold text-kr-orange-dark">{error}</p>
           )}
 
-          <button
-            type="submit"
-            disabled={loading}
-            className="w-full bg-orange-500 hover:bg-orange-600 text-white font-bold py-3 rounded-xl transition-colors disabled:opacity-60 mt-1"
-          >
-            {loading ? 'Ingresando...' : 'Ingresar'}
+          <button type="submit" disabled={loading} className={buttonClasses('primary', 'lg', 'mt-1 w-full')}>
+            {loading ? 'Ingresando…' : 'Ingresar'}
           </button>
         </form>
       </div>

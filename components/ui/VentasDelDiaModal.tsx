@@ -171,20 +171,20 @@ export default function VentasDelDiaModal({ currentSessionId, onClose }: Props) 
                           : 'hover:bg-kr-paper'
                       }`}
                     >
-                      <span className={`font-mono text-[11px] ${cancelled ? 'line-through text-kr-muted/50' : 'text-kr-muted'}`}>
+                      <span className={`font-mono text-[11px] ${cancelled ? 'line-through text-kr-muted/75' : 'text-kr-muted'}`}>
                         {folioOf(sale.id)}
                       </span>
                       <span>
                         {credito && !cancelled && <span className="text-[11px] font-extrabold text-kr-blue">Crédito</span>}
                         {cancelled && <span className="text-[11px] font-extrabold text-kr-orange-dark">Cancelado</span>}
                       </span>
-                      <span className={`text-right font-bold tabular-nums ${cancelled ? 'text-kr-muted/50' : 'text-kr-muted'}`}>{arts}</span>
+                      <span className={`text-right font-bold tabular-nums ${cancelled ? 'text-kr-muted/75' : 'text-kr-muted'}`}>{arts}</span>
                       {/* alineada a la izquierda, no a la derecha como Arts/Total - el label
                           "Hora" es mucho más corto que un valor tipo "12:14 a. m.", así que
                           alinear a la derecha dejaba el valor mucho más corrido hacia la
                           izquierda que el label, aunque el borde derecho coincidiera */}
-                      <span className={`whitespace-nowrap font-bold ${cancelled ? 'text-kr-muted/50' : 'text-kr-muted'}`}>{horaOf(sale)}</span>
-                      <span className={`text-right font-extrabold tabular-nums whitespace-nowrap ${cancelled ? 'text-kr-muted/50 line-through' : 'text-kr-navy'}`}>
+                      <span className={`whitespace-nowrap font-bold ${cancelled ? 'text-kr-muted/75' : 'text-kr-muted'}`}>{horaOf(sale)}</span>
+                      <span className={`text-right font-extrabold tabular-nums whitespace-nowrap ${cancelled ? 'text-kr-muted/75 line-through' : 'text-kr-navy'}`}>
                         {money(sale.total)}
                       </span>
                     </button>

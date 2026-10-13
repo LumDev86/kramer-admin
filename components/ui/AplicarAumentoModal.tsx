@@ -179,7 +179,7 @@ export default function AplicarAumentoModal({ distribuidorId, distribuidorNombre
                     return (
                       <label
                         key={p.id}
-                        className={`flex items-center gap-3 px-4 py-2.5 cursor-pointer transition-colors ${checked ? '' : 'opacity-40'} hover:bg-kr-paper`}
+                        className={`flex items-center gap-3 px-4 py-2.5 cursor-pointer transition-colors ${checked ? '' : 'opacity-60'} hover:bg-kr-paper`}
                       >
                         <input
                           type="checkbox"
