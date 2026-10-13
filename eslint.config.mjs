@@ -12,6 +12,8 @@ const eslintConfig = defineConfig([
     "out/**",
     "build/**",
     "next-env.d.ts",
+    // herramientas sueltas que corren en el navegador (exportar pantallas a Figma), no son parte del panel
+    "docs/**",
   ]),
 ]);
 

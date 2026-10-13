@@ -1,0 +1,9 @@
+<!doctype html>
+<html><head><meta charset="utf-8">
+<link href="https://fonts.googleapis.com/css2?family=Lilita+One&family=Nunito:wght@400;600;700;800;900&family=Archivo+Black&family=Space+Grotesk:wght@400;500;600;700&family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,800&family=Geist:wght@400;500;600;700&family=Geist+Mono:wght@500&display=swap" rel="stylesheet">
+<style>body{margin:0}</style></head>
+<body><div id="v"></div>
+<script>
+const f = new URLSearchParams(location.search).get('f');
+fetch('/_out/' + f).then(r => r.text()).then(t => { document.getElementById('v').innerHTML = t; });
+</script></body></html>

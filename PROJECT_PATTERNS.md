@@ -31,6 +31,11 @@ Un solo componente para alta y edición: prop `x?: X` opcional (si viene, `isEdi
 
 Agregar un objeto `{ href, label, icon, key? }` al array `NAV` (ícono de `@phosphor-icons/react`). `key` es opcional: la tecla F que lleva a la sección con una sola tecla (hoy F3–F9 están tomadas; F1, F2 y F10 son de Ventas y F11/F12 se dejan al navegador, así que una sección nueva va sin tecla salvo que se reordene). No hace falta tocar la lógica de `isActive`.
 
+## Logo y diseño en Figma
+
+- El logo es el mismo archivo que el de la tienda: `public/logo.png` = `client/public/logo.png`. Si cambia, reemplazarlo en los dos repos. La pestaña usa `/logo.png` (declarado en `app/layout.tsx`; no hay `favicon.ico`).
+- El diseño (sistema de diseño + pantallas de la tienda y del panel) está en Figma. Link, estructura y cómo exportar pantallas nuevas: `docs/figma/README.md`.
+
 ## Deploy
 
 Automático: `git push origin main` dispara el deploy en Vercel. **Siempre confirmar con el usuario antes de pushear** (afecta producción directamente, no hay ambiente de staging).
