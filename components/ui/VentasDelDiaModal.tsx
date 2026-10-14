@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { sales, SaleWithCliente, PaymentMethod } from '@/lib/api';
-import { CaretLeft, CaretRight, X, Trash } from '@phosphor-icons/react';
+import { CaretLeft, CaretRight, X, Trash, Moped } from '@phosphor-icons/react';
 import ConfirmModal from './ConfirmModal';
 import Chip from './Chip';
 import { buttonClasses } from './Button';
@@ -92,7 +92,12 @@ export default function VentasDelDiaModal({ currentSessionId, onClose }: Props) 
     onError: (err: any) => setActionError(err.message ?? 'Error al quitar el producto'),
   });
 
-  const editable = !!selected && selected.status === 'PAID' && selected.cashSessionId === currentSessionId;
+  // mismo criterio que server/src/shared/utils/profit.ts esItemEnvio
+  const costoEnvio = (selected?.items ?? [])
+    .filter((item) => !item.productId && item.name === 'Envío')
+    .reduce((sum, item) => sum + Number(item.subtotal), 0);
+
+  const editable = !!selected &&selected.status === 'PAID' && selected.cashSessionId === currentSessionId;
 
   const moverFecha = (dias: number) =>
     setFecha((d) => { const n = new Date(d); n.setDate(n.getDate() + dias); return n; });
@@ -155,6 +160,7 @@ export default function VentasDelDiaModal({ currentSessionId, onClose }: Props) 
                   const arts = sale.items.reduce((sum, item) => sum + item.quantity, 0);
                   const cancelled = sale.status === 'CANCELLED';
                   const credito = sale.paymentMethod === 'CREDIT';
+                  const envio = sale.channel === 'DELIVERY';
                   return (
                     <button
                       type="button"
@@ -174,7 +180,13 @@ export default function VentasDelDiaModal({ currentSessionId, onClose }: Props) 
                       <span className={`font-mono text-[11px] ${cancelled ? 'line-through text-kr-muted/75' : 'text-kr-muted'}`}>
                         {folioOf(sale.id)}
                       </span>
-                      <span>
+                      <span className="flex flex-wrap items-center gap-x-1.5 min-w-0">
+                        {envio && (
+                          <span className={`inline-flex items-center gap-0.5 text-[11px] font-extrabold ${cancelled ? 'text-kr-muted/75' : 'text-kr-green-dark'}`}>
+                            <Moped size={13} weight="bold" aria-hidden />
+                            Envío
+                          </span>
+                        )}
                         {credito && !cancelled && <span className="text-[11px] font-extrabold text-kr-blue">Crédito</span>}
                         {cancelled && <span className="text-[11px] font-extrabold text-kr-orange-dark">Cancelado</span>}
                       </span>
@@ -236,6 +248,12 @@ export default function VentasDelDiaModal({ currentSessionId, onClose }: Props) 
                 <div className="px-4 sm:px-5 py-3 border-b border-kr-line flex-shrink-0">
                   <div className="flex flex-wrap items-center gap-2">
                     <p className="font-display text-xl leading-tight mr-auto">Ticket {folioOf(selected.id)}</p>
+                    {selected.channel === 'DELIVERY' && (
+                      <Chip tone="ok">
+                        <Moped size={13} weight="bold" aria-hidden />
+                        Pedido con envío
+                      </Chip>
+                    )}
                     {selected.status === 'CANCELLED' && <Chip tone="bad">Cancelado</Chip>}
                     {selected.paymentMethod === 'CREDIT' && selected.status !== 'CANCELLED' && <Chip tone="info">Crédito</Chip>}
                   </div>
@@ -285,6 +303,11 @@ export default function VentasDelDiaModal({ currentSessionId, onClose }: Props) 
                     <div>
                       <p className="text-xs font-extrabold text-kr-muted uppercase tracking-wide">Total</p>
                       <p className="font-display text-3xl leading-none tabular-nums">{money(selected.total)}</p>
+                      {costoEnvio > 0 && (
+                        <p className="text-xs font-bold text-kr-muted mt-1">
+                          Incluye {money(costoEnvio)} de envío (es del repartidor)
+                        </p>
+                      )}
                     </div>
                     <p className="text-sm font-bold text-kr-muted">
                       Pagó con: <span className="font-extrabold text-kr-navy">{selected.paymentMethod ? PAYMENT_METHOD_LABELS[selected.paymentMethod] : '—'}</span>

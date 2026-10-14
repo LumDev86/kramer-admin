@@ -178,9 +178,13 @@ export interface SaleItem {
   createdAt: string;
 }
 
+// POS = mostrador (caja), DELIVERY = pedido de la tienda con envío, nace al marcarlo ENTREGADO
+export type SaleChannel = 'POS' | 'DELIVERY';
+
 export interface Sale {
   id: string;
   status: SaleStatus;
+  channel: SaleChannel;
   paymentMethod: PaymentMethod | null;
   total: string;
   paidAmount: string | null;
