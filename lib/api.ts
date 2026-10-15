@@ -334,11 +334,11 @@ export const clientes = {
     nombre: string;
     apellido: string;
     apodo?: string;
-    dni?: string;
-    telefono?: string;
-    direccion?: string;
-    email?: string;
-    creditLimit?: number;
+    dni: string;
+    telefono: string;
+    direccion: string;
+    email: string;
+    creditLimit: number;
   }) => request<Cliente>('/clientes', { method: 'POST', body: JSON.stringify(data) }),
   update: (
     id: string,

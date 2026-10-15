@@ -43,18 +43,18 @@ export default function ClienteForm({ cliente }: Props) {
           telefono: telefono || null,
           direccion: direccion || null,
           email: email || null,
-          creditLimit: creditLimit !== '' ? parseFloat(String(creditLimit)) : null,
+          creditLimit: parseFloat(String(creditLimit)),
         });
       } else {
         const nuevo = await clientes.create({
           nombre,
           apellido,
           ...(apodo && { apodo }),
-          ...(dni && { dni }),
-          ...(telefono && { telefono }),
-          ...(direccion && { direccion }),
-          ...(email && { email }),
-          ...(creditLimit !== '' && { creditLimit: parseFloat(String(creditLimit)) }),
+          dni,
+          telefono,
+          direccion,
+          email,
+          creditLimit: parseFloat(String(creditLimit)),
         });
         destinoId = nuevo.id;
       }
@@ -69,13 +69,15 @@ export default function ClienteForm({ cliente }: Props) {
     }
   };
 
-  const campo = (id: string, label: string, value: string, set: (v: string) => void, extra: { placeholder?: string; type?: string; required?: boolean; inputMode?: 'numeric' | 'tel' | 'email' } = {}) => (
+  const campo = (id: string, label: string, value: string, set: (v: string) => void, extra: { placeholder?: string; type?: string; required?: boolean; inputMode?: 'numeric' | 'tel' | 'email'; pattern?: string; title?: string } = {}) => (
     <Field label={label} htmlFor={id}>
       <input
         id={id}
         type={extra.type ?? 'text'}
         required={extra.required}
         inputMode={extra.inputMode}
+        pattern={extra.pattern}
+        title={extra.title}
         value={value}
         onChange={(e) => set(e.target.value)}
         placeholder={extra.placeholder}
@@ -90,12 +92,12 @@ export default function ClienteForm({ cliente }: Props) {
         <div className="grid gap-3 sm:grid-cols-2">
           {campo('cf-nombre', 'Nombre', nombre, setNombre, { required: true, placeholder: 'Nombre' })}
           {campo('cf-apellido', 'Apellido', apellido, setApellido, { required: true, placeholder: 'Apellido' })}
-          {campo('cf-apodo', 'Apodo', apodo, setApodo, { placeholder: 'Como le dicen' })}
-          {campo('cf-dni', 'DNI', dni, setDni, { placeholder: '30123456', inputMode: 'numeric' })}
-          {campo('cf-tel', 'Teléfono', telefono, setTelefono, { placeholder: '11-1234-5678', type: 'tel', inputMode: 'tel' })}
-          {campo('cf-email', 'Email', email, setEmail, { placeholder: 'cliente@ejemplo.com', type: 'email', inputMode: 'email' })}
+          {campo('cf-apodo', 'Apodo (opcional)', apodo, setApodo, { placeholder: 'Como le dicen' })}
+          {campo('cf-dni', 'DNI', dni, setDni, { required: true, placeholder: '30123456', inputMode: 'numeric', pattern: '[0-9. ]{7,12}', title: 'Solo números (7 a 9)' })}
+          {campo('cf-tel', 'Teléfono', telefono, setTelefono, { required: true, placeholder: '11-1234-5678', type: 'tel', inputMode: 'tel' })}
+          {campo('cf-email', 'Email', email, setEmail, { required: true, placeholder: 'cliente@ejemplo.com', type: 'email', inputMode: 'email' })}
         </div>
-        {campo('cf-dir', 'Dirección', direccion, setDireccion, { placeholder: 'Domicilio' })}
+        {campo('cf-dir', 'Dirección', direccion, setDireccion, { required: true, placeholder: 'Domicilio' })}
 
         <p className="rounded-xl bg-kr-paper px-3 py-2.5 text-[13px] font-bold text-kr-muted">
           Cargarlo acá no le da acceso a la tienda. Para que vea su cuenta desde el celular, cargale el email y en su
@@ -105,17 +107,18 @@ export default function ClienteForm({ cliente }: Props) {
         <Field
           label="Límite de crédito"
           htmlFor="cf-limite"
-          hint="Si lo completás, no se le va a poder cobrar un fiado que haga pasar su deuda de este monto."
+          hint="No se le va a poder cobrar un fiado que haga pasar su deuda de este monto."
         >
           <input
             id="cf-limite"
+            required
             type="number"
             inputMode="decimal"
             min="0"
             step="0.01"
             value={creditLimit}
             onChange={(e) => setCreditLimit(e.target.value)}
-            placeholder="Vacío = sin tope"
+            placeholder="Ej. 20000"
             className={inputClasses('no-spin')}
           />
         </Field>
