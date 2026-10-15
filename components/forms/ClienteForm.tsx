@@ -9,6 +9,10 @@ import Field, { inputClasses } from '@/components/ui/Field';
 import { buttonClasses } from '@/components/ui/Button';
 import { useToast } from '@/components/ui/Toast';
 
+// límite con el que arranca un cliente nuevo (el mismo que se les pone a los que se registran
+// solos en la tienda, ver server cliente.service.ts LIMITE_CREDITO_INICIAL). El dueño lo puede cambiar
+const LIMITE_CREDITO_INICIAL = '10000';
+
 interface Props {
   cliente?: Cliente;
 }
@@ -26,7 +30,7 @@ export default function ClienteForm({ cliente }: Props) {
   const [telefono, setTelefono] = useState(cliente?.telefono ?? '');
   const [direccion, setDireccion] = useState(cliente?.direccion ?? '');
   const [email, setEmail] = useState(cliente?.email ?? '');
-  const [creditLimit, setCreditLimit] = useState<string>(cliente?.creditLimit ?? '');
+  const [creditLimit, setCreditLimit] = useState<string>(cliente ? (cliente.creditLimit ?? '') : LIMITE_CREDITO_INICIAL);
   const [loading, setLoading] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -107,7 +111,7 @@ export default function ClienteForm({ cliente }: Props) {
         <Field
           label="Límite de crédito"
           htmlFor="cf-limite"
-          hint="No se le va a poder cobrar un fiado que haga pasar su deuda de este monto."
+          hint="Lo define el dueño. Un cliente nuevo arranca con $10.000; si pide más, se cambia acá. No se le va a poder cobrar un fiado que haga pasar su deuda de este monto."
         >
           <input
             id="cf-limite"
