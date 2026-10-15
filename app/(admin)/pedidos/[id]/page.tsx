@@ -97,7 +97,7 @@ export default function PedidoDetallePage() {
 
   const trackingUrl = `${CLIENT_URL}/pedido/${pedido.trackingToken}`;
   const mensajesPorEstado: Partial<Record<PedidoStatus, string>> = {
-    EN_PREPARACION: `Hola ${pedido.nombreCliente}! Tu pedido ${pedido.numero} está en preparación 👨‍🍳`,
+    EN_PREPARACION: `Hola ${pedido.nombreCliente}! Tu pedido ${pedido.numero} está en preparación 👨‍🍳. Podés seguirlo acá: ${trackingUrl}`,
     EN_CAMINO: `Hola ${pedido.nombreCliente}! Tu pedido ${pedido.numero} está en camino 🛵. Cuando lo recibas, respondé este mensaje con "recibido". Podés seguirlo acá: ${trackingUrl}`,
     ENTREGADO: `Hola ${pedido.nombreCliente}! Tu pedido ${pedido.numero} fue entregado. ¡Gracias por tu compra! 🎉`,
     CANCELADO: `Hola ${pedido.nombreCliente}, tu pedido ${pedido.numero} fue cancelado. Cualquier consulta, escribinos por acá.`,
