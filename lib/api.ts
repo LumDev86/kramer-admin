@@ -301,6 +301,8 @@ export interface Cliente {
   isActive: boolean;
   deuda?: number;
   passwordResetRequestedAt: string | null;
+  // ya eligió contraseña y puede entrar a la tienda (la API nunca manda el hash)
+  tieneCuenta: boolean;
   createdAt: string;
 }
 

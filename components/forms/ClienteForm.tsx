@@ -98,8 +98,8 @@ export default function ClienteForm({ cliente }: Props) {
         {campo('cf-dir', 'Dirección', direccion, setDireccion, { placeholder: 'Domicilio' })}
 
         <p className="rounded-xl bg-kr-paper px-3 py-2.5 text-[13px] font-bold text-kr-muted">
-          Los clientes pueden registrarse solos desde la tienda para ver su cuenta. Cargarlo acá es para quien no puede
-          hacerlo: no le da acceso a la cuenta (no tiene contraseña) hasta que se registre con este email.
+          Cargarlo acá no le da acceso a la tienda. Para que vea su cuenta desde el celular, cargale el email y en su
+          ficha tocá «Generar link de acceso»: con ese link elige su contraseña.
         </p>
 
         <Field

@@ -4,7 +4,7 @@ import { useRef, useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useParams } from 'next/navigation';
 import Link from 'next/link';
-import { ArrowDownLeft, Bell, Check, Copy, ShoppingBag, WhatsappLogo } from '@phosphor-icons/react';
+import { ArrowDownLeft, Bell, Check, Copy, Key, ShoppingBag, WhatsappLogo } from '@phosphor-icons/react';
 import { clientes, ClientePago, Sale } from '@/lib/api';
 import { money, formatDateTime, waLink } from '@/lib/format';
 import ConfirmModal from '@/components/ui/ConfirmModal';
@@ -154,9 +154,37 @@ export default function ClienteDetallePage() {
         </div>
       )}
 
+      {/* ficha cargada en el kiosco que nunca entró a la tienda: el registro ya no se la entrega a
+          quien escriba su email (cualquiera podía quedarse con la cuenta), entra con este link */}
+      {!cliente.tieneCuenta && !cliente.passwordResetRequestedAt && !recuperoUrl && (
+        <div className="flex flex-wrap items-center gap-3 rounded-2xl border-2 border-kr-line bg-white px-4 py-3">
+          <Key size={22} weight="bold" className="flex-shrink-0 text-kr-muted" />
+          <span className="min-w-[180px] flex-1 font-extrabold">
+            Todavía no entra a la tienda.
+            <span className="block text-[13px] font-bold text-kr-muted">
+              {cliente.email
+                ? 'Si quiere ver su cuenta desde el celular, mandale un link para que elija su contraseña.'
+                : 'Para darle acceso, primero cargale un email (Editar).'}
+            </span>
+          </span>
+          {cliente.email && (
+            <button
+              type="button"
+              onClick={() => recuperoMutation.mutate()}
+              disabled={recuperoMutation.isPending}
+              className={buttonClasses('secondary', 'md')}
+            >
+              {recuperoMutation.isPending ? 'Generando…' : 'Generar link de acceso'}
+            </button>
+          )}
+        </div>
+      )}
+
       {recuperoUrl && (
         <div className="flex flex-col gap-3 rounded-2xl border-2 border-kr-green-dark bg-kr-green-soft px-4 py-3">
-          <p className="font-extrabold text-kr-green-dark">Link generado (vale 24 horas). Mandáselo para que elija su contraseña nueva:</p>
+          <p className="font-extrabold text-kr-green-dark">
+            Link generado (vale 24 horas y sirve una sola vez). Mandáselo para que {cliente.tieneCuenta ? 'elija su contraseña nueva' : 'elija su contraseña y entre a su cuenta'}:
+          </p>
           <div className="flex flex-col gap-2 sm:flex-row">
             <p className="min-w-0 flex-1 break-all rounded-xl border border-kr-line bg-white px-3 py-2.5 font-mono text-xs text-kr-navy">{recuperoUrl}</p>
             <button type="button" onClick={handleCopyRecupero} className={buttonClasses('secondary', 'md', 'flex-shrink-0')}>
@@ -165,7 +193,12 @@ export default function ClienteDetallePage() {
             </button>
             {cliente.telefono && (
               <a
-                href={waLink(cliente.telefono, `Hola ${cliente.nombre}! Para restablecer tu contraseña de Kiosco Kramer entrá a este link: ${recuperoUrl}`)}
+                href={waLink(
+                  cliente.telefono,
+                  cliente.tieneCuenta
+                    ? `Hola ${cliente.nombre}! Para restablecer tu contraseña de Kiosco Kramer entrá a este link: ${recuperoUrl}`
+                    : `Hola ${cliente.nombre}! Ya podés ver tu cuenta del Kiosco Kramer desde el celular. Entrá a este link para elegir tu contraseña (ingresás con ${cliente.email}): ${recuperoUrl}`
+                )}
                 target="_blank"
                 rel="noopener noreferrer"
                 className={buttonClasses('success', 'md', 'flex-shrink-0')}
