@@ -15,6 +15,13 @@ Ejemplos de referencia: `distribuidoras/`, `clientes/`.
 
 Un solo componente para alta y edición: prop `x?: X` opcional (si viene, `isEdit = true`). Estado por campo con `useState`, `handleSubmit` llama `x.create(...)` o `x.update(...)`, invalida la query `['<nombre>']`, `router.push('/<nombre>')`. Ver `DistribuidorForm.tsx`/`ClienteForm.tsx`.
 
+## Clientes (`clientes/` + `components/forms/ClienteForm.tsx`)
+
+- Todos los datos son obligatorios salvo el apodo (nombre, apellido, DNI, teléfono, email, dirección y límite). El server valida lo mismo: si se agrega un campo, sumarlo en los dos lados.
+- El límite de crédito lo define solo el dueño. Un cliente nuevo arranca con $10.000 (`LIMITE_CREDITO_INICIAL` en el formulario, igual que el server para los que se registran solos en la tienda).
+- La API nunca manda la contraseña ni el token del link: para saber si el cliente ya entra a la tienda se usa `cliente.tieneCuenta`. Si no tiene cuenta, la ficha muestra "Generar link de acceso" (necesita email): ese link es la única forma de que una ficha cargada en el kiosco entre a la tienda — el registro no se la entrega a quien escriba su email.
+- Detalle de las reglas: `server/PROJECT_PATTERNS.md`, sección "Clientes de crédito".
+
 ## `lib/api.ts`
 
 - Un `interface X` por recurso + un objeto `x` con las funciones (`getAll`, `getById`, `create`, `update`, ...) usando el helper genérico `request<T>`.
