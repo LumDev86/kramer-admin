@@ -40,6 +40,7 @@ export default function CategoriasPage() {
     mutationFn: (id: string) => categories.delete(id),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['categories'] });
+      qc.invalidateQueries({ queryKey: ['categories-all'] });
       toast.show(`Se eliminó "${toDelete?.name}"`);
       setToDelete(null);
       setDeleteError('');
