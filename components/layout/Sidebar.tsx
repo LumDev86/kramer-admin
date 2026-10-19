@@ -73,7 +73,9 @@ export default function Sidebar() {
   // tecla F -> sección (ver NAV)
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
-      if (e.altKey || e.ctrlKey || e.shiftKey || e.metaKey) return;
+      // al elegir una sugerencia del autocompletar, Chrome dispara un keydown sin `key`: sin este
+      // corte coincidía con la primera sección sin tecla (Configuración) y sacaba al usuario del form
+      if (!e.key || e.altKey || e.ctrlKey || e.shiftKey || e.metaKey) return;
       const item = NAV.find((n) => n.key === e.key);
       if (!item) return;
       e.preventDefault();
