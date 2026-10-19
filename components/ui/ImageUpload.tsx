@@ -15,12 +15,15 @@ interface Props {
   compact?: boolean;
   // botones extra al lado de "Subir foto" (ej. "Buscar foto con IA"), solo en la compacta
   extraActions?: ReactNode;
+  // foto que ya viene elegida (ej. de la búsqueda con IA): se muestra como si se hubiera subido.
+  // Se lee solo al montar, así que para cambiarla el padre le cambia la `key`.
+  initialFile?: File | null;
 }
 
-export default function ImageUpload({ currentUrl, onChange, required, withBgRemoval, compact, extraActions }: Props) {
+export default function ImageUpload({ currentUrl, onChange, required, withBgRemoval, compact, extraActions, initialFile }: Props) {
   const inputRef = useRef<HTMLInputElement>(null);
-  const [preview, setPreview] = useState<string | null>(null);
-  const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [preview, setPreview] = useState<string | null>(() => (initialFile ? URL.createObjectURL(initialFile) : null));
+  const [selectedFile, setSelectedFile] = useState<File | null>(initialFile ?? null);
   const [removing, setRemoving] = useState(false);
   const [bgRemoved, setBgRemoved] = useState(false);
 

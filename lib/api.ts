@@ -115,6 +115,21 @@ export const products = {
   delete:  (id: string) => request<void>(`/products/${id}`, { method: 'DELETE' }),
   imageSearch: (query: string) =>
     request<ImageSearchResult[]>(`/products/image-search?q=${encodeURIComponent(query)}`),
+  // baja por el server una foto de la búsqueda (la web de origen no deja leerla desde el
+  // navegador) para usarla como si se hubiera subido a mano: así se le puede quitar el fondo
+  imageDownload: async (url: string): Promise<File> => {
+    const token = getToken();
+    const res = await fetch(`${API_URL}/products/image-download?url=${encodeURIComponent(url)}`, {
+      headers: token ? { Authorization: `Bearer ${token}` } : {},
+    });
+    if (!res.ok) {
+      const body = await res.json().catch(() => ({ error: 'Error desconocido' }));
+      throw new Error(body.error || `Error ${res.status}`);
+    }
+    const blob = await res.blob();
+    const ext = blob.type === 'image/png' ? 'png' : blob.type === 'image/webp' ? 'webp' : 'jpg';
+    return new File([blob], `foto-busqueda.${ext}`, { type: blob.type });
+  },
 };
 
 export interface ImageSearchResult {

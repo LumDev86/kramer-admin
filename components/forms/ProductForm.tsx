@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { Barcode, MagnifyingGlass, X } from '@phosphor-icons/react';
+import { Barcode, MagnifyingGlass, SpinnerGap, X } from '@phosphor-icons/react';
 import { Product, products, categories, ImageSearchResult } from '@/lib/api';
 import ImageUpload from '@/components/ui/ImageUpload';
 import UnitSelector from '@/components/ui/UnitSelector';
@@ -39,7 +39,12 @@ export default function ProductForm({ product }: Props) {
     isActive:    product?.isActive                     ?? true,
   });
   const [image, setImage] = useState<File | null>(null);
+  // foto de la búsqueda que no se pudo bajar: se guarda por URL, como antes, sin quitar fondo
   const [aiImageUrl, setAiImageUrl] = useState<string | null>(null);
+  // foto de la búsqueda ya bajada: entra a ImageUpload como una subida más (con "Quitar fondo")
+  const [fotoBuscada, setFotoBuscada] = useState<File | null>(null);
+  const [uploadKey, setUploadKey] = useState(0);
+  const [bajandoFoto, setBajandoFoto] = useState<number | null>(null);
   const [imageSearchResults, setImageSearchResults] = useState<ImageSearchResult[] | null>(null);
   const [imageSearchLoading, setImageSearchLoading] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -119,6 +124,25 @@ export default function ProductForm({ product }: Props) {
     }
   };
 
+  const elegirFotoBuscada = async (r: ImageSearchResult, i: number) => {
+    setBajandoFoto(i);
+    try {
+      const file = await products.imageDownload(r.imageUrl);
+      setFotoBuscada(file);
+      setImage(file);
+      setAiImageUrl(null);
+      setUploadKey((k) => k + 1);
+    } catch {
+      setAiImageUrl(r.imageUrl);
+      setFotoBuscada(null);
+      setImage(null);
+      toast.show('Esa web no dejó traer la foto: se usa igual, pero no se le puede quitar el fondo', 'error');
+    } finally {
+      setBajandoFoto(null);
+      setImageSearchResults(null);
+    }
+  };
+
   const handleGenerateBarcode = async () => {
     setGeneratingBarcode(true);
     try {
@@ -173,7 +197,16 @@ export default function ProductForm({ product }: Props) {
                 </div>
               </div>
             ) : (
-              <ImageUpload compact currentUrl={product?.imageUrl} onChange={setImage} required={!isEdit} withBgRemoval extraActions={botonIA} />
+              <ImageUpload
+                key={uploadKey}
+                compact
+                currentUrl={product?.imageUrl}
+                initialFile={fotoBuscada}
+                onChange={setImage}
+                required={!isEdit}
+                withBgRemoval
+                extraActions={botonIA}
+              />
             )}
 
             {!aiImageUrl && imageSearchResults && imageSearchResults.length > 0 && (
@@ -185,11 +218,17 @@ export default function ProductForm({ product }: Props) {
                       key={i}
                       type="button"
                       aria-label={`Usar la foto ${i + 1}`}
-                      onClick={() => { setAiImageUrl(r.imageUrl); setImageSearchResults(null); setImage(null); }}
-                      className="relative aspect-square w-full overflow-hidden rounded-xl border-[1.5px] border-kr-line bg-kr-paper transition-colors hover:border-kr-blue"
+                      disabled={bajandoFoto !== null}
+                      onClick={() => elegirFotoBuscada(r, i)}
+                      className="relative aspect-square w-full overflow-hidden rounded-xl border-[1.5px] border-kr-line bg-kr-paper transition-colors hover:border-kr-blue disabled:cursor-wait"
                     >
                       {/* eslint-disable-next-line @next/next/no-img-element */}
                       <img src={r.thumbnailUrl} alt="" className="h-full w-full object-cover" />
+                      {bajandoFoto === i && (
+                        <span className="absolute inset-0 flex items-center justify-center bg-white/80">
+                          <SpinnerGap size={22} className="animate-spin text-kr-blue" />
+                        </span>
+                      )}
                     </button>
                   ))}
                 </div>
