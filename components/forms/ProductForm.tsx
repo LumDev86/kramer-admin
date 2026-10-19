@@ -16,6 +16,7 @@ import StickyActionBar from '@/components/ui/StickyActionBar';
 import { buttonClasses } from '@/components/ui/Button';
 import { useToast } from '@/components/ui/Toast';
 import PrecioCard from '@/components/productos/PrecioCard';
+import { useFotoDeBusqueda } from '@/lib/useFotoDeBusqueda';
 
 interface Props {
   product?: Product;
@@ -39,12 +40,7 @@ export default function ProductForm({ product }: Props) {
     isActive:    product?.isActive                     ?? true,
   });
   const [image, setImage] = useState<File | null>(null);
-  // foto de la búsqueda que no se pudo bajar: se guarda por URL, como antes, sin quitar fondo
-  const [aiImageUrl, setAiImageUrl] = useState<string | null>(null);
-  // foto de la búsqueda ya bajada: entra a ImageUpload como una subida más (con "Quitar fondo")
-  const [fotoBuscada, setFotoBuscada] = useState<File | null>(null);
-  const [uploadKey, setUploadKey] = useState(0);
-  const [bajandoFoto, setBajandoFoto] = useState<number | null>(null);
+  const { aiImageUrl, setAiImageUrl, fotoBuscada, uploadKey, bajandoFoto, elegirFoto } = useFotoDeBusqueda(setImage);
   const [imageSearchResults, setImageSearchResults] = useState<ImageSearchResult[] | null>(null);
   const [imageSearchLoading, setImageSearchLoading] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -124,25 +120,6 @@ export default function ProductForm({ product }: Props) {
     }
   };
 
-  const elegirFotoBuscada = async (r: ImageSearchResult, i: number) => {
-    setBajandoFoto(i);
-    try {
-      const file = await products.imageDownload(r.imageUrl);
-      setFotoBuscada(file);
-      setImage(file);
-      setAiImageUrl(null);
-      setUploadKey((k) => k + 1);
-    } catch {
-      setAiImageUrl(r.imageUrl);
-      setFotoBuscada(null);
-      setImage(null);
-      toast.show('Esa web no dejó traer la foto: se usa igual, pero no se le puede quitar el fondo', 'error');
-    } finally {
-      setBajandoFoto(null);
-      setImageSearchResults(null);
-    }
-  };
-
   const handleGenerateBarcode = async () => {
     setGeneratingBarcode(true);
     try {
@@ -219,7 +196,7 @@ export default function ProductForm({ product }: Props) {
                       type="button"
                       aria-label={`Usar la foto ${i + 1}`}
                       disabled={bajandoFoto !== null}
-                      onClick={() => elegirFotoBuscada(r, i)}
+                      onClick={async () => { await elegirFoto(r.imageUrl, i); setImageSearchResults(null); }}
                       className="relative aspect-square w-full overflow-hidden rounded-xl border-[1.5px] border-kr-line bg-kr-paper transition-colors hover:border-kr-blue disabled:cursor-wait"
                     >
                       {/* eslint-disable-next-line @next/next/no-img-element */}

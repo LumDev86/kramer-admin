@@ -2,10 +2,11 @@
 
 import { useState } from 'react';
 import { useMutation } from '@tanstack/react-query';
-import { X, MagnifyingGlass } from '@phosphor-icons/react';
+import { X, MagnifyingGlass, SpinnerGap } from '@phosphor-icons/react';
 import { products, Category, ImageSearchResult, Product } from '@/lib/api';
 import { money } from '@/lib/format';
 import ImageUpload from '@/components/ui/ImageUpload';
+import { useFotoDeBusqueda } from '@/lib/useFotoDeBusqueda';
 import UnitSelector from '@/components/ui/UnitSelector';
 import CategorySelector from '@/components/ui/CategorySelector';
 
@@ -37,7 +38,7 @@ export default function NuevoProductoManualForm({
   const [error, setError] = useState('');
   const [generatingBarcode, setGeneratingBarcode] = useState(false);
   const [gananciaDeseadaPct, setGananciaDeseadaPct] = useState('');
-  const [aiImageUrl, setAiImageUrl] = useState<string | null>(null);
+  const { aiImageUrl, setAiImageUrl, fotoBuscada, uploadKey, bajandoFoto, elegirFoto } = useFotoDeBusqueda(setImage);
   const [imageSearchResults, setImageSearchResults] = useState<ImageSearchResult[] | null>(null);
   const [imageSearchLoading, setImageSearchLoading] = useState(false);
 
@@ -135,7 +136,7 @@ export default function NuevoProductoManualForm({
             </div>
           ) : (
             <>
-              <ImageUpload onChange={setImage} required={!aiImageUrl} />
+              <ImageUpload key={uploadKey} initialFile={fotoBuscada} onChange={setImage} required={!aiImageUrl} withBgRemoval />
               <button
                 type="button"
                 disabled={imageSearchLoading}
@@ -151,11 +152,17 @@ export default function NuevoProductoManualForm({
                     <button
                       key={i}
                       type="button"
-                      onClick={() => { setAiImageUrl(r.imageUrl); setImageSearchResults(null); setImage(null); }}
-                      className="relative w-full aspect-square rounded-lg overflow-hidden border border-kr-line hover:border-kr-blue transition-colors bg-kr-paper"
+                      disabled={bajandoFoto !== null}
+                      onClick={async () => { await elegirFoto(r.imageUrl, i); setImageSearchResults(null); }}
+                      className="relative w-full aspect-square rounded-lg overflow-hidden border border-kr-line hover:border-kr-blue transition-colors bg-kr-paper disabled:cursor-wait"
                     >
                       {/* eslint-disable-next-line @next/next/no-img-element */}
                       <img src={r.thumbnailUrl} alt="" className="w-full h-full object-cover" />
+                      {bajandoFoto === i && (
+                        <span className="absolute inset-0 flex items-center justify-center bg-white/80">
+                          <SpinnerGap size={18} className="animate-spin text-kr-blue" />
+                        </span>
+                      )}
                     </button>
                   ))}
                 </div>
