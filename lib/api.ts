@@ -606,6 +606,8 @@ export interface PedidoItem {
   unitPrice: string;
   quantity: number;
   subtotal: string;
+  // producto que pidió el cliente, si se cambió por otro desde el panel
+  nombreOriginal: string | null;
 }
 
 export interface Repartidor {
@@ -643,6 +645,8 @@ export interface Pedido {
   notas: string | null;
   paymentMethod: 'CASH' | 'TRANSFER';
   total: string;
+  // total con el que entró, si después se cambiaron sus productos (null = nunca se modificó)
+  totalOriginal: string | null;
   distanciaKm: number | null;
   cruzaVias: boolean | null;
   destinoLat: number | null;
@@ -677,6 +681,10 @@ export const pedidos = {
   actualizarEstado: (id: string, status: PedidoStatus) =>
     request<Pedido>(`/pedidos/${id}/estado`, { method: 'PATCH', body: JSON.stringify({ status }) }),
   cancelar: (id: string) => request<Pedido>(`/pedidos/${id}/cancelar`, { method: 'POST' }),
+  modificarItem: (id: string, itemId: string, data: { productId?: string; quantity?: number; marcarSinStock?: boolean }) =>
+    request<Pedido>(`/pedidos/${id}/items/${itemId}`, { method: 'PATCH', body: JSON.stringify(data) }),
+  quitarItem: (id: string, itemId: string, marcarSinStock: boolean) =>
+    request<Pedido>(`/pedidos/${id}/items/${itemId}`, { method: 'DELETE', body: JSON.stringify({ marcarSinStock }) }),
 };
 
 export const repartidores = {

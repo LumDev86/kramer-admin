@@ -4,7 +4,7 @@ import { useState } from 'react';
 import { useParams } from 'next/navigation';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import dynamic from 'next/dynamic';
-import { pedidos, repartidores as repartidoresApi, config, PedidoStatus } from '@/lib/api';
+import { pedidos, repartidores as repartidoresApi, config, PedidoItem, PedidoStatus } from '@/lib/api';
 import { Bicycle, CaretRight, WhatsappLogo, WarningCircle, XCircle } from '@phosphor-icons/react';
 import ConfirmModal from '@/components/ui/ConfirmModal';
 import PageHeader from '@/components/ui/PageHeader';
@@ -16,6 +16,7 @@ import { useToast } from '@/components/ui/Toast';
 import { estaEnLinea, distanciaKm } from '@/lib/geo';
 import { money, formatDateTime, waLink, PEDIDO_STATUS_LABEL, PAYMENT_LABEL } from '@/lib/format';
 import { esEnvio, haceCuanto, hora, minutosDesde, STATUS_TONE, useAhora } from '@/components/pedidos/pedidoUtils';
+import EditarItemModal, { ModoEdicion } from '@/components/pedidos/EditarItemModal';
 
 // Leaflet necesita `window` - no puede renderizarse en el servidor
 const RepartidoresMap = dynamic(() => import('@/components/maps/RepartidoresMap'), { ssr: false });
@@ -47,6 +48,7 @@ export default function PedidoDetallePage() {
   const toast = useToast();
   const now = useAhora();
   const [toCancel, setToCancel] = useState(false);
+  const [editando, setEditando] = useState<{ item: PedidoItem; modo: ModoEdicion } | null>(null);
 
   const { data: pedido, isLoading } = useQuery({
     queryKey: ['pedido', id],
@@ -118,6 +120,10 @@ export default function PedidoDetallePage() {
   const envio = pedido.items.find(esEnvio);
   const productos = pedido.items.filter((i) => !esEnvio(i));
   const mensajeWa = mensajesPorEstado[pedido.status];
+  // mismo criterio que el server (ESTADOS_EDITABLES en pedido.service.ts): una vez que sale ya no se toca
+  const editable = pedido.status === 'NUEVO' || pedido.status === 'EN_PREPARACION';
+  const diferencia = pedido.totalOriginal !== null ? Number(pedido.total) - Number(pedido.totalOriginal) : 0;
+  const accion = 'text-[13px] font-extrabold text-kr-blue hover:text-kr-navy';
 
   const horaPaso: Record<PedidoStatus, string | null> = {
     NUEVO: pedido.createdAt,
@@ -194,6 +200,18 @@ export default function PedidoDetallePage() {
                   <span className="font-extrabold leading-snug">
                     {item.name}
                     <span className="block text-xs font-bold text-kr-muted">{money(item.unitPrice)} c/u</span>
+                    {item.nombreOriginal && (
+                      <span className="block text-xs font-bold text-kr-orange-dark">Cambiado · antes: {item.nombreOriginal}</span>
+                    )}
+                    {editable && (
+                      <span className="mt-1 flex flex-wrap gap-x-3 gap-y-1">
+                        <button type="button" onClick={() => setEditando({ item, modo: 'cambiar' })} className={accion}>Cambiar</button>
+                        <button type="button" onClick={() => setEditando({ item, modo: 'cantidad' })} className={accion}>Cantidad</button>
+                        {productos.length > 1 && (
+                          <button type="button" onClick={() => setEditando({ item, modo: 'quitar' })} className={`${accion} !text-kr-orange-dark`}>Quitar</button>
+                        )}
+                      </span>
+                    )}
                   </span>
                   <span className="text-right font-extrabold tabular-nums whitespace-nowrap">{money(item.subtotal)}</span>
                 </li>
@@ -210,6 +228,13 @@ export default function PedidoDetallePage() {
               <span>Total</span>
               <span className="tabular-nums">{money(pedido.total)}</span>
             </div>
+            {diferencia !== 0 && (
+              <p className="rounded-xl bg-kr-yellow-soft px-3 py-2 text-sm font-bold">
+                Se cambiaron productos: el total pasó de {money(pedido.totalOriginal!)} a {money(pedido.total)} (
+                {diferencia > 0 ? `${money(diferencia)} más` : `${money(-diferencia)} menos`}).
+                {pedido.paymentMethod === 'TRANSFER' && ' Si ya pagó por transferencia, arreglá la diferencia con el cliente.'}
+              </p>
+            )}
           </Card>
 
           <Card aria-labelledby="h-pago">
@@ -355,6 +380,16 @@ export default function PedidoDetallePage() {
           </button>
         )}
       </StickyActionBar>
+
+      {editando && (
+        <EditarItemModal
+          pedidoId={pedido.id}
+          item={editando.item}
+          modo={editando.modo}
+          onClose={() => setEditando(null)}
+          onSaved={() => { invalidate(); qc.invalidateQueries({ queryKey: ['products'] }); }}
+        />
+      )}
 
       {toCancel && (
         <ConfirmModal
