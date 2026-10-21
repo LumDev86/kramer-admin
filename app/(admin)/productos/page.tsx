@@ -7,6 +7,7 @@ import Image from 'next/image';
 import { CaretLeft, CaretRight, DotsThree, Package, Plus } from '@phosphor-icons/react';
 import { products, categories, Product, Category, PaginatedResponse } from '@/lib/api';
 import ConfirmModal from '@/components/ui/ConfirmModal';
+import ToggleSwitch from '@/components/ui/ToggleSwitch';
 import PageHeader from '@/components/ui/PageHeader';
 import SearchInput from '@/components/ui/SearchInput';
 import Chip from '@/components/ui/Chip';
@@ -18,13 +19,13 @@ import { gananciaPct, pctValor, precioConGanancia, precioManteniendoMargen } fro
 
 const LIMIT = 20;
 
-// celular: nombre arriba a lo ancho y costo/precio/ganancia abajo en tres columnas.
+// celular: nombre arriba a lo ancho y costo/precio/ganancia/stock abajo.
 // tablet: una fila, la categoría va debajo del nombre. escritorio: la categoría tiene columna propia.
 // La columna Producto se queda con todo el ancho que sobra: los nombres no se recortan nunca.
 const FILA =
-  "grid items-center gap-x-2 gap-y-2.5 px-3 py-3 grid-cols-[repeat(3,minmax(0,1fr))_44px] [grid-template-areas:'n_n_n_x'_'c_p_g_g'] " +
-  "md:gap-x-3 md:px-4 md:py-2.5 md:grid-cols-[minmax(0,1fr)_96px_96px_76px_44px] md:[grid-template-areas:'n_c_p_g_x'] " +
-  "xl:grid-cols-[minmax(0,1fr)_170px_104px_104px_84px_44px] xl:[grid-template-areas:'n_k_c_p_g_x']";
+  "grid items-center gap-x-2 gap-y-2.5 px-3 py-3 grid-cols-[repeat(3,minmax(0,1fr))_44px] [grid-template-areas:'n_n_n_x'_'c_p_g_s'] " +
+  "md:gap-x-3 md:px-4 md:py-2.5 md:grid-cols-[minmax(0,1fr)_96px_96px_76px_56px_44px] md:[grid-template-areas:'n_c_p_g_s_x'] " +
+  "xl:grid-cols-[minmax(0,1fr)_170px_104px_104px_84px_64px_44px] xl:[grid-template-areas:'n_k_c_p_g_s_x']";
 
 // el buscador del server mira nombre y descripción; si lo tipeado es un código de barras
 // (solo números, largo), se busca por código, así funciona también con el lector
@@ -207,6 +208,7 @@ export default function ProductosPage() {
           <span className="text-right [grid-area:c]">Costo</span>
           <span className="text-right [grid-area:p]">Precio</span>
           <span className="text-right [grid-area:g]">Ganancia</span>
+          <span className="text-center [grid-area:s]">Stock</span>
         </div>
 
         {isLoading ? (
@@ -245,7 +247,6 @@ export default function ProductosPage() {
                       </Link>
                       <div className="mt-0.5 flex flex-wrap items-center gap-1.5 text-xs font-bold text-kr-muted">
                         {product.barcode ? <span className="tabular-nums">{product.barcode}</span> : <Chip tone="bad">Sin código</Chip>}
-                        {!product.isActive && <Chip tone="off">Sin stock en la tienda</Chip>}
                         {ruta && <span className="xl:hidden">· {ruta}</span>}
                       </div>
                     </div>
@@ -316,12 +317,20 @@ export default function ProductosPage() {
                     )}
                   </div>
 
+                  <div className="flex min-w-0 flex-col items-center gap-1 [grid-area:s]">
+                    <span className="text-[11px] font-extrabold uppercase text-kr-muted md:hidden">Stock</span>
+                    <ToggleSwitch
+                      checked={product.isActive}
+                      onChange={() => toggleMutation.mutate(product.id)}
+                      label={`${product.title} con stock en la tienda`}
+                    />
+                  </div>
+
                   <MenuFila
                     open={menuId === product.id}
                     onToggle={() => setMenuId((id) => (id === product.id ? null : product.id))}
                     onClose={() => setMenuId(null)}
                     product={product}
-                    onToggleActive={() => { setMenuId(null); toggleMutation.mutate(product.id); }}
                     onDelete={() => { setMenuId(null); setToDelete(product); setDeleteError(''); }}
                   />
                 </li>
@@ -370,12 +379,11 @@ export default function ProductosPage() {
   );
 }
 
-function MenuFila({ open, onToggle, onClose, product, onToggleActive, onDelete }: {
+function MenuFila({ open, onToggle, onClose, product, onDelete }: {
   open: boolean;
   onToggle: () => void;
   onClose: () => void;
   product: Product;
-  onToggleActive: () => void;
   onDelete: () => void;
 }) {
   const ref = useRef<HTMLDivElement>(null);
@@ -412,9 +420,6 @@ function MenuFila({ open, onToggle, onClose, product, onToggleActive, onDelete }
           <Link role="menuitem" href={`/productos/${product.id}/editar`} className={`${item} text-kr-navy`}>
             Editar
           </Link>
-          <button role="menuitem" type="button" onClick={onToggleActive} className={`${item} text-kr-navy`}>
-            {product.isActive ? 'Marcar sin stock en la tienda' : 'Volver a mostrar con stock'}
-          </button>
           <button role="menuitem" type="button" onClick={onDelete} className={`${item} text-kr-orange-dark`}>
             Eliminar
           </button>
