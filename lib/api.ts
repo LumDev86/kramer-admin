@@ -432,6 +432,8 @@ export interface Factura {
   createdAt: string;
   confirmedAt: string | null;
   cancelledAt: string | null;
+  // cuándo se marcó que los precios ya se pasaron a PedidosYa (null = falta)
+  revisadaPeyaAt: string | null;
 }
 
 export interface DistribuidorConFacturas extends Distribuidor {
@@ -512,6 +514,8 @@ export const facturas = {
     request<Factura>(`/facturas/${facturaId}/items/${itemId}/product`, { method: 'POST', body: form }),
   confirm: (facturaId: string) => request<Factura>(`/facturas/${facturaId}/confirm`, { method: 'POST' }),
   cancel: (facturaId: string) => request<Factura>(`/facturas/${facturaId}/cancel`, { method: 'POST' }),
+  marcarRevisadaPeya: (facturaId: string, revisada: boolean) =>
+    request<Factura>(`/facturas/${facturaId}/revisada-peya`, { method: 'PATCH', body: JSON.stringify({ revisada }) }),
 };
 
 export const banners = {

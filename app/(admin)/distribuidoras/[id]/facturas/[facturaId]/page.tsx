@@ -5,7 +5,7 @@ import { useParams, useRouter, useSearchParams } from 'next/navigation';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import Link from 'next/link';
 import Image from 'next/image';
-import { MagnifyingGlassPlus, SpinnerGap, Warning } from '@phosphor-icons/react';
+import { CheckCircle, MagnifyingGlassPlus, SpinnerGap, Warning } from '@phosphor-icons/react';
 import { distribuidores, facturas, products, categories } from '@/lib/api';
 import { money } from '@/lib/format';
 import PageHeader from '@/components/ui/PageHeader';
@@ -118,6 +118,15 @@ function FacturaEditor() {
       router.push(`/distribuidoras/${id}`);
     },
     onError: (err: any) => toast.show(err.message ?? 'No se pudo confirmar la factura', 'error'),
+  });
+
+  const peyaMutation = useMutation({
+    mutationFn: (revisada: boolean) => facturas.marcarRevisadaPeya(facturaId, revisada),
+    onSuccess: (f) => {
+      invalidate();
+      toast.show(f.revisadaPeyaAt ? 'Factura marcada como revisada en PedidosYa' : 'Se quitó la marca de PedidosYa');
+    },
+    onError: (err: any) => toast.show(err.message ?? 'No se pudo guardar la revisión en PedidosYa', 'error'),
   });
 
   const cancelMutation = useMutation({
@@ -258,6 +267,25 @@ function FacturaEditor() {
         <p className="rounded-2xl bg-kr-sand px-4 py-3 text-sm font-bold text-kr-muted">
           Ya está confirmada. Podés corregir cantidades, costos y precios, o agregar algo que faltó cargar.
         </p>
+      )}
+      {confirmada && (
+        // dato solo informativo: marcarla no cambia precios, costos ni stock
+        <div className={`flex flex-wrap items-center gap-3 rounded-2xl px-4 py-3 ${factura.revisadaPeyaAt ? 'bg-kr-green-soft' : 'bg-kr-sand'}`}>
+          {factura.revisadaPeyaAt && <CheckCircle size={22} weight="fill" className="flex-shrink-0 text-kr-green-dark" />}
+          <span className={`min-w-[180px] flex-1 text-sm font-bold ${factura.revisadaPeyaAt ? '' : 'text-kr-muted'}`}>
+            {factura.revisadaPeyaAt
+              ? `Revisada en PeYa el ${fechaCorta(factura.revisadaPeyaAt)}.`
+              : 'Todavía no se marcó como revisada en PeYa.'}
+          </span>
+          <button
+            type="button"
+            onClick={() => peyaMutation.mutate(!factura.revisadaPeyaAt)}
+            disabled={peyaMutation.isPending}
+            className={buttonClasses('secondary', 'md')}
+          >
+            {factura.revisadaPeyaAt ? 'Desmarcar' : 'Factura revisada en PeYa'}
+          </button>
+        </div>
       )}
 
       {/* a mano o confirmada: arriba el campo para escanear/buscar y sumar productos */}

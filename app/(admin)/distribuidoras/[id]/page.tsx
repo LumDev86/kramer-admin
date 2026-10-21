@@ -12,6 +12,7 @@ import Segmented from '@/components/ui/Segmented';
 import Chip from '@/components/ui/Chip';
 import { buttonClasses } from '@/components/ui/Button';
 import { useToast } from '@/components/ui/Toast';
+import ToggleSwitch from '@/components/ui/ToggleSwitch';
 import AplicarAumentoModal from '@/components/ui/AplicarAumentoModal';
 import ProductosDistribuidora from '@/components/distribuidoras/ProductosDistribuidora';
 import NuevaCompraMenu from '@/components/distribuidoras/NuevaCompraMenu';
@@ -219,24 +220,39 @@ function Stat({ label, value, sub, className = '' }: { label: string; value: str
 const FILA_FACTURA =
   'grid items-center gap-x-3 gap-y-1 px-3 py-3 grid-cols-[minmax(0,1fr)_auto_20px] md:px-4 md:grid-cols-[96px_minmax(0,1fr)_96px_128px_120px_20px]';
 
+// la columna PeYa queda fuera del link de la fila: un interruptor no puede ir adentro de un <a>
+const CELDA_PEYA = 'flex w-16 flex-shrink-0 flex-col items-center gap-1 pr-3 md:w-24 md:pr-4';
+
 function HistorialFacturas({ distribuidorId, facturas: lista }: { distribuidorId: string; facturas: Factura[] }) {
+  const qc = useQueryClient();
+  const toast = useToast();
+
+  const peyaMutation = useMutation({
+    mutationFn: ({ facturaId, revisada }: { facturaId: string; revisada: boolean }) => facturas.marcarRevisadaPeya(facturaId, revisada),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['distribuidor', distribuidorId] }),
+    onError: (err: any) => toast.show(err.message ?? 'No se pudo guardar la revisión en PedidosYa', 'error'),
+  });
+
   return (
     <section aria-label="Historial de facturas" className="overflow-hidden rounded-2xl border border-kr-line bg-white">
-      <div className={`${FILA_FACTURA} hidden border-b border-kr-line bg-kr-paper text-xs font-extrabold uppercase tracking-wide text-kr-muted md:grid`}>
-        <span>Fecha</span>
-        <span>Origen</span>
-        <span className="text-right">Productos</span>
-        <span className="text-right">Total</span>
-        <span>Estado</span>
-        <span />
+      <div className="hidden items-center border-b border-kr-line bg-kr-paper text-xs font-extrabold uppercase tracking-wide text-kr-muted md:flex">
+        <div className={`${FILA_FACTURA} min-w-0 flex-1`}>
+          <span>Fecha</span>
+          <span>Origen</span>
+          <span className="text-right">Productos</span>
+          <span className="text-right">Total</span>
+          <span>Estado</span>
+          <span />
+        </div>
+        <span className={`${CELDA_PEYA} text-center`} title="Precios revisados y pasados a PedidosYa">PeYa</span>
       </div>
       {lista.length === 0 ? (
         <p className="px-4 py-10 text-center text-sm font-bold text-kr-muted">Todavía no hay facturas confirmadas.</p>
       ) : (
         <ul>
           {lista.map((f) => (
-            <li key={f.id} className="border-b border-dashed border-kr-line last:border-b-0">
-              <Link href={facturaHref(distribuidorId, f.id)} className={`${FILA_FACTURA} hover:bg-kr-paper`}>
+            <li key={f.id} className="flex items-center border-b border-dashed border-kr-line last:border-b-0 hover:bg-kr-paper">
+              <Link href={facturaHref(distribuidorId, f.id)} className={`${FILA_FACTURA} min-w-0 flex-1`}>
                 {/* celular: fecha + origen arriba, productos abajo; total y estado a la derecha */}
                 <span className="flex min-w-0 flex-col md:contents">
                   <span className="font-extrabold tabular-nums">{fechaCorta(fechaGasto(f))}</span>
@@ -253,6 +269,21 @@ function HistorialFacturas({ distribuidorId, facturas: lista }: { distribuidorId
                 </span>
                 <CaretRight size={18} weight="bold" className="text-kr-muted" />
               </Link>
+              <div className={CELDA_PEYA}>
+                {f.status === 'CONFIRMED' ? (
+                  <>
+                    <span className="text-[11px] font-extrabold uppercase text-kr-muted md:hidden">PeYa</span>
+                    <ToggleSwitch
+                      checked={!!f.revisadaPeyaAt}
+                      onChange={() => peyaMutation.mutate({ facturaId: f.id, revisada: !f.revisadaPeyaAt })}
+                      loading={peyaMutation.isPending && peyaMutation.variables?.facturaId === f.id}
+                      label={`Factura del ${fechaCorta(fechaGasto(f))} revisada en PedidosYa`}
+                    />
+                  </>
+                ) : (
+                  <span className="font-extrabold text-kr-muted">—</span>
+                )}
+              </div>
             </li>
           ))}
         </ul>
