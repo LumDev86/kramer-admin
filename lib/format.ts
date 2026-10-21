@@ -8,8 +8,11 @@ export const formatDateTime = (value: string) =>
 
 // wa.me necesita el número con código de país sin signos; si ya viene con 54 lo dejamos,
 // si no, asumimos Argentina (mercado de esta tienda) y se lo agregamos como mejor esfuerzo
+// desde 2026-10 la tienda guarda el número en formato internacional (+5491123456789, +59899123456):
+// ese va tal cual. Los viejos (escritos a mano, sin +) se siguen asumiendo argentinos
 export const toWhatsappNumber = (telefono: string): string => {
   const digits = telefono.replace(/\D/g, '');
+  if (telefono.trim().startsWith('+')) return digits;
   return digits.startsWith('54') ? digits : `549${digits}`;
 };
 
