@@ -22,6 +22,13 @@ Un solo componente para alta y edición: prop `x?: X` opcional (si viene, `isEdi
 - La API nunca manda la contraseña ni el token del link: para saber si el cliente ya entra a la tienda se usa `cliente.tieneCuenta`. Si no tiene cuenta, la ficha muestra "Generar link de acceso" (necesita email): ese link es la única forma de que una ficha cargada en el kiosco entre a la tienda — el registro no se la entrega a quien escriba su email.
 - Detalle de las reglas: `server/PROJECT_PATTERNS.md`, sección "Clientes de crédito".
 
+## Productos, pedidos y distribuidoras (cambios de octubre 2026)
+
+- **Productos**: columna **Stock** con `ToggleSwitch` por fila = `isActive` (sin stock = oculto en la tienda). Reemplazó la opción del menú "⋯" y la etiqueta "Sin stock en la tienda".
+- **Pedidos** (`pedidos/[id]`): en un pedido nuevo o en preparación, cada producto tiene **Cambiar / Cantidad / Quitar** (`components/pedidos/EditarItemModal.tsx`, que reusa `ProductSearchModal`, `Modal` y `ToggleSwitch`). Muestra "Cambiado · antes: X" y cuánto cambió el total. Reglas: `server/PROJECT_PATTERNS.md`, "Pedidos de delivery: cambiar sus productos".
+- **Distribuidoras**: columna **PeYa** en el historial de facturas y franja en el detalle de la factura = `revisadaPeyaAt`. Solo informativo (los precios de esa factura ya se pasaron a PedidosYa). El interruptor va fuera del `<Link>` de la fila: un botón no puede ir adentro de un `<a>`.
+- **WhatsApp** (`lib/format.ts` → `toWhatsappNumber`): si el teléfono empieza con `+` (formato internacional que guarda la tienda desde 2026-10) se usa tal cual; si no, se asume argentino como siempre.
+
 ## `lib/api.ts`
 
 - Un `interface X` por recurso + un objeto `x` con las funciones (`getAll`, `getById`, `create`, `update`, ...) usando el helper genérico `request<T>`.
