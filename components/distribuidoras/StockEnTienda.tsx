@@ -10,13 +10,13 @@ interface Props {
   productId: string;
   title: string;
   isActive: boolean;
-  // para columnas angostas (tabla de factura manual): "Con stock" en vez de "Con stock en la tienda"
+  // para columnas angostas (tabla de factura manual): "Activar"/"Activo" en vez del texto largo
   compacto?: boolean;
 }
 
 // Mismo interruptor "Stock" que la lista de Productos (Product.isActive), para que al cargar
-// una factura se pueda volver a habilitar en la tienda un producto que estaba sin stock sin
-// tener que ir a buscarlo a Productos. Se manda el valor explícito (no toggle-active) para que
+// una factura se pueda activar en el catálogo un producto que estaba inactivo sin tener que
+// ir a buscarlo a Productos. Se manda el valor explícito (no toggle-active) para que
 // un doble click no lo deje como estaba.
 export default function StockEnTienda({ productId, title, isActive, compacto = false }: Props) {
   const qc = useQueryClient();
@@ -38,11 +38,11 @@ export default function StockEnTienda({ productId, title, isActive, compacto = f
         qc.invalidateQueries({ queryKey: ['products'] }),
       ]);
       setOptimista(null);
-      toast.show(nuevo ? `${title}: con stock en la tienda` : `${title}: sin stock en la tienda`);
+      toast.show(nuevo ? `${title}: activado en el catálogo` : `${title}: desactivado del catálogo`);
     },
     onError: (err: Error) => {
       setOptimista(null);
-      toast.show(err.message ?? 'No se pudo cambiar el stock del producto', 'error');
+      toast.show(err.message ?? 'No se pudo cambiar el estado del producto', 'error');
     },
   });
 
@@ -52,10 +52,10 @@ export default function StockEnTienda({ productId, title, isActive, compacto = f
         checked={activo}
         loading={mutation.isPending}
         onChange={() => mutation.mutate(!activo)}
-        label={`${title} con stock en la tienda`}
+        label={`${title} activo en el catálogo`}
       />
       <span className={`text-xs font-extrabold whitespace-nowrap ${activo ? 'text-kr-green-dark' : 'text-kr-orange-dark'}`}>
-        {activo ? 'Con stock' : 'Sin stock'}{!compacto && ' en la tienda'}
+        {compacto ? (activo ? 'Activo' : 'Activar') : activo ? 'Producto activo' : 'Activar producto'}
       </span>
     </div>
   );
