@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react';
 import { ArrowDown, ArrowUp, Check, X } from '@phosphor-icons/react';
 import { FacturaItem } from '@/lib/api';
 import { money } from '@/lib/format';
-import StockEnTienda from './StockEnTienda';
+import ActivarProducto from '@/components/productos/ActivarProducto';
 
 type ItemConProducto = FacturaItem & { product: NonNullable<FacturaItem['product']> };
 
@@ -68,7 +68,7 @@ export default function ProductoVinculado({
           <X size={12} weight="bold" />
         </button>
       </div>
-      <StockEnTienda productId={item.product.id} title={item.product.title} isActive={item.product.isActive} />
+      <ActivarProducto productId={item.product.id} title={item.product.title} isActive={item.product.isActive} />
       <p className="text-[11px] text-kr-blue font-bold">
         PedidosYa (+40% s/precio de catálogo): {money(Number(item.product.price) * 1.4)}
       </p>

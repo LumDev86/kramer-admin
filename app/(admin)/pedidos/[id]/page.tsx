@@ -17,6 +17,8 @@ import { estaEnLinea, distanciaKm } from '@/lib/geo';
 import { money, formatDateTime, waLink, PEDIDO_STATUS_LABEL, PAYMENT_LABEL } from '@/lib/format';
 import { esEnvio, haceCuanto, hora, minutosDesde, STATUS_TONE, useAhora } from '@/components/pedidos/pedidoUtils';
 import EditarItemModal, { ModoEdicion } from '@/components/pedidos/EditarItemModal';
+import AgregarItemModal from '@/components/pedidos/AgregarItemModal';
+import ActivarProducto from '@/components/productos/ActivarProducto';
 
 // Leaflet necesita `window` - no puede renderizarse en el servidor
 const RepartidoresMap = dynamic(() => import('@/components/maps/RepartidoresMap'), { ssr: false });
@@ -49,6 +51,7 @@ export default function PedidoDetallePage() {
   const now = useAhora();
   const [toCancel, setToCancel] = useState(false);
   const [editando, setEditando] = useState<{ item: PedidoItem; modo: ModoEdicion } | null>(null);
+  const [agregando, setAgregando] = useState(false);
 
   const { data: pedido, isLoading } = useQuery({
     queryKey: ['pedido', id],
@@ -212,10 +215,22 @@ export default function PedidoDetallePage() {
                         )}
                       </span>
                     )}
+                    {editable && item.productId && item.product && (
+                      <span className="mt-1.5 block">
+                        <ActivarProducto productId={item.productId} title={item.name} isActive={item.product.isActive} />
+                      </span>
+                    )}
                   </span>
                   <span className="text-right font-extrabold tabular-nums whitespace-nowrap">{money(item.subtotal)}</span>
                 </li>
               ))}
+              {editable && (
+                <li className="border-b border-dashed border-kr-line py-2">
+                  <button type="button" onClick={() => setAgregando(true)} className={accion}>
+                    + Agregar producto
+                  </button>
+                </li>
+              )}
               {envio && (
                 <li className="grid grid-cols-[44px_minmax(0,1fr)_auto] items-start gap-2.5 border-b border-dashed border-kr-line py-2 text-kr-muted">
                   <span />
@@ -387,6 +402,15 @@ export default function PedidoDetallePage() {
           item={editando.item}
           modo={editando.modo}
           onClose={() => setEditando(null)}
+          onSaved={() => { invalidate(); qc.invalidateQueries({ queryKey: ['products'] }); }}
+        />
+      )}
+
+      {agregando && (
+        <AgregarItemModal
+          pedidoId={pedido.id}
+          items={pedido.items}
+          onClose={() => setAgregando(false)}
           onSaved={() => { invalidate(); qc.invalidateQueries({ queryKey: ['products'] }); }}
         />
       )}

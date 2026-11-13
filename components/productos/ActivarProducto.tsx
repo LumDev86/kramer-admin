@@ -12,13 +12,15 @@ interface Props {
   isActive: boolean;
   // para columnas angostas (tabla de factura manual): "Activar"/"Activo" en vez del texto largo
   compacto?: boolean;
+  // para quien tiene una copia local del producto (ej. el modal de agregar a un pedido)
+  onChanged?: (activo: boolean) => void;
 }
 
-// Mismo interruptor "Stock" que la lista de Productos (Product.isActive), para que al cargar
-// una factura se pueda activar en el catálogo un producto que estaba inactivo sin tener que
-// ir a buscarlo a Productos. Se manda el valor explícito (no toggle-active) para que
+// Mismo interruptor "Stock" que la lista de Productos (Product.isActive), para activar o
+// desactivar un producto en el catálogo sin ir a buscarlo a Productos: desde una factura (llegó
+// mercadería de algo inactivo) o desde un pedido (faltante descubierto al prepararlo). Se manda el valor explícito (no toggle-active) para que
 // un doble click no lo deje como estaba.
-export default function StockEnTienda({ productId, title, isActive, compacto = false }: Props) {
+export default function ActivarProducto({ productId, title, isActive, compacto = false, onChanged }: Props) {
   const qc = useQueryClient();
   const toast = useToast();
   // valor optimista mientras se guarda; null = mostrar lo que vino del server
@@ -35,9 +37,11 @@ export default function StockEnTienda({ productId, title, isActive, compacto = f
     onSuccess: async (_p, nuevo) => {
       await Promise.all([
         qc.invalidateQueries({ queryKey: ['distribuidor'] }),
+        qc.invalidateQueries({ queryKey: ['pedido'] }),
         qc.invalidateQueries({ queryKey: ['products'] }),
       ]);
       setOptimista(null);
+      onChanged?.(nuevo);
       toast.show(nuevo ? `${title}: activado en el catálogo` : `${title}: desactivado del catálogo`);
     },
     onError: (err: Error) => {

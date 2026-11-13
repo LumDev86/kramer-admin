@@ -609,6 +609,8 @@ export interface PedidoItem {
   subtotal: string;
   // producto que pidió el cliente, si se cambió por otro desde el panel
   nombreOriginal: string | null;
+  // solo en el detalle (GET /pedidos/:id): para activar/desactivar el producto desde el pedido
+  product?: { isActive: boolean } | null;
 }
 
 export interface Repartidor {
@@ -684,6 +686,8 @@ export const pedidos = {
   cancelar: (id: string) => request<Pedido>(`/pedidos/${id}/cancelar`, { method: 'POST' }),
   modificarItem: (id: string, itemId: string, data: { productId?: string; quantity?: number; marcarSinStock?: boolean }) =>
     request<Pedido>(`/pedidos/${id}/items/${itemId}`, { method: 'PATCH', body: JSON.stringify(data) }),
+  agregarItem: (id: string, data: { productId: string; quantity: number }) =>
+    request<Pedido>(`/pedidos/${id}/items`, { method: 'POST', body: JSON.stringify(data) }),
   quitarItem: (id: string, itemId: string, marcarSinStock: boolean) =>
     request<Pedido>(`/pedidos/${id}/items/${itemId}`, { method: 'DELETE', body: JSON.stringify({ marcarSinStock }) }),
 };

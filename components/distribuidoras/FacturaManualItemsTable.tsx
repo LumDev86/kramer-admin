@@ -6,7 +6,7 @@ import Image from 'next/image';
 import { facturas, products, FacturaItem } from '@/lib/api';
 import { X } from '@phosphor-icons/react';
 import ToggleSwitch from '@/components/ui/ToggleSwitch';
-import StockEnTienda from './StockEnTienda';
+import ActivarProducto from '@/components/productos/ActivarProducto';
 import { buttonClasses } from '@/components/ui/Button';
 import { PEDIDOSYA_RECARGO } from '@/components/productos/precio';
 import { celdaInput, celdaLabel } from './estilos';
@@ -265,7 +265,7 @@ export default function FacturaManualItemsTable({
                     <p className="font-extrabold leading-snug text-kr-navy">{nombre}</p>
                     {product && (
                       <div className="mt-1">
-                        <StockEnTienda productId={product.id} title={product.title} isActive={product.isActive} compacto />
+                        <ActivarProducto productId={product.id} title={product.title} isActive={product.isActive} compacto />
                       </div>
                     )}
                     {item.unidadesPorBultoDetectada != null && bultoOpenId !== item.id && (
