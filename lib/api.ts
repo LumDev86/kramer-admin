@@ -397,6 +397,7 @@ export interface FacturaItem {
     price: string;
     cost: string | null;
     imageUrl: string;
+    isActive: boolean;
   } | null;
   nombreDetectado: string;
   codigoDetectado: string | null;
